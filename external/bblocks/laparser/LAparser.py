@@ -64,7 +64,7 @@ from pyparsing import Word, alphas, ParseException, Literal, CaselessLiteral \
 import math
 
 # Debugging flag can be set to either "debug_flag=True" or "debug_flag=False"
-debug_flag=False
+debug_flag=True
 
 #----------------------------------------------------------------------------
 # Variables that hold intermediate parsing results and a couple of

@@ -64,7 +64,7 @@ from pyparsing import Word, alphas, ParseException, Literal, CaselessLiteral \
 import math
 
 # Debugging flag can be set to either "debug_flag=True" or "debug_flag=False"
-debug_flag=False
+debug_flag=True
 
 #----------------------------------------------------------------------------
 # Variables that hold intermediate parsing results and a couple of
@@ -141,17 +141,17 @@ mplen = len(mprefix)
 ## We don't support unary negation for vectors and matrices
 class UnaryUnsupportedError(Exception): pass
 
-def _isvec(ident):
-   if ident[0] == '-' and ident[1:vplen+1] == vprefix:
-      raise UnaryUnsupportedError
-   else: return ident[0:vplen] == vprefix
-
-def _ismat(ident):
-   if ident[0] == '-' and ident[1:mplen+1] == mprefix:
-      raise UnaryUnsupportedError
-   else: return ident[0:mplen] == mprefix
-
-def _isscalar(ident): return not (_isvec(ident) or _ismat(ident))
+# def _isvec(ident):
+#    if ident[0] == '-' and ident[1:vplen+1] == vprefix:
+#       raise UnaryUnsupportedError
+#    else: return ident[0:vplen] == vprefix
+#
+# def _ismat(ident):
+#    if ident[0] == '-' and ident[1:mplen+1] == mprefix:
+#       raise UnaryUnsupportedError
+#    else: return ident[0:mplen] == mprefix
+#
+# def _isscalar(ident): return not (_isvec(ident) or _ismat(ident))
 
 ## Binary infix operator (BIO) functions.  These are called when the stack evaluator
 ## pops a binary operator like '+' or '*".  The stack evaluator pops the two operand, a and b,
@@ -166,54 +166,17 @@ def _isscalar(ident): return not (_isvec(ident) or _ismat(ident))
 ## recurses toward the final assignment statement.
 
 def _addfunc(a,b):
-   if _isscalar(a) and _isscalar(b): return "(%s+%s)"%(a,b)
-   if _isvec(a) and _isvec(b): return "%svAdd(%s,%s)"%(vprefix,a[vplen:],b[vplen:])
-   if _ismat(a) and _ismat(b): return "%smAdd(%s,%s)"%(mprefix,a[mplen:],b[mplen:])
-   else: raise TypeError
+   return "%smAdd(%s,%s)"%(mprefix,a[mplen:],b[mplen:])
 
 def _subfunc(a,b):
-   if _isscalar(a) and _isscalar(b): return "(%s-%s)"%(a,b)
-   if _isvec(a) and _isvec(b): return "%svSubtract(%s,%s)"%(vprefix,a[vplen:],b[vplen:])
-   if _ismat(a) and _ismat(b): return "%smSubtract(%s,%s)"%(mprefix,a[mplen:],b[mplen:])
-   else: raise TypeError
+   return "%smSubtract(%s,%s)"%(mprefix,a[mplen:],b[mplen:])
 
 def _mulfunc(a,b):
-   if _isscalar(a) and _isscalar(b): return "%s*%s"%(a,b)
-   if _isvec(a) and _isvec(b):    return "vDot(%s,%s)"%(a[vplen:],b[vplen:])
-   if _ismat(a) and _ismat(b):    return "%smMultiply(%s,%s)"%(mprefix,a[mplen:],b[mplen:])
-   if _ismat(a) and _isvec(b):    return "%smvMultiply(%s,%s)"%(vprefix,a[mplen:],b[vplen:])
-   if _ismat(a) and _isscalar(b): return "%smScale(%s,%s)"%(mprefix,a[mplen:],b)
-   if _isvec(a) and _isscalar(b): return "%svScale(%s,%s)"%(vprefix,a[mplen:],b)
-   else: raise TypeError
-
-def _outermulfunc(a,b):
-   ## The '@' operator is used for the vector outer product.
-   if _isvec(a) and _isvec(b):
-     return "%svOuterProduct(%s,%s)"%(mprefix,a[vplen:],b[vplen:])
-   else: raise TypeError
-
-def _divfunc(a,b):
-   ## The '/' operator is used only for scalar division
-   if _isscalar(a) and _isscalar(b): return "%s/%s"%(a,b)
-   else: raise TypeError
-
-def _expfunc(a,b):
-  ## The '^' operator is used for exponentiation on scalars and
-  ## as a marker for unary operations on vectors and matrices.
-  if _isscalar(a) and _isscalar(b): return "pow(%s,%s)"%(str(a),str(b))
-  if _ismat(a) and b=='-1':         return "%smInverse(%s)"%(mprefix,a[mplen:])
-  if _ismat(a) and b=='T':          return "%smTranspose(%s)"%(mprefix,a[mplen:])
-  if _ismat(a) and b=='Det':        return "mDeterminant(%s)"%(a[mplen:])
-  if _isvec(a) and b=='Mag':        return "sqrt(vMagnitude2(%s))"%(a[vplen:])
-  if _isvec(a) and b=='Mag2':       return "vMagnitude2(%s)"%(a[vplen:])
-  else: raise TypeError
+   return "%smMultiply(%s,%s)"%(mprefix,a[mplen:],b[mplen:])
 
 def _assignfunc(a,b):
    ## The '=' operator is used for assignment
-   if _isscalar(a) and _isscalar(b): return "%s=%s"%(a,b)
-   if _isvec(a) and _isvec(b): return "vCopy(%s,%s)"%(a[vplen:],b[vplen:])
-   if _ismat(a) and _ismat(b): return "mCopy(%s,%s)"%(a[mplen:],b[mplen:])
-   else: raise TypeError
+   return "mCopy(%s,%s)"%(a[mplen:],b[mplen:])
 
 ## End of BIO func definitions
 ##----------------------------------------------------------------------------
@@ -221,10 +184,7 @@ def _assignfunc(a,b):
 # Map  operator symbols to corresponding BIO funcs
 opn = { "+" : ( _addfunc ),
         "-" : ( _subfunc ),
-        "*" : ( _mulfunc ),
-        "@" : ( _outermulfunc ),
-        "/" : ( _divfunc),
-        "^" : ( _expfunc ), }
+        "*" : ( _mulfunc ), }
 
 
 ##----------------------------------------------------------------------------
@@ -333,31 +293,11 @@ def test():
    """
    print("Testing LAParser")
    testcases = [
-     ("Scalar addition","a = b+c","a=(b+c)"),
-     ("Vector addition","V3_a = V3_b + V3_c","vCopy(a,vAdd(b,c))"),
-     ("Vector addition","V3_a=V3_b+V3_c","vCopy(a,vAdd(b,c))"),
      ("Matrix addition","M3_a = M3_b + M3_c","mCopy(a,mAdd(b,c))"),
      ("Matrix addition","M3_a=M3_b+M3_c","mCopy(a,mAdd(b,c))"),
-     ("Scalar subtraction","a = b-c","a=(b-c)"),
-     ("Vector subtraction","V3_a = V3_b - V3_c","vCopy(a,vSubtract(b,c))"),
      ("Matrix subtraction","M3_a = M3_b - M3_c","mCopy(a,mSubtract(b,c))"),
-     ("Scalar multiplication","a = b*c","a=b*c"),
-     ("Scalar division","a = b/c","a=b/c"),
-     ("Vector multiplication (dot product)","a = V3_b * V3_c","a=vDot(b,c)"),
-     ("Vector multiplication (outer product)","M3_a = V3_b @ V3_c","mCopy(a,vOuterProduct(b,c))"),
      ("Matrix multiplication","M3_a = M3_b * M3_c","mCopy(a,mMultiply(b,c))"),
-     ("Vector scaling","V3_a = V3_b * c","vCopy(a,vScale(b,c))"),
-     ("Matrix scaling","M3_a = M3_b * c","mCopy(a,mScale(b,c))"),
-     ("Matrix by vector multiplication","V3_a = M3_b * V3_c","vCopy(a,mvMultiply(b,c))"),
-     ("Scalar exponentiation","a = b^c","a=pow(b,c)"),
-     ("Matrix inversion","M3_a = M3_b^-1","mCopy(a,mInverse(b))"),
-     ("Matrix transpose","M3_a = M3_b^T","mCopy(a,mTranspose(b))"),
-     ("Matrix determinant","a = M3_b^Det","a=mDeterminant(b)"),
-     ("Vector magnitude squared","a = V3_b^Mag2","a=vMagnitude2(b)"),
-     ("Vector magnitude","a = V3_b^Mag","a=sqrt(vMagnitude2(b))"),
-     ("Complicated expression", "myscalar = (M3_amatrix * V3_bvector)^Mag + 5*(-xyz[i] + 2.03^2)","myscalar=(sqrt(vMagnitude2(mvMultiply(amatrix,bvector)))+5*(-xyz[i]+pow(2.03,2)))"),
-     ("Complicated Multiline", "myscalar = \n(M3_amatrix * V3_bvector)^Mag +\n 5*(xyz + 2.03^2)","myscalar=(sqrt(vMagnitude2(mvMultiply(amatrix,bvector)))+5*(xyz+pow(2.03,2)))")
-
+     ("Complicated expression", "M3_res = M3_a * M3_b + M3_c", "mCopy(res,mAdd(mMultiply(a,b),c))"),
      ]
 
    for t in testcases:
