@@ -133,10 +133,8 @@ equation = (ident + assignop).setParseAction(_assignVar) + expr + StringEnd()
 ## The following are helper variables and functions used by the Binary Infix Operator
 ## Functions described below.
 
-vprefix = 'V3_'
-vplen = len(vprefix)
-mprefix = 'M3_'
-mplen = len(mprefix)
+# mprefix = 'M3_'
+# mplen = len(mprefix)
 
 ## We don't support unary negation for vectors and matrices
 class UnaryUnsupportedError(Exception): pass
@@ -166,17 +164,17 @@ class UnaryUnsupportedError(Exception): pass
 ## recurses toward the final assignment statement.
 
 def _addfunc(a,b):
-   return "%smAdd(%s,%s)"%(mprefix,a[mplen:],b[mplen:])
+   return "mAdd(%s,%s)"%(a,b)
 
 def _subfunc(a,b):
-   return "%smSubtract(%s,%s)"%(mprefix,a[mplen:],b[mplen:])
+   return "mSubtract(%s,%s)"%(a,b)
 
 def _mulfunc(a,b):
-   return "%smMultiply(%s,%s)"%(mprefix,a[mplen:],b[mplen:])
+   return "mMultiply(%s,%s)"%(a,b)
 
 def _assignfunc(a,b):
    ## The '=' operator is used for assignment
-   return "mCopy(%s,%s)"%(a[mplen:],b[mplen:])
+   return "mCopy(%s,%s)"%(a,b)
 
 ## End of BIO func definitions
 ##----------------------------------------------------------------------------
@@ -293,11 +291,11 @@ def test():
    """
    print("Testing LAParser")
    testcases = [
-     ("Matrix addition","M3_a = M3_b + M3_c","mCopy(a,mAdd(b,c))"),
-     ("Matrix addition","M3_a=M3_b+M3_c","mCopy(a,mAdd(b,c))"),
-     ("Matrix subtraction","M3_a = M3_b - M3_c","mCopy(a,mSubtract(b,c))"),
-     ("Matrix multiplication","M3_a = M3_b * M3_c","mCopy(a,mMultiply(b,c))"),
-     ("Complicated expression", "M3_res = M3_a * M3_b + M3_c", "mCopy(res,mAdd(mMultiply(a,b),c))"),
+     ("Matrix addition","a = b + c","mCopy(a,mAdd(b,c))"),
+     ("Matrix addition","a=b+c","mCopy(a,mAdd(b,c))"),
+     ("Matrix subtraction","a = b - c","mCopy(a,mSubtract(b,c))"),
+     ("Matrix multiplication","a = b * c","mCopy(a,mMultiply(b,c))"),
+     ("Complicated expression", "res = a * b + c", "mCopy(res,mAdd(mMultiply(a,b),c))"),
      ]
 
    for t in testcases:
