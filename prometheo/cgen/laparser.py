@@ -184,11 +184,11 @@ opn = { "+" : ( _addfunc ),
         "-" : ( _subfunc ),
         "*" : ( _mulfunc ), }
 
-
 ##----------------------------------------------------------------------------
 # Recursive function that evaluates the expression stack
 def _evaluateStack( s ):
   op = s.pop()
+  print (op)
   if op in "+-*/@^":
     op2 = _evaluateStack( s )
     op1 = _evaluateStack( s )
@@ -207,7 +207,7 @@ def parse(input_string):
     calls that implement the expression.
     """
 
-    global  exprStack
+    global exprStack
     global targetvar
 
     # Start with a blank exprStack and a blank targetvar
