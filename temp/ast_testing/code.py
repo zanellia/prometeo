@@ -6,7 +6,7 @@ class p_class(p_parentclass1, p_parentclass2):
         a: type1 = arg1.field1
         b: type2 = arg2.field2
         copyarg2: type3 = arg2
-        c: type4 = a + b
+        c: type4 = a*b + b*a*a 
 
         return c
 
