@@ -180,6 +180,53 @@ class SourceGenerator(ExplicitNodeVisitor):
 
         self.write = write
 
+        def write_class_attributes(*params):
+            """ self.write is a closure for performance (to reduce the number
+                of attribute lookups).
+            """
+            for item in params:
+                if not isinstance(item, ast.FunctionDef):
+                    if isinstance(item, AST):
+                        visit(item)
+                    elif callable(item):
+                        item()
+                    elif item == '\n':
+                        newline()
+                    else:
+                        if self.new_lines:
+                            append('\n' * self.new_lines)
+                            self.colinfo = len(result), 0
+                            append(self.indent_with * self.indentation)
+                            self.new_lines = 0
+                        if item:
+                            append(item)
+                else:
+                    self.statement(item, 'void (*', '%s' % (item.name), ')', '(')
+                    self.visit_arguments(item.args)
+                    self.write(');')
+
+        self.write_class_attributes = write_class_attributes
+
+        def write_class_methods(*params):
+            """ self.write is a closure for performance (to reduce the number
+                of attribute lookups).
+            """
+            for item in params:
+                if isinstance(item, ast.FunctionDef):
+                    self.decorators(item, 1 if self.indentation else 2)
+                    # self.write()
+                    self.statement(item, self.get_returns(item), ' %s_vf' % (item.name), '(')
+                    self.visit_arguments(item.args)
+                    self.write(') {')
+                    # self.write(':')
+                    self.body(item.body)
+                    self.newline(1)
+                    self.write('}')
+                    if not self.indentation:
+                        self.newline(extra=2)
+
+        self.write_class_methods = write_class_methods
+
     def __getattr__(self, name, defaults=dict(keywords=(),
                     _pp=Precedence.highest).get):
         """ Get an attribute of the node.
@@ -217,6 +264,15 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.write(*statements)
         self.indentation -= 1
 
+    def body_class(self, statements, name):
+        self.indentation += 1
+        # make a copy of the node
+        node_copy = self
+        self.write_class_attributes(*statements)
+        self.write('\n} %s;' % name)
+        self.indentation -= 1
+        self.write_class_methods(*statements)
+
     def else_body(self, elsewhat):
         if elsewhat:
             self.write('\n', 'else:')
@@ -239,8 +295,6 @@ class SourceGenerator(ExplicitNodeVisitor):
             set_precedence(Precedence.Comma, defaults)
             padding = [None] * (len(args) - len(defaults))
             for arg, default in zip(args, padding + defaults):
-                print(arg.__dict__)
-                print(arg.annotation.id)
                 self.write(write_comma, arg.annotation.id,' ',arg.arg)
                 self.conditional_write('=', default)
 
@@ -277,6 +331,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         for target in node.targets:
             self.write(target, ' = ')
         self.visit(node.value)
+        self.write(';')
 
     def visit_AugAssign(self, node):
         set_precedence(node, node.value, node.target)
@@ -289,8 +344,8 @@ class SourceGenerator(ExplicitNodeVisitor):
         need_parens = isinstance(node.target, ast.Name) and not node.simple
         begin = '(' if need_parens else ''
         end = ')' if need_parens else ''
-        self.statement(node, begin, node.target, end, ': ', node.annotation)
-        self.conditional_write(' = ', node.value)
+        self.statement(node, node.annotation, ' ', node.target)
+        self.conditional_write(' = ', node.value, ';')
 
     def visit_ImportFrom(self, node):
         self.statement(node, 'from ', node.level * '.',
@@ -339,7 +394,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 self.write('(')
 
         self.decorators(node, 2)
-        self.statement(node, 'class %s' % node.name)
+        self.statement(node, 'typedef struct')
         for base in node.bases:
             self.write(paren_or_comma, base)
         # keywords not available in early version
@@ -348,8 +403,9 @@ class SourceGenerator(ExplicitNodeVisitor):
                        '=' if keyword.arg else '**', keyword.value)
         self.conditional_write(paren_or_comma, '*', self.get_starargs(node))
         self.conditional_write(paren_or_comma, '**', self.get_kwargs(node))
-        self.write(have_args and '):' or ':')
-        self.body(node.body)
+        self.write(have_args and ')' or '')
+        self.write('{')
+        self.body_class(node.body, node.name)
         if not self.indentation:
             self.newline(extra=2)
 
@@ -371,8 +427,9 @@ class SourceGenerator(ExplicitNodeVisitor):
     def visit_For(self, node, async=False):
         set_precedence(node, node.target)
         prefix = 'async ' if async else ''
-        self.statement(node, '%sfor ' % prefix,
-                       node.target, ' in ', node.iter, ':')
+        self.statement(node, 'for (int ',
+                       node.target, ' = 0; ', node.target, ' < ',
+                       node.iter.args[0].id, '; ',node.target, '++);')
         self.body_or_else(node)
 
     # introduced in Python 3.5
@@ -472,7 +529,7 @@ class SourceGenerator(ExplicitNodeVisitor):
     def visit_Return(self, node):
         set_precedence(node, node.value)
         self.statement(node, 'return')
-        self.conditional_write(' ', node.value)
+        self.conditional_write(' ', node.value, ';')
 
     def visit_Break(self, node):
         self.statement(node, 'break')

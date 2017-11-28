@@ -2,6 +2,7 @@ import ast
 import astpretty
 import typing
 import code_gen
+import code_gen_c
 
 class v(ast.NodeVisitor):
     def generic_visit(self, node):
@@ -27,10 +28,13 @@ def iter_all_ast(node):
 
 filename = 'code.py'
 tree = ast.parse(''.join(open(filename)))
-astpretty.pprint(tree)
+# astpretty.pprint(tree)
 
-rt_source_code = code_gen.to_source(tree)
-print(rt_source_code)
+# rt_source_code = code_gen.to_source(tree)
+# print(rt_source_code)
+
+c_code = code_gen_c.to_source(tree)
+print("\n", c_code)
 # FuncLister().visit(tree)
 # iter_all_ast(tree)
 

@@ -1,12 +1,11 @@
-class p_class(p_parentclass1, p_parentclass2):
-
+class p_class:
     p_atrr: int = 1
 
     def p_method(arg1: float, arg2: float) -> int:
         a: type1 = arg1.field1
         b: type2 = arg2.field2
         copyarg2: type3 = arg2
-        c: type4 = a*b + b*a*a 
+        c: type4 = a*b + b*a*a
 
         return c
 
