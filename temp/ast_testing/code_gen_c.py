@@ -180,53 +180,6 @@ class SourceGenerator(ExplicitNodeVisitor):
 
         self.write = write
 
-        def write_class_attributes(*params):
-            """ self.write is a closure for performance (to reduce the number
-                of attribute lookups).
-            """
-            for item in params:
-                if not isinstance(item, ast.FunctionDef):
-                    if isinstance(item, AST):
-                        visit(item)
-                    elif callable(item):
-                        item()
-                    elif item == '\n':
-                        newline()
-                    else:
-                        if self.new_lines:
-                            append('\n' * self.new_lines)
-                            self.colinfo = len(result), 0
-                            append(self.indent_with * self.indentation)
-                            self.new_lines = 0
-                        if item:
-                            append(item)
-                else:
-                    self.statement(item, 'void (*', '%s' % (item.name), ')', '(')
-                    self.visit_arguments(item.args)
-                    self.write(');')
-
-        self.write_class_attributes = write_class_attributes
-
-        def write_class_methods(*params):
-            """ self.write is a closure for performance (to reduce the number
-                of attribute lookups).
-            """
-            for item in params:
-                if isinstance(item, ast.FunctionDef):
-                    self.decorators(item, 1 if self.indentation else 2)
-                    # self.write()
-                    self.statement(item, self.get_returns(item), ' %s_vf' % (item.name), '(')
-                    self.visit_arguments(item.args)
-                    self.write(') {')
-                    # self.write(':')
-                    self.body(item.body)
-                    self.newline(1)
-                    self.write('}')
-                    if not self.indentation:
-                        self.newline(extra=2)
-
-        self.write_class_methods = write_class_methods
-
     def __getattr__(self, name, defaults=dict(keywords=(),
                     _pp=Precedence.highest).get):
         """ Get an attribute of the node.
@@ -266,12 +219,70 @@ class SourceGenerator(ExplicitNodeVisitor):
 
     def body_class(self, statements, name):
         self.indentation += 1
-        # make a copy of the node
-        node_copy = self
         self.write_class_attributes(*statements)
         self.write('\n} %s;' % name)
         self.indentation -= 1
-        self.write_class_methods(*statements)
+        self.write('\n\n')
+        self.write_class_init(*statements, name=name)
+        self.write_class_methods(*statements, name=name)
+
+    def write_class_attributes(self, *params):
+        """ self.write is a closure for performance (to reduce the number
+            of attribute lookups).
+        """
+        for item in params:
+            if isinstance(item, ast.AnnAssign):
+                set_precedence(item, item.target, item.annotation)
+                set_precedence(Precedence.Comma, item.value)
+                need_parens = isinstance(item.target, ast.Name) and not item.simple
+                begin = '(' if need_parens else ''
+                end = ')' if need_parens else ''
+                self.statement(item, item.annotation, ' ', item.target, ';')
+                # self.conditional_write(' = ', item.value, ';')
+            elif isinstance(item, ast.FunctionDef):
+                self.statement(item, 'void (*', '%s' % (item.name), ')', '(')
+                self.visit_arguments(item.args)
+                self.write(');')
+
+    def write_class_init(self, *params, name):
+        """ self.write is a closure for performance (to reduce the number
+            of attribute lookups).
+        """
+        self.write('void ', name, '_init(', name, ' *object){')
+        self.indentation += 1
+        for item in params:
+            if isinstance(item, ast.AnnAssign):
+                # set_precedence(item, item.target, item.annotation)
+                set_precedence(Precedence.Comma, item.value)
+                need_parens = isinstance(item.target, ast.Name) and not item.simple
+                begin = '(' if need_parens else ''
+                end = ')' if need_parens else ''
+                # self.statement(item, item.target, ';')
+                self.conditional_write('\n', 'object->', item.target, ' = ', item.value, ';')
+            elif isinstance(item, ast.FunctionDef):
+                self.statement(item, 'object->', item.name, ' = &', item.name, '_impl;')
+                # self.visit_arguments(item.args)
+                # self.write(');')
+        self.write('\n}')
+        self.indentation -=1
+
+    def write_class_methods(self, *params, name):
+        """ self.write is a closure for performance (to reduce the number
+            of attribute lookups).
+        """
+        for item in params:
+            if isinstance(item, ast.FunctionDef):
+                self.decorators(item, 1 if self.indentation else 2)
+                # self.write()
+                self.statement(item, self.get_returns(item), ' %s_impl' % (item.name), '(', name, ' *self, ')
+                self.visit_arguments(item.args)
+                self.write(') {')
+                # self.write(':')
+                self.body(item.body)
+                self.newline(1)
+                self.write('}')
+                if not self.indentation:
+                    self.newline(extra=2)
 
     def else_body(self, elsewhat):
         if elsewhat:

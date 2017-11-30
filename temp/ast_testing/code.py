@@ -1,12 +1,17 @@
 class p_class:
-    p_atrr: int = 1
+    attr_1: int = 1
+    attr_2: double = 3.0
 
-    def p_method(arg1: float, arg2: float) -> int:
-        a: type1 = arg1.field1
-        b: type2 = arg2.field2
-        copyarg2: type3 = arg2
-        c: type4 = a*b + b*a*a
+    def method_1(arg1: double, arg2: double) -> double:
+        a: double = arg1.field1
+        b: double = arg2.field2
+        copyarg2: double = arg2
+        c: double = a*b + b*a*a
 
+        return c
+
+    def method_2(arg1: double) -> double:
+        c: double = arg1*arg1
         return c
 
     def loop_method(arg1: int) -> int:

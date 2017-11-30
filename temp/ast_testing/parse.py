@@ -30,15 +30,8 @@ filename = 'code.py'
 tree = ast.parse(''.join(open(filename)))
 # astpretty.pprint(tree)
 
-# rt_source_code = code_gen.to_source(tree)
-# print(rt_source_code)
-
 c_code = code_gen_c.to_source(tree)
-print("\n", c_code)
-# FuncLister().visit(tree)
-# iter_all_ast(tree)
+# print("\n", c_code)
 
-# v().visit(tree)
-
-# for node in ast.walk(tree):
-#     print(node)
+dest_file = open('code.c', 'w')
+dest_file.write(c_code)
