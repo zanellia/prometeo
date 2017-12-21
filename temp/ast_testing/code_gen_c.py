@@ -136,14 +136,13 @@ class SourceGenerator(ExplicitNodeVisitor):
     function.
 
     """
-
     using_unicode_literals = False
-
+    
     def __init__(self, indent_with, add_line_information=False,
                  pretty_string=pretty_string,
                  # constants
                  len=len, isinstance=isinstance, callable=callable):
-        self.result_source = []
+        self.result_source = [] 
         self.indent_with = indent_with
         self.add_line_information = add_line_information
         self.indentation = 0 # Current indentation level
@@ -187,6 +186,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         """ Get an attribute of the node.
             like dict.get (returns None if doesn't exist)
         """
+        print(name)
         if not name.startswith('get_'):
             raise AttributeError
         geta = getattr
