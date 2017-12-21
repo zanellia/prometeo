@@ -26,7 +26,7 @@ def iter_all_ast(node):
                 print(child)
 
 
-filename = 'code.py'
+filename = 'code.hipex'
 tree = ast.parse(''.join(open(filename)))
 # astpretty.pprint(tree)
 

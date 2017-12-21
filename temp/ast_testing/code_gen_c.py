@@ -24,7 +24,7 @@ from op_util import get_op_symbol, get_op_precedence, Precedence
 from node_util import ExplicitNodeVisitor
 from string_repr import pretty_string
 from source_repr import pretty_source
-
+from collections import namedtuple
 
 def to_source(node, indent_with=' ' * 4, add_line_information=False,
               pretty_string=pretty_string, pretty_source=pretty_source):
@@ -49,10 +49,10 @@ def to_source(node, indent_with=' ' * 4, add_line_information=False,
     generator = SourceGenerator(indent_with, add_line_information,
                                 pretty_string)
     generator.visit(node)
-    generator.result_source.append('\n')
-    if set(generator.result_source[0]) == set('\n'):
-        generator.result_source[0] = ''
-    return pretty_source(generator.result_source)
+    generator.result.source.append('\n')
+    if set(generator.result.source[0]) == set('\n'):
+        generator.result.source[0] = ''
+    return pretty_source(generator.result.source)
 
 
 def precedence_setter(AST=ast.AST, get_op_precedence=get_op_precedence,
@@ -92,9 +92,9 @@ class Delimit(object):
     discard = False
 
     def __init__(self, tree, *args):
-        """ use write instead of using result_source directly
+        """ use write instead of using result.source directly
             for initial data, because it may flush
-            preceding data into result_source.
+            preceding data into result.source.
         """
         delimiters = '()'
         node = None
@@ -108,8 +108,10 @@ class Delimit(object):
             else:
                 delimiters = arg
         tree.write(delimiters[0])
-        result_source = self.result_source = tree.result_source
-        self.index = len(result_source)
+        #import pdb; pdb.Pdb(skip=['code.py']).set_trace()
+        result = self.result = tree.result
+        result.source = self.result.source = tree.result.source
+        self.index = len(result.source)
         self.closing = delimiters[1]
         if node is not None:
             self.p = p = get_op_precedence(op or node)
@@ -120,12 +122,13 @@ class Delimit(object):
         return self
 
     def __exit__(self, *exc_info):
-        result_source = self.result_source
+        result = self.result
+        result.source = self.result.source
         start = self.index - 1
         if self.discard:
-            result_source[start] = ''
+            result.source[start] = ''
         else:
-            result_source.append(self.closing)
+            result.source.append(self.closing)
 
 
 class SourceGenerator(ExplicitNodeVisitor):
@@ -142,22 +145,24 @@ class SourceGenerator(ExplicitNodeVisitor):
                  pretty_string=pretty_string,
                  # constants
                  len=len, isinstance=isinstance, callable=callable):
-        self.result_source = [] 
+        self.result = namedtuple('result', 'source header')
+        self.result.source = [] 
         self.indent_with = indent_with
         self.add_line_information = add_line_information
         self.indentation = 0 # Current indentation level
         self.new_lines = 0   # Number of lines to insert before next code
-        self.colinfo = 0, 0  # index in result_source of string containing linefeed, and
+        self.colinfo = 0, 0  # index in result.source of string containing linefeed, and
                              # position of last linefeed in that string
         self.pretty_string = pretty_string
         AST = ast.AST
 
         visit = self.visit
         newline = self.newline
-        result_source = self.result_source
-        #result_source_header = self.result_source_header
-        append = result_source.append
-        #append_header = result_source_header.append
+        result = self.result
+        result.source = self.result.source
+        #result.source_header = self.result.source_header
+        append = result.source.append
+        #append_header = result.source_header.append
         
         def write(*params):
             """ self.write is a closure for performance (to reduce the number
@@ -173,7 +178,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 else:
                     if self.new_lines:
                         append('\n' * self.new_lines)
-                        self.colinfo = len(result_source), 0
+                        self.colinfo = len(result.source), 0
                         append(self.indent_with * self.indentation)
                         self.new_lines = 0
                     if item:
@@ -616,16 +621,16 @@ class SourceGenerator(ExplicitNodeVisitor):
                     (precedence >= Precedence.Assign))
 
         # Flush any pending newlines, because we're about
-        # to severely abuse the result_source list.
+        # to severely abuse the result.source list.
         self.write('')
-        result_source = self.result_source
+        result.source = self.result.source
 
         # Calculate the string representing the line
         # we are working on, up to but not including
         # the string we are adding.
 
         res_index, str_index = self.colinfo
-        current_line = self.result_source[res_index:]
+        current_line = self.result.source[res_index:]
         if str_index:
             current_line[0] = current_line[0][str_index:]
         current_line = ''.join(current_line)
@@ -652,10 +657,10 @@ class SourceGenerator(ExplicitNodeVisitor):
                         kind = type(value).__name__
                         assert False, 'Invalid node %s inside JoinedStr' % kind
 
-            index = len(result_source)
+            index = len(result.source)
             recurse(node)
-            mystr = ''.join(result_source[index:])
-            del result_source[index:]
+            mystr = ''.join(result.source[index:])
+            del result.source[index:]
             self.colinfo = res_index, str_index  # Put it back like we found it
             uni_lit = False  # No formatted byte strings
 
@@ -672,7 +677,7 @@ class SourceGenerator(ExplicitNodeVisitor):
 
         lf = mystr.rfind('\n') + 1
         if lf:
-            self.colinfo = len(result_source) - 1, lf
+            self.colinfo = len(result.source) - 1, lf
 
     def visit_Bytes(self, node):
         self.write(repr(node.s))
