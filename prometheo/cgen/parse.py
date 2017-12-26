@@ -29,7 +29,7 @@ def iter_all_ast(node):
 
 filename = 'code.hipex'
 tree = ast.parse(''.join(open(filename)))
-# astpretty.pprint(tree)
+astpretty.pprint(tree)
 
 result  = code_gen_c.to_source(tree)
 

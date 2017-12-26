@@ -260,11 +260,16 @@ class SourceGenerator(ExplicitNodeVisitor):
                 need_parens = isinstance(item.target, ast.Name) and not item.simple
                 begin = '(' if need_parens else ''
                 end = ')' if need_parens else ''
-                #pdb.set_trace() 
                 self.write('%s' %item.annotation.id, ' ', '%s' %item.target.id, ';\n', dest = 'hdr')
                 # self.conditional_write(' = ', item.value, ';')
             elif isinstance(item, ast.FunctionDef):
-                self.write('void (*', '%s' % (item.name), ')', '(', dest = 'hdr')
+                
+                # build argument mangling
+                f_name_len = len(item.name)
+                pre_mangl = '_Z%s' %f_name_len 
+                post_mangl = self.build_arg_mangling(item.args)
+                
+                self.write('void (*', '%s%s%s' % (pre_mangl, item.name, post_mangl) , ')', '(', dest = 'hdr')
                 self.visit_arguments(item.args, 'hdr')
                 self.write(');\n', dest = 'hdr')
 
@@ -284,8 +289,17 @@ class SourceGenerator(ExplicitNodeVisitor):
                 # self.statement(item, item.target, ';')
                 self.conditional_write('\n', 'object->', item.target, ' = ', item.value, ';')
             elif isinstance(item, ast.FunctionDef):
-                self.statement(item, 'object->', item.name, ' = &', item.name, '_impl;')
-                # self.visit_arguments(item.args)
+                
+                # build argument mangling
+                f_name_len = len(item.name)
+                pre_mangl = '_Z%s' %f_name_len 
+                post_mangl = self.build_arg_mangling(item.args)
+                
+                self.statement(item, 'object->%s%s%s' %(pre_mangl, item.name, post_mangl), ' = &', '%s%s%s' %(pre_mangl, item.name, post_mangl), '_impl;')
+                
+                # build argument mangling
+                arg_mangl = self.build_arg_mangling(item.args)
+                #self.visit_arguments(item.args, 'src')
                 # self.write(');')
         self.write('\n}', dest = 'src')
         self.indentation -=1
@@ -298,7 +312,13 @@ class SourceGenerator(ExplicitNodeVisitor):
             if isinstance(item, ast.FunctionDef):
                 self.decorators(item, 1 if self.indentation else 2)
                 # self.write()
-                self.statement(item, self.get_returns(item), ' %s_impl' % (item.name), '(', name, ' *self, ')
+
+                # build argument mangling
+                f_name_len = len(item.name)
+                pre_mangl = '_Z%s' %f_name_len 
+                post_mangl = self.build_arg_mangling(item.args)
+                
+                self.statement(item, self.get_returns(item), ' %s%s%s_impl' % (pre_mangl, item.name, post_mangl), '(', name, ' *self, ')
                 self.visit_arguments(item.args, 'src')
                 self.write(') {', dest = 'src')
                 # self.write(':')
@@ -343,6 +363,20 @@ class SourceGenerator(ExplicitNodeVisitor):
             loop_args(kwonlyargs, node.kw_defaults)
         self.conditional_write(write_comma, '**', node.kwarg)
 
+    def build_arg_mangling(self, node):
+        want_comma = []
+
+        def loop_args_mangl(args, defaults):
+            set_precedence(Precedence.Comma, defaults)
+            padding = [None] * (len(args) - len(defaults))
+            arg_mangl = ''
+            for arg, default in zip(args, padding + defaults):
+                arg_mangl = arg_mangl + arg.annotation.id
+            return arg_mangl
+
+        arg_mangl = loop_args_mangl(node.args, node.defaults)
+        return arg_mangl
+    
     def statement(self, node, *params, **kw):
         self.newline(node)
         self.write(*params, dest = 'src')
@@ -607,9 +641,9 @@ class SourceGenerator(ExplicitNodeVisitor):
         p = Precedence.Comma if numargs > 1 else Precedence.call_one_arg
         set_precedence(p, *args)
         self.visit(node.func)
-        write('(')
+        write('(', dest = 'src')
         for arg in args:
-            write(write_comma, arg)
+            write(write_comma, arg, dest = 'src')
 
         set_precedence(Precedence.Comma, *(x.value for x in keywords))
         for keyword in keywords:
@@ -620,7 +654,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         # 3.5 no longer has these
         self.conditional_write(write_comma, '*', starargs)
         self.conditional_write(write_comma, '**', kwargs)
-        write(')')
+        write(')', dest = 'src')
 
     def visit_Name(self, node):
         self.write(node.id, dest = 'src')
