@@ -1,1 +1,1 @@
-This is prometheo, a prototyping and modeling tool for high-performance embedded optimization. 
+This is prometeo, a modeling tool for embedded high-performance computing. 
