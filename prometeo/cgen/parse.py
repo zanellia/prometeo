@@ -27,11 +27,12 @@ def iter_all_ast(node):
                 print(child)
 
 
-filename = 'code.hipex'
+filename = 'code.prmt'
+module_name = 'code'
 tree = ast.parse(''.join(open(filename)))
 astpretty.pprint(tree)
 
-result  = code_gen_c.to_source(tree)
+result  = code_gen_c.to_source(tree, module_name)
 
 print("source = \n", pretty_source(result.source))
 print("header = \n", pretty_source(result.header))

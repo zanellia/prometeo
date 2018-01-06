@@ -25,9 +25,8 @@ from node_util import ExplicitNodeVisitor
 from string_repr import pretty_string
 from source_repr import pretty_source
 from collections import namedtuple
-import pdb 
 
-def to_source(node, indent_with=' ' * 4, add_line_information=False,
+def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False,
               pretty_string=pretty_string, pretty_source=pretty_source):
     """This function can convert a node tree back into python sourcecode.
     This is useful for debugging purposes, especially if you're dealing with
@@ -49,6 +48,8 @@ def to_source(node, indent_with=' ' * 4, add_line_information=False,
     """
     generator = SourceGenerator(indent_with, add_line_information,
                                 pretty_string)
+    
+    generator.result.source.append('#include "%s.h"' %(module_name))
     generator.visit(node)
     
     generator.result.source.append('\n')
@@ -242,14 +243,18 @@ class SourceGenerator(ExplicitNodeVisitor):
 
     def body_class(self, statements, name):
         self.indentation += 1
-        self.write_class_attributes(*statements)
-        self.write('\n} %s;' % name, dest = 'hdr')
+        self.write_class_attributes(*statements, name=name)
+        self.write('};', dest = 'hdr')
+        self.write('\n\n', dest = 'hdr')
         self.indentation -= 1
-        self.write('\n\n', dest = 'src')
+        self.write_class_method_prototypes(*statements, name=name)
+        
+        self.write('\n', dest = 'src')
         self.write_class_init(*statements, name=name)
         self.write_class_methods(*statements, name=name)
 
-    def write_class_attributes(self, *params):
+
+    def write_class_attributes(self, *params, name):
         """ self.write is a closure for performance (to reduce the number
             of attribute lookups).
         """
@@ -269,10 +274,26 @@ class SourceGenerator(ExplicitNodeVisitor):
                 pre_mangl = '_Z%s' %f_name_len 
                 post_mangl = self.build_arg_mangling(item.args)
                 
-                self.write('void (*', '%s%s%s' % (pre_mangl, item.name, post_mangl) , ')', '(', dest = 'hdr')
+                #self.statement(item, self.get_returns(item), ' %s%s%s%s' % (pre_mangl, item.name, post_mangl, name), '_impl(', name, ' *self, ')
+                self.write('%s (*%s%s%s' % (self.get_returns(item).id, pre_mangl, item.name, post_mangl) , ')', '(%s *self, ' %name, dest = 'hdr')
                 self.visit_arguments(item.args, 'hdr')
                 self.write(');\n', dest = 'hdr')
 
+    def write_class_method_prototypes(self, *params, name):
+        """ self.write is a closure for performance (to reduce the number
+            of attribute lookups).
+        """
+        for item in params:
+            if isinstance(item, ast.FunctionDef):
+                
+                # build argument mangling
+                f_name_len = len(item.name)
+                pre_mangl = '_Z%s' %f_name_len 
+                post_mangl = self.build_arg_mangling(item.args)
+                self.write('%s (%s%s%s%s' % (self.get_returns(item).id, pre_mangl, item.name, post_mangl, name) , '_impl)', '(%s *self, ' %name, dest = 'hdr')
+                self.visit_arguments(item.args, 'hdr')
+                self.write(');\n', dest = 'hdr')
+    
     def write_class_init(self, *params, name):
         """ self.write is a closure for performance (to reduce the number
             of attribute lookups).
@@ -287,7 +308,13 @@ class SourceGenerator(ExplicitNodeVisitor):
                 begin = '(' if need_parens else ''
                 end = ')' if need_parens else ''
                 # self.statement(item, item.target, ';')
-                self.conditional_write('\n', 'object->', item.target, ' = ', item.value, ';')
+                #import pdb; pdb.set_trace()
+                if item.value != None:
+                    if hasattr(item.value, 'value') is False:
+                        self.conditional_write('\n', 'object->', item.target, ' = ', item.value, ';')
+                    else:
+                        if item.value.value != None:
+                            self.conditional_write('\n', 'object->', item.target, ' = ', item.value, ';')
             elif isinstance(item, ast.FunctionDef):
                 
                 # build argument mangling
@@ -295,15 +322,15 @@ class SourceGenerator(ExplicitNodeVisitor):
                 pre_mangl = '_Z%s' %f_name_len 
                 post_mangl = self.build_arg_mangling(item.args)
                 
-                self.statement(item, 'object->%s%s%s' %(pre_mangl, item.name, post_mangl), ' = &', '%s%s%s' %(pre_mangl, item.name, post_mangl), '_impl;')
+                self.statement(item, 'object->%s%s%s' %(pre_mangl, item.name, post_mangl), ' = &', '%s%s%s%s' %(pre_mangl, item.name, post_mangl, name), '_impl;')
                 
                 # build argument mangling
                 arg_mangl = self.build_arg_mangling(item.args)
                 #self.visit_arguments(item.args, 'src')
                 # self.write(');')
-        self.write('\n}', dest = 'src')
+        self.write('\n}\n', dest = 'src')
         self.indentation -=1
-
+    
     def write_class_methods(self, *params, name):
         """ self.write is a closure for performance (to reduce the number
             of attribute lookups).
@@ -318,15 +345,15 @@ class SourceGenerator(ExplicitNodeVisitor):
                 pre_mangl = '_Z%s' %f_name_len 
                 post_mangl = self.build_arg_mangling(item.args)
                 
-                self.statement(item, self.get_returns(item), ' %s%s%s_impl' % (pre_mangl, item.name, post_mangl), '(', name, ' *self, ')
+                self.statement(item, self.get_returns(item), ' %s%s%s%s' % (pre_mangl, item.name, post_mangl, name), '_impl(', name, ' *self, ')
                 self.visit_arguments(item.args, 'src')
                 self.write(') {', dest = 'src')
                 # self.write(':')
                 self.body(item.body)
-                self.newline(1)
+                #self.newline(1)
                 self.write('}', dest = 'src')
-                if not self.indentation:
-                    self.newline(extra=2)
+                #if not self.indentation:
+                #    self.newline(extra=2)
 
     def else_body(self, elsewhat):
         if elsewhat:
@@ -414,7 +441,11 @@ class SourceGenerator(ExplicitNodeVisitor):
         begin = '(' if need_parens else ''
         end = ')' if need_parens else ''
         self.statement(node, node.annotation, ' ', node.target)
-        self.conditional_write(' = ', node.value, ';')
+        #import pdb; pdb.set_trace()
+        if node.value is not 'None':
+            self.conditional_write(' = ', node.value, ';')
+        else:
+            self.conditional_write(';')
 
     def visit_ImportFrom(self, node):
         self.statement(node, 'from ', node.level * '.',
@@ -443,7 +474,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.write(') {')
         # self.write(':')
         self.body(node.body)
-        self.newline(1)
+        #self.newline(1)
         self.write('}')
         if not self.indentation:
             self.newline(extra=2)
@@ -463,7 +494,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                 self.write('(')
 
         self.decorators(node, 2)
-        self.write('typedef struct', dest = 'hdr')
+        self.write('typedef struct %s %s;\n\n' %(node.name, node.name), dest = 'hdr')
+        self.write('struct %s' %node.name, dest = 'hdr')
         for base in node.bases:
             self.write(paren_or_comma, base)
         # keywords not available in early version
