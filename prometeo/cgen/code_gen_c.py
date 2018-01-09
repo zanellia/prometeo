@@ -245,7 +245,6 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.indentation += 1
         self.write_class_attributes(*statements, name=name)
         self.write('};', dest = 'hdr')
-        self.write('\n\n', dest = 'hdr')
         self.indentation -= 1
         self.write_class_method_prototypes(*statements, name=name)
         
@@ -278,11 +277,12 @@ class SourceGenerator(ExplicitNodeVisitor):
                 self.write('%s (*%s%s%s' % (self.get_returns(item).id, pre_mangl, item.name, post_mangl) , ')', '(%s *self, ' %name, dest = 'hdr')
                 self.visit_arguments(item.args, 'hdr')
                 self.write(');\n', dest = 'hdr')
-
+        
     def write_class_method_prototypes(self, *params, name):
         """ self.write is a closure for performance (to reduce the number
             of attribute lookups).
         """
+        self.write('\n\n', dest = 'hdr')
         for item in params:
             if isinstance(item, ast.FunctionDef):
                 
@@ -350,10 +350,10 @@ class SourceGenerator(ExplicitNodeVisitor):
                 self.write(') {', dest = 'src')
                 # self.write(':')
                 self.body(item.body)
-                #self.newline(1)
+                self.newline(1)
                 self.write('}', dest = 'src')
-                #if not self.indentation:
-                #    self.newline(extra=2)
+                if not self.indentation:
+                    self.newline(extra=2)
 
     def else_body(self, elsewhat):
         if elsewhat:
@@ -474,7 +474,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.write(') {')
         # self.write(':')
         self.body(node.body)
-        #self.newline(1)
+        self.newline(1)
         self.write('}')
         if not self.indentation:
             self.newline(extra=2)
@@ -493,7 +493,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 have_args.append(True)
                 self.write('(')
 
-        self.decorators(node, 2)
+        self.decorators(node, 0)
         self.write('typedef struct %s %s;\n\n' %(node.name, node.name), dest = 'hdr')
         self.write('struct %s' %node.name, dest = 'hdr')
         for base in node.bases:
@@ -507,8 +507,8 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.write(have_args and ')' or '', dest = 'src')
         self.write('{\n', dest = 'hdr')
         self.body_class(node.body, node.name)
-        if not self.indentation:
-            self.newline(extra=2)
+        #if not self.indentation:
+        #    self.newline(extra=-6)
 
     def visit_If(self, node):
         set_precedence(node, node.test)

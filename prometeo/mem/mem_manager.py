@@ -9,7 +9,7 @@ class mem_manager:
         mem_pointer = POINTER(c_double)()
         cwd = os.getcwd()
         malloc_wrapper = CDLL('%s/libmalloc_wrapper.so.0.1'%cwd)
-        malloc_wrapper.prmt_malloc(byref(mem_pointer))
+        malloc_wrapper.prmt_malloc(byref(mem_pointer), n)
         return mem_pointer
 
 

@@ -6,16 +6,12 @@ double field2;
 };
 
 
-
-
 typedef struct class_n class_n;
 
 struct class_n{
 double field1;
 double field2;
 };
-
-
 
 
 typedef struct p_class p_class;

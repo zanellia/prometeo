@@ -23,19 +23,22 @@ double _Z8method_1class_mclass_np_class_impl(p_class *self, class_m arg1, class_
     double a = arg1.field1;
     double b = arg2.field2;
     double c = a * b + b * a * a;
-    return c;}
+    return c;
+}
 
 
 double _Z8method_1class_mp_class_impl(p_class *self, class_m arg1) {
     double a = arg1.field1;
     double b = arg1.field2;
     double c = a * b + b * a * a;
-    return c;}
+    return c;
+}
 
 
 double _Z8method_2class_mp_class_impl(p_class *self, class_m arg1) {
     double c = arg1.field1 * arg1.field1;
-    return c;}
+    return c;
+}
 
 
 int _Z11loop_methodclass_mp_class_impl(p_class *self, class_m arg1) {
@@ -43,4 +46,5 @@ int _Z11loop_methodclass_mp_class_impl(p_class *self, class_m arg1) {
     double var1 = 0;
     for (int i = 0; i < var1; i++);
         res = res + 1;
-    return res;}
+    return res;
+}
