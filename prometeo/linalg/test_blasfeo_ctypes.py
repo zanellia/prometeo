@@ -2,11 +2,11 @@ from ctypes import *
 from os import *
 from blasfeo_wrapper import *
 
-
-#ctypes seems to be struggling with arg types of the dgemm routine:
-bw.blasfeo_dgemm_nt.argtypes = [c_int, c_int, c_int, c_double, 
-    POINTER(blasfeo_dmat), c_int, c_int, POINTER(blasfeo_dmat), c_int, c_int, 
-    c_double, POINTER(blasfeo_dmat), c_int, c_int, POINTER(blasfeo_dmat), c_int, c_int]
+print('\n')
+print('###############################################################')
+print('  Testing BLASFEO wrapper: dmat creation and call to dgemm_nt')
+print('###############################################################')
+print('\n')
 
 n = 5 
 
@@ -25,7 +25,8 @@ sA = blasfeo_dmat()
 
 bw.blasfeo_allocate_dmat(n, n, byref(sA))
 bw.blasfeo_create_dmat(n, n, byref(sA), ptr_memory_strmat)
-bw.blasfeo_pack_dmat(n, n, A[0], n, byref(sA), 0, 0);
+bw.blasfeo_pack_dmat(n, n, A[0], n, byref(sA), 0, 0)
+print('content of sA:\n')
 bw.blasfeo_print_dmat(n, n, byref(sA), 0, 0)
 
 ptr_memory_strmat = cast(ptr_memory_strmat, c_void_p)
@@ -42,6 +43,7 @@ sD = blasfeo_dmat()
 bw.blasfeo_allocate_dmat(n, n, byref(sD))
 bw.blasfeo_create_dmat(n, n, byref(sD), ptr_memory_strmat)
 bw.blasfeo_pack_dmat(n, n, D[0], n, byref(sD), 0, 0);
+print('content of sD:\n')
 bw.blasfeo_print_dmat(n, n, byref(sD), 0, 0)
 
 ptr_memory_strmat = cast(ptr_memory_strmat, c_void_p)
@@ -58,6 +60,7 @@ sB = blasfeo_dmat()
 bw.blasfeo_allocate_dmat(n, n, byref(sB))
 bw.blasfeo_create_dmat(n, n, byref(sB), ptr_memory_strmat)
 bw.blasfeo_pack_dmat(n, n, B[0], n, byref(sB), 0, 0);
+print('content of sB:\n')
 bw.blasfeo_print_dmat(n, n, byref(sB), 0, 0)
 
 ptr_memory_strmat = cast(ptr_memory_strmat, c_void_p)
@@ -68,6 +71,7 @@ ptr_memory_strmat = cast(ptr_memory_strmat, c_char_p)
 # bw.blasfeo_dgemm_nt(n, n, n, 1.0, byref(sA), 0, 0, byref(sA), 0, 0, 1, byref(sB), 0, 0, byref(sD), 0, 0);
 
 # This (wrapped) call should make it easy to code-gen calls to blasfeo
-blasfeo_dgemm_nt(n, n, n, 1.0, sA, 0, 0, sA, 0, 0, 1, sB, 0, 0, sD, 0, 0);
+blasfeo_dgemm_nt(n, n, n, 1.0, sA, 0, 0, sA, 0, 0, 1, sB, 0, 0, sD, 0, 0)
+print('B + A*A (blasfeo_dgemm_nt):\n')
 bw.blasfeo_print_dmat(n, n, byref(sD), 0, 0)
 
