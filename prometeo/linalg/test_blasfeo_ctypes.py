@@ -64,7 +64,10 @@ ptr_memory_strmat = cast(ptr_memory_strmat, c_void_p)
 ptr_memory_strmat.value = ptr_memory_strmat.value + sB.memsize
 ptr_memory_strmat = cast(ptr_memory_strmat, c_char_p)
 
-#bw.blasfeo_dgemm_nt(n, n, n, 1.0, byref(sA), 0, 0, byref(sA), 0, 0, 1, byref(sB), 0, 0, byref(sD), 0, 0);
+# This call would require ctypes handling from the cgen engine
+# bw.blasfeo_dgemm_nt(n, n, n, 1.0, byref(sA), 0, 0, byref(sA), 0, 0, 1, byref(sB), 0, 0, byref(sD), 0, 0);
+
+# This (wrapped) call should make it easy to code-gen calls to blasfeo
 blasfeo_dgemm_nt(n, n, n, 1.0, sA, 0, 0, sA, 0, 0, 1, sB, 0, 0, sD, 0, 0);
 bw.blasfeo_print_dmat(n, n, byref(sD), 0, 0)
 
