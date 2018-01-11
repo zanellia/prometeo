@@ -1,18 +1,7 @@
 from ctypes import *
 from os import *
+from blasfeo_wrapper import *
 
-class blasfeo_dmat(Structure):
-    _fields_ = [    ("m", c_int),
-	            ("n", c_int),
-	            ("pm", c_int),
-	            ("cn", c_int),
-	            ("pA", POINTER(c_double)),
-	            ("dA", POINTER(c_double)),
-	            ("use_dA", c_int),
-	            ("memsize", c_int)]
-
-cwd = getcwd()
-bw = CDLL('%s/../../external/blasfeo/lib/libblasfeo.so' %cwd)
 
 #ctypes seems to be struggling with arg types of the dgemm routine:
 bw.blasfeo_dgemm_nt.argtypes = [c_int, c_int, c_int, c_double, 
@@ -75,6 +64,7 @@ ptr_memory_strmat = cast(ptr_memory_strmat, c_void_p)
 ptr_memory_strmat.value = ptr_memory_strmat.value + sB.memsize
 ptr_memory_strmat = cast(ptr_memory_strmat, c_char_p)
 
-bw.blasfeo_dgemm_nt(n, n, n, 1.0, byref(sA), 0, 0, byref(sA), 0, 0, 1, byref(sB), 0, 0, byref(sD), 0, 0);
+#bw.blasfeo_dgemm_nt(n, n, n, 1.0, byref(sA), 0, 0, byref(sA), 0, 0, 1, byref(sB), 0, 0, byref(sD), 0, 0);
+blasfeo_dgemm_nt(n, n, n, 1.0, sA, 0, 0, sA, 0, 0, 1, sB, 0, 0, sD, 0, 0);
 bw.blasfeo_print_dmat(n, n, byref(sD), 0, 0)
 
