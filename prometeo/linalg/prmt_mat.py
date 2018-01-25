@@ -1,18 +1,21 @@
 from ctypes import *
-import prmt_mat_blasfeo_wrapper
+from prmt_mat_blasfeo_wrapper import *
+from blasfeo_wrapper import *
 
 class prmt_mat:
-   
-    self.m: int
-    self.n: int 
-    self.data: prmt_real_p
 
-    def __init__(self, m: int, n: int, data: POINTER(c_double)):
-        ___c_prmt___create_prmt_mat(m, n, data)  
+    blasfeo_dmat 
     
-def dgemm_nt(A: prmt_mat, B: prmt_mat, C: prmt_mat):
-    ___c_prmt___dgemm_nt(A, B, C)
+    def __init__(self, m: int, n: int, data: POINTER(c_double)):
+        self.blasfeo_dmat = c_prmt_create_prmt_mat(m, n, data)  
+    
+    def __init__(self, m: int, n: int):
+        self.blasfeo_dmat = c_prmt_create_prmt_mat(m, n)  
+    
+    def print(self):
+        c_prmt_print_prmt_mat(self)
 
-
+def dgemm_nt(A: prmt_mat, B: prmt_mat, C: prmt_mat, D: prmt_mat):
+    c_prmt_dgemm_nt(A, B, C, D)
 
 

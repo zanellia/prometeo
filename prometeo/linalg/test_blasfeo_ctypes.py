@@ -10,7 +10,7 @@ print('\n')
 
 n = 5 
 
-size_strmat = 100*bw.blasfeo_memsize_dmat(n, n)
+size_strmat = 3*bw.blasfeo_memsize_dmat(n, n)
 memory_strmat = c_void_p() 
 bw.v_zeros_align(byref(memory_strmat), size_strmat)
 
@@ -57,6 +57,7 @@ for i in range(n):
 
 sB = blasfeo_dmat()
 
+import pdb; pdb.set_trace()
 bw.blasfeo_allocate_dmat(n, n, byref(sB))
 bw.blasfeo_create_dmat(n, n, byref(sB), ptr_memory_strmat)
 bw.blasfeo_pack_dmat(n, n, B[0], n, byref(sB), 0, 0);

@@ -26,5 +26,5 @@ def blasfeo_dgemm_nt(m: c_int, n: c_int, k: c_int, alpha: c_double,
                      di: c_int, dj: c_int):
     
     bw.blasfeo_dgemm_nt(m, n, k, alpha, byref(sA), ai, aj, byref(sB), bi, bj, beta, 
-                        sC, ci, cj, byref(sD), di, dj)
+                        byref(sC), ci, cj, byref(sD), di, dj)
 
