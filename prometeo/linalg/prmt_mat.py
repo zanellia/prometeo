@@ -6,8 +6,8 @@ class prmt_mat:
 
     blasfeo_dmat 
     
-    def __init__(self, m: int, n: int, data: POINTER(c_double)):
-        self.blasfeo_dmat = c_prmt_create_prmt_mat(m, n, data)  
+#    def __init__(self, m: int, n: int, data: POINTER(c_double)):
+#        self.blasfeo_dmat = c_prmt_create_prmt_mat(m, n, data)  
     
     def __init__(self, m: int, n: int):
         self.blasfeo_dmat = c_prmt_create_prmt_mat(m, n)  
