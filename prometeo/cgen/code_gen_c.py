@@ -435,6 +435,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                        node.value)
 
     def visit_AnnAssign(self, node):
+        import pdb; pdb.set_trace()
         set_precedence(node, node.target, node.annotation)
         set_precedence(Precedence.Comma, node.value)
         need_parens = isinstance(node.target, ast.Name) and not node.simple
@@ -528,10 +529,13 @@ class SourceGenerator(ExplicitNodeVisitor):
     def visit_For(self, node, async=False):
         set_precedence(node, node.target)
         prefix = 'async ' if async else ''
+        import pdb; pdb.set_trace()
+        
         self.statement(node, 'for (int ',
                        node.target, ' = 0; ', node.target, ' < ',
-                       node.iter.args[0].id, '; ',node.target, '++);')
+                       node.iter.args[0].id, '; ',node.target, '++) {')
         self.body_or_else(node)
+        self.write('\n}', dest = 'src')
 
     # introduced in Python 3.5
     def visit_AsyncFor(self, node):
@@ -659,7 +663,7 @@ class SourceGenerator(ExplicitNodeVisitor):
 
         def write_comma():
             if want_comma:
-                write(', ')
+                write(', ', dest = 'src')
             else:
                 want_comma.append(True)
 
@@ -673,6 +677,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         p = Precedence.Comma if numargs > 1 else Precedence.call_one_arg
         set_precedence(p, *args)
         self.visit(node.func)
+        # import pdb; pdb.set_trace()
         write('(', dest = 'src')
         for arg in args:
             write(write_comma, arg, dest = 'src')
@@ -686,7 +691,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         # 3.5 no longer has these
         self.conditional_write(write_comma, '*', starargs)
         self.conditional_write(write_comma, '**', kwargs)
-        write(')', dest = 'src')
+        write(');', dest = 'src')
 
     def visit_Name(self, node):
         self.write(node.id, dest = 'src')
@@ -705,8 +710,8 @@ class SourceGenerator(ExplicitNodeVisitor):
 
         # Flush any pending newlines, because we're about
         # to severely abuse the result.source list.
-        self.write('')
-        result.source = self.result.source
+        self.write('', dest = 'src')
+        # result.source = self.result.source
 
         # Calculate the string representing the line
         # we are working on, up to but not including
@@ -756,7 +761,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         if is_joined:
             mystr = 'f' + mystr
 
-        self.write(mystr)
+        self.write(mystr, dest = 'src')
 
         lf = mystr.rfind('\n') + 1
         if lf:
@@ -852,7 +857,7 @@ class SourceGenerator(ExplicitNodeVisitor):
 
     def visit_Subscript(self, node):
         set_precedence(node, node.slice)
-        self.write(node.value, '[', node.slice, ']')
+        self.write(node.value, '[', node.slice, ']', dest = 'src')
 
     def visit_Slice(self, node):
         set_precedence(node, node.lower, node.upper, node.step)
@@ -940,6 +945,7 @@ class SourceGenerator(ExplicitNodeVisitor):
     visit_Interactive = visit_Module
 
     def visit_Expression(self, node):
+        # import pdb; pdb.set_trace()
         self.visit(node.body)
 
     # Helper Nodes
