@@ -435,7 +435,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                        node.value)
 
     def visit_AnnAssign(self, node):
-        import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
         set_precedence(node, node.target, node.annotation)
         set_precedence(Precedence.Comma, node.value)
         need_parens = isinstance(node.target, ast.Name) and not node.simple
@@ -529,7 +529,7 @@ class SourceGenerator(ExplicitNodeVisitor):
     def visit_For(self, node, async=False):
         set_precedence(node, node.target)
         prefix = 'async ' if async else ''
-        import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
         
         self.statement(node, 'for (int ',
                        node.target, ' = 0; ', node.target, ' < ',

@@ -1,6 +1,6 @@
 from prmt_mat import *
 from blasfeo_wrapper import *
-
+import sys 
 n: int = 10
 
 void_p = int 
@@ -15,7 +15,6 @@ A.set(data_A)
 
 data_B: void_p = POINTER(c_double)()
 bw.d_zeros(byref(data_B), n, n)
-B:prmt_mat = POINTER(c_double)()
 
 bw.d_zeros(byref(B), n, n)
 for i in range(n):

@@ -1,3 +1,4 @@
+#! /usr/bin/python3.6
 import pymatrix as p
 
 A = p.Matrix(2,2)
