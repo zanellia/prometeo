@@ -1,6 +1,7 @@
-from prmt_mat import *
-from blasfeo_wrapper import *
+import prometeo as prmt
+from prometeo.linalg import *
 import sys 
+
 n: int = 10
 
 void_p = int 
@@ -13,14 +14,13 @@ for i in range(n*n):
 A: prmt_mat = prmt_mat(n, n)
 A.set(data_A)
 
+B: prmt_mat = prmt_mat(n, n)
 data_B: void_p = POINTER(c_double)()
 bw.d_zeros(byref(data_B), n, n)
 
-bw.d_zeros(byref(B), n, n)
 for i in range(n):
     data_B[i*(n + 1)] = 1.0
 
-B: prmt_mat = prmt_mat(n, n)
 B.set(data_B)
 
 data_C: void_p = POINTER(c_double)()
