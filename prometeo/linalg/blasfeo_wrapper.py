@@ -1,6 +1,8 @@
 from ctypes import *
 from os import *
 
+bw = CDLL('libblasfeo.so')
+
 class blasfeo_dmat(Structure):
     _fields_ = [    ("m", c_int),
 	            ("n", c_int),
@@ -11,8 +13,6 @@ class blasfeo_dmat(Structure):
 	            ("use_dA", c_int),
 	            ("memsize", c_int)]
 
-cwd = getcwd()
-bw = CDLL('%s/../../external/blasfeo/lib/libblasfeo.so' %cwd)
 
 bw.blasfeo_dgemm_nt.argtypes = [c_int, c_int, c_int, c_double, 
     POINTER(blasfeo_dmat), c_int, c_int, POINTER(blasfeo_dmat), c_int, c_int, 

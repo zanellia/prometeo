@@ -1,4 +1,4 @@
-from blasfeo_wrapper import *
+from .blasfeo_wrapper import *
 from ctypes import *
 
 def c_prmt_set_blasfeo_dmat(M, data: POINTER(c_double)):

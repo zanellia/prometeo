@@ -20,10 +20,10 @@ this code came from here (in 2012):
 import ast
 import sys
 
-from op_util import get_op_symbol, get_op_precedence, Precedence
-from node_util import ExplicitNodeVisitor
-from string_repr import pretty_string
-from source_repr import pretty_source
+from .op_util import get_op_symbol, get_op_precedence, Precedence
+from .node_util import ExplicitNodeVisitor
+from .string_repr import pretty_string
+from .source_repr import pretty_source
 from collections import namedtuple
 
 def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False,
