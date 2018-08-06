@@ -1,41 +1,33 @@
-from prmt_mat import *
-from blasfeo_wrapper import *
-import sys 
+# from prometeo.linalg import *
+# import sys 
 
 n: int = 10
 
-void_p = int 
-
-data_A: void_p = POINTER(c_double)()
-bw.d_zeros(byref(data_A), n, n)
-for i in range(n*n):
-    data_A[i] = i
-
 A: prmt_mat = prmt_mat(n, n)
-A.set(data_A)
-
-data_B: void_p = POINTER(c_double)()
-bw.d_zeros(byref(data_B), n, n)
-
-bw.d_zeros(byref(B), n, n)
 for i in range(n):
-    data_B[i*(n + 1)] = 1.0
+    for j in range(n):
+        prmt_set_el(A, i*n + j, i, j) 
 
 B: prmt_mat = prmt_mat(n, n)
-B.set(data_B)
+for i in range(n):
+    for j in range(n):
+        prmt_set_el(B, 0.0, i, j) 
 
-data_C: void_p = POINTER(c_double)()
-bw.d_zeros(byref(data_C), n, n)
+for i in range(n):
+    prmt_set_el(B, 1.0, i, i) 
 
 C: prmt_mat = prmt_mat(n, n)
-C.set(data_C)
+for i in range(n):
+    for j in range(n):
+        prmt_set_el(C, 0.0, i, j) 
+
 dgemm_nt(A, B, C, C)
 
 # print results
 print('\n\nB = ')
-B.print()
+prmt_print(B)
 print('\n\nA = ')
-A.print()
+prmt_print(A)
 print('\n\nC = ')
-C.print()
+prmt_print(C)
 
