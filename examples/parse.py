@@ -2,9 +2,6 @@ import prometeo
 import ast
 import astpretty
 import typing
-# import code_gen
-# import code_gen_c
-# from source_repr import pretty_source
 
 class v(ast.NodeVisitor):
     def generic_visit(self, node):
