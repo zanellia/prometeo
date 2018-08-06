@@ -1,4 +1,4 @@
-import prometeo as prmt
+# import prometeo as prmt
 from prometeo.linalg import *
 import sys 
 
