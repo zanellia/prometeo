@@ -442,11 +442,18 @@ class SourceGenerator(ExplicitNodeVisitor):
         begin = '(' if need_parens else ''
         end = ')' if need_parens else ''
         self.statement(node, node.annotation, ' ', node.target)
-        #import pdb; pdb.set_trace()
-        if node.value is not 'None':
-            self.conditional_write(' = ', node.value, ';', dest = 'src')
+        # switch to avoid double ';'
+        if type(node.value) != ast.Call:
+            if node.value is not 'None':
+                self.conditional_write(' = ', node.value, ';', dest = 'src')
+            else:
+                self.conditional_write(';', dest = 'src')
         else:
-            self.conditional_write(';', dest = 'src')
+            if node.value is not 'None':
+                self.conditional_write(' = ', node.value, '', dest = 'src')
+            else:
+                self.conditional_write('', dest = 'src')
+                
 
     def visit_ImportFrom(self, node):
         self.statement(node, 'from ', node.level * '.',
