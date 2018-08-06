@@ -224,9 +224,9 @@ class SourceGenerator(ExplicitNodeVisitor):
     def delimit(self, *args):
         return Delimit(self, *args)
 
-    def conditional_write(self, *stuff):
+    def conditional_write(self, *stuff, dest):
         if stuff[-1] is not None:
-            self.write(*stuff, dest = 'src')
+            self.write(*stuff, dest = dest)
             # Inform the caller that we wrote
             return True
 
@@ -311,10 +311,10 @@ class SourceGenerator(ExplicitNodeVisitor):
                 #import pdb; pdb.set_trace()
                 if item.value != None:
                     if hasattr(item.value, 'value') is False:
-                        self.conditional_write('\n', 'object->', item.target, ' = ', item.value, ';')
+                        self.conditional_write('\n', 'object->', item.target, ' = ', item.value, ';', dest = 'src')
                     else:
                         if item.value.value != None:
-                            self.conditional_write('\n', 'object->', item.target, ' = ', item.value, ';')
+                            self.conditional_write('\n', 'object->', item.target, ' = ', item.value, ';', dest = 'src')
             elif isinstance(item, ast.FunctionDef):
                 
                 # build argument mangling
@@ -378,17 +378,17 @@ class SourceGenerator(ExplicitNodeVisitor):
             padding = [None] * (len(args) - len(defaults))
             for arg, default in zip(args, padding + defaults):
                 self.write(write_comma, arg.annotation.id,' ',arg.arg, dest = dest_in)
-                self.conditional_write('=', default)
+                self.conditional_write('=', default, dest = 'src')
 
         loop_args(node.args, node.defaults)
-        self.conditional_write(write_comma, '*', node.vararg)
+        self.conditional_write(write_comma, '*', node.vararg, dest = 'src')
 
         kwonlyargs = self.get_kwonlyargs(node)
         if kwonlyargs:
             if node.vararg is None:
                 self.write(write_comma, '*')
             loop_args(kwonlyargs, node.kw_defaults)
-        self.conditional_write(write_comma, '**', node.kwarg)
+        self.conditional_write(write_comma, '**', node.kwarg, dest = 'src')
 
     def build_arg_mangling(self, node):
         want_comma = []
@@ -444,9 +444,9 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.statement(node, node.annotation, ' ', node.target)
         #import pdb; pdb.set_trace()
         if node.value is not 'None':
-            self.conditional_write(' = ', node.value, ';')
+            self.conditional_write(' = ', node.value, ';', dest = 'src')
         else:
-            self.conditional_write(';')
+            self.conditional_write(';', dest = 'src')
 
     def visit_ImportFrom(self, node):
         self.statement(node, 'from ', node.level * '.',
@@ -503,8 +503,8 @@ class SourceGenerator(ExplicitNodeVisitor):
         for keyword in self.get_keywords(node):
             self.write(paren_or_comma, keyword.arg or '',
                        '=' if keyword.arg else '**', keyword.value)
-        self.conditional_write(paren_or_comma, '*', self.get_starargs(node))
-        self.conditional_write(paren_or_comma, '**', self.get_kwargs(node))
+        self.conditional_write(paren_or_comma, '*', self.get_starargs(node), dest = 'src')
+        self.conditional_write(paren_or_comma, '**', self.get_kwargs(node), dest = 'src')
         self.write(have_args and ')' or '', dest = 'src')
         self.write('{\n', dest = 'hdr')
         self.body_class(node.body, node.name)
@@ -563,7 +563,7 @@ class SourceGenerator(ExplicitNodeVisitor):
     # new for Python 3.3
     def visit_withitem(self, node):
         self.write(node.context_expr)
-        self.conditional_write(' as ', node.optional_vars)
+        self.conditional_write(' as ', node.optional_vars, dest = 'src')
 
     def visit_NameConstant(self, node):
         self.write(str(node.value))
@@ -602,8 +602,8 @@ class SourceGenerator(ExplicitNodeVisitor):
 
     def visit_ExceptHandler(self, node):
         self.statement(node, 'except')
-        if self.conditional_write(' ', node.type):
-            self.conditional_write(' as ', node.name)
+        if self.conditional_write(' ', node.type, dest = 'src'):
+            self.conditional_write(' as ', node.name, dest = 'src')
         self.write(':')
         self.body(node.body)
 
@@ -617,13 +617,13 @@ class SourceGenerator(ExplicitNodeVisitor):
         dicts = node.globals, node.locals
         dicts = dicts[::-1] if dicts[0] is None else dicts
         self.statement(node, 'exec ', node.body)
-        self.conditional_write(' in ', dicts[0])
-        self.conditional_write(', ', dicts[1])
+        self.conditional_write(' in ', dicts[0], dest = 'src')
+        self.conditional_write(', ', dicts[1], dest = 'src')
 
     def visit_Assert(self, node):
         set_precedence(node, node.test, node.msg)
         self.statement(node, 'assert ', node.test)
-        self.conditional_write(', ', node.msg)
+        self.conditional_write(', ', node.msg, dest = 'src')
 
     def visit_Global(self, node):
         self.statement(node, 'global ', ', '.join(node.names))
@@ -634,7 +634,7 @@ class SourceGenerator(ExplicitNodeVisitor):
     def visit_Return(self, node):
         set_precedence(node, node.value)
         self.statement(node, 'return')
-        self.conditional_write(' ', node.value, ';')
+        self.conditional_write(' ', node.value, ';', dest = 'src')
 
     def visit_Break(self, node):
         self.statement(node, 'break')
@@ -645,12 +645,12 @@ class SourceGenerator(ExplicitNodeVisitor):
     def visit_Raise(self, node):
         # XXX: Python 2.6 / 3.0 compatibility
         self.statement(node, 'raise')
-        if self.conditional_write(' ', self.get_exc(node)):
-            self.conditional_write(' from ', node.cause)
-        elif self.conditional_write(' ', self.get_type(node)):
+        if self.conditional_write(' ', self.get_exc(node), dest = 'src'):
+            self.conditional_write(' from ', node.cause, dest = 'src')
+        elif self.conditional_write(' ', self.get_type(node), dest = 'src'):
             set_precedence(node, node.inst)
-            self.conditional_write(', ', node.inst)
-            self.conditional_write(', ', node.tback)
+            self.conditional_write(', ', node.inst, dest = 'src')
+            self.conditional_write(', ', node.tback, dest = 'src')
 
     # Expressions
 
@@ -689,8 +689,8 @@ class SourceGenerator(ExplicitNodeVisitor):
             arg = keyword.arg or ''
             write(write_comma, arg, '=' if arg else '**', keyword.value)
         # 3.5 no longer has these
-        self.conditional_write(write_comma, '*', starargs)
-        self.conditional_write(write_comma, '**', kwargs)
+        self.conditional_write(write_comma, '*', starargs, dest = 'src')
+        self.conditional_write(write_comma, '**', kwargs, dest = 'src')
         write(');', dest = 'src')
 
     def visit_Name(self, node):
@@ -861,9 +861,9 @@ class SourceGenerator(ExplicitNodeVisitor):
 
     def visit_Slice(self, node):
         set_precedence(node, node.lower, node.upper, node.step)
-        self.conditional_write(node.lower)
+        self.conditional_write(node.lower, dest = 'src')
         self.write(':')
-        self.conditional_write(node.upper)
+        self.conditional_write(node.upper, dest = 'src')
         if node.step is not None:
             self.write(':')
             if not (isinstance(node.step, ast.Name) and
@@ -884,7 +884,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         with self.delimit(node):
             set_precedence(get_op_precedence(node) + 1, node.value)
             self.write('yield')
-            self.conditional_write(' ', node.value)
+            self.conditional_write(' ', node.value, dest = 'src')
 
     # new for Python 3.3
     def visit_YieldFrom(self, node):
@@ -952,11 +952,11 @@ class SourceGenerator(ExplicitNodeVisitor):
 
     def visit_arg(self, node):
         self.write(node.arg)
-        self.conditional_write(': ', node.annotation)
+        self.conditional_write(': ', node.annotation, dest = 'src')
 
     def visit_alias(self, node):
         self.write(node.name)
-        self.conditional_write(' as ', node.asname)
+        self.conditional_write(' as ', node.asname, dest = 'src')
 
     def visit_comprehension(self, node):
         set_precedence(node, node.iter, *node.ifs)
