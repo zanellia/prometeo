@@ -18,6 +18,8 @@ bw.blasfeo_dgemm_nt.argtypes = [c_int, c_int, c_int, c_double,
     POINTER(blasfeo_dmat), c_int, c_int, POINTER(blasfeo_dmat), c_int, c_int, 
     c_double, POINTER(blasfeo_dmat), c_int, c_int, POINTER(blasfeo_dmat), c_int, c_int]
 
+bw.blasfeo_dgein1.argtypes = [c_double, POINTER(blasfeo_dmat), c_int, c_int]
+
 def blasfeo_dgemm_nt(m: c_int, n: c_int, k: c_int, alpha: c_double, 
                      sA: POINTER(blasfeo_dmat), ai: c_int, aj: c_int, 
                      sB: POINTER(blasfeo_dmat), bi: c_int, bj: c_int, 

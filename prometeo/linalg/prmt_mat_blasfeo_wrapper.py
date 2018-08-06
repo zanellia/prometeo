@@ -7,11 +7,9 @@ def c_prmt_set_blasfeo_dmat(M, data: POINTER(c_double)):
     n = M.n
     bw.blasfeo_pack_dmat(m, n, data, n, byref(M), 0, 0)
 
-def c_prmt_set_blasfeo_dmat_el(a, M, ai, aj):
+def c_prmt_set_blasfeo_dmat_el(value, M, ai, aj):
          
-    m = M.m
-    n = M.n
-    bw.blasfeo_dgein1(a, byref(M), ai, aj)
+    bw.blasfeo_dgein1(value, byref(M), ai, aj)
 
 def c_prmt_set_prmt_blasfeo_dmat(a, M, ai, aj):
          

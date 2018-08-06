@@ -9,23 +9,24 @@ class prmt_mat:
     def __init__(self, m: int, n: int):
         self.blasfeo_dmat = c_prmt_create_blasfeo_dmat(m, n)  
     
-    def set(self, data: POINTER(c_double)):
-        m = self.blasfeo_dmat.m 
-        n = self.blasfeo_dmat.n 
-
-        c_prmt_set_blasfeo_dmat(self.blasfeo_dmat, data)  
-    
-    # def __getitem__(self, key):
-    #     """ `self[row][col]` indexing and assignment. """
-    #     return self.list[index]
-    
     def __getitem__(self, index):
         """ `self[row][col]` indexing and assignment. """
-        
         return 
-    
-    def print(self):
-        c_prmt_print_blasfeo_dmat(self)
+
+
+def prmt_set(M: prmt_mat, data: POINTER(c_double)):
+    c_prmt_set_blasfeo_dmat(M.blasfeo_dmat, data)  
+
+def prmt_set_el(M: prmt_mat, value, i, j):
+    c_prmt_set_blasfeo_dmat_el(value, M.blasfeo_dmat, i, j)  
+
+# def __getitem__(self, key):
+#     """ `self[row][col]` indexing and assignment. """
+#     return self.list[index]
+
+
+def prmt_print(M: prmt_mat):
+    c_prmt_print_blasfeo_dmat(M)
 
 def dgemm_nt(A: prmt_mat, B: prmt_mat, C: prmt_mat, D: prmt_mat):
     c_prmt_dgemm_nt(A, B, C, D)
