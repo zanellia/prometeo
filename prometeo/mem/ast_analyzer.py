@@ -49,7 +49,7 @@ def compute_reach_graph(tree):
     return reach_map
 
 def get_reach_nodes(call_graph, curr_call, root, reach_nodes_h, root_flag):
-    if not call_graph[curr_call]:
+    if not call_graph[curr_call] and not root_flag:
         if curr_call not in reach_nodes_h:
             reach_nodes_h += [curr_call]
         return reach_nodes_h 
