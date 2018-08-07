@@ -41,55 +41,31 @@ def get_call_graph(tree):
 
     return call_graph 
 
+def compute_reach_graph(tree):
+    nodes = tree.keys()
+    reach_map = {}
+    for curr_node in nodes:
+        reach_map[curr_node] = get_reach_nodes(tree, curr_node, curr_node, [], 1) 
+    return reach_map
 
-# class Graph():
-#     def __init__(self,vertices):
-#         self.graph = defaultdict(list)
-#         self.V = vertices
- 
-#     def addEdge(self,u,v):
-#         self.graph[u].append(v)
- 
-def isCyclicUtil(self, v, visited, recStack):
+def get_reach_nodes(call_graph, curr_call, root, reach_nodes_h, root_flag):
+    if not call_graph[curr_call]:
+        if curr_call not in reach_nodes_h:
+            reach_nodes_h += [curr_call]
+        return reach_nodes_h 
+    else:
+        if curr_call in reach_nodes_h:
+            if curr_call not in reach_nodes_h:
+                reach_nodes_h += [curr_call]
+            return reach_nodes_h 
+        if root == curr_call and not root_flag:
+            reach_nodes_h += ['*']
+            return reach_nodes_h 
+        else:
+            if curr_call != root:
+                if curr_call not in reach_nodes_h:
+                    reach_nodes_h += [curr_call]
+            for call_iter in call_graph[curr_call]:
+                reach_nodes_h = get_reach_nodes(call_graph, call_iter, root, reach_nodes_h, 0)
+            return reach_nodes_h
 
-    # Mark current node as visited and 
-    # adds to recursion stack
-    visited[v] = True
-    recStack[v] = True
-
-    # Recur for all neighbours
-    # if any neighbour is visited and in 
-    # recStack then graph is cyclic
-    for neighbour in self.graph[v]:
-        if visited[neighbour] == False:
-            if self.isCyclicUtil(neighbour, visited, recStack) == True:
-                return True
-        elif recStack[neighbour] == True:
-            return True
-
-    # The node needs to be poped from 
-    # recursion stack before function ends
-    recStack[v] = False
-    return False
-
-# Returns true if graph is cyclic else false
-def isCyclic(self):
-    visited = [False] * self.V
-    recStack = [False] * self.V
-    for node in range(self.V):
-        if visited[node] == False:
-            if self.isCyclicUtil(node,visited,recStack) == True:
-                return True
-    return False
- 
-# g = Graph(4)
-# g.addEdge(0, 1)
-# g.addEdge(0, 2)
-# g.addEdge(1, 2)
-# g.addEdge(2, 0)
-# g.addEdge(2, 3)
-# g.addEdge(3, 3)
-# if g.isCyclic() == 1:
-#     print "Graph has a cycle"
-# else:
-#     print "Graph has no cycle"
