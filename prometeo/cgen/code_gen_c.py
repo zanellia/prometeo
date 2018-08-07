@@ -26,6 +26,9 @@ from .string_repr import pretty_string
 from .source_repr import pretty_source
 from collections import namedtuple
 
+prmt_temp_functions = ["prmt_mat"]
+prmt_temp_types = {"prmt_mat": "struct prmt_mat *"}
+
 def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False,
               pretty_string=pretty_string, pretty_source=pretty_source):
     """This function can convert a node tree back into python sourcecode.
@@ -441,7 +444,12 @@ class SourceGenerator(ExplicitNodeVisitor):
         need_parens = isinstance(node.target, ast.Name) and not node.simple
         begin = '(' if need_parens else ''
         end = ')' if need_parens else ''
-        self.statement(node, node.annotation, ' ', node.target)
+        ann = node.annotation.__dict__["id"]
+        if  ann in prmt_temp_types:
+            node.annotation.__dict__["id"] = prmt_temp_types[ann]
+            self.statement(node, node.annotation, ' ', node.target)
+        else:
+            self.statement(node, node.annotation, ' ', node.target)
         # switch to avoid double ';'
         if type(node.value) != ast.Call:
             if node.value is not 'None':
@@ -520,7 +528,7 @@ class SourceGenerator(ExplicitNodeVisitor):
 
     def visit_If(self, node):
         set_precedence(node, node.test)
-        self.statement(node, 'if ', node.test, ':')
+        self.statement(node, 'if(', node.test, ') {')
         self.body(node.body)
         while True:
             else_ = node.orelse
@@ -532,6 +540,7 @@ class SourceGenerator(ExplicitNodeVisitor):
             else:
                 self.else_body(else_)
                 break
+        self.write('\n}', dest = 'src')
 
     def visit_For(self, node, async=False):
         set_precedence(node, node.target)
@@ -550,8 +559,10 @@ class SourceGenerator(ExplicitNodeVisitor):
 
     def visit_While(self, node):
         set_precedence(node, node.test)
-        self.statement(node, 'while ', node.test, ':')
+        self.statement(node, 'while(', node.test, ') {')
         self.body_or_else(node)
+        self.write('\n}', dest = 'src')
+
 
     def visit_With(self, node, async=False):
         prefix = 'async ' if async else ''
@@ -849,7 +860,7 @@ class SourceGenerator(ExplicitNodeVisitor):
             set_precedence(delimiters.p + 1, node.left, *node.comparators)
             self.visit(node.left)
             for op, right in zip(node.ops, node.comparators):
-                self.write(get_op_symbol(op, ' %s '), right)
+                self.write(get_op_symbol(op, ' %s '), right, dest = 'src')
 
     def visit_UnaryOp(self, node):
         with self.delimit(node, node.op) as delimiters:

@@ -14,10 +14,10 @@ class prmt_mat:
         return 
 
 
-def prmt_set(M: prmt_mat, data: POINTER(c_double)):
+def prmt_set_data(M: prmt_mat, data: POINTER(c_double)):
     c_prmt_set_blasfeo_dmat(M.blasfeo_dmat, data)  
 
-def prmt_set_el(M: prmt_mat, value, i, j):
+def prmt_set(M: prmt_mat, value, i, j):
     c_prmt_set_blasfeo_dmat_el(value, M.blasfeo_dmat, i, j)  
 
 # def __getitem__(self, key):
@@ -28,7 +28,7 @@ def prmt_set_el(M: prmt_mat, value, i, j):
 def prmt_print(M: prmt_mat):
     c_prmt_print_blasfeo_dmat(M)
 
-def dgemm_nt(A: prmt_mat, B: prmt_mat, C: prmt_mat, D: prmt_mat):
+def prmt_gemm_nt(A: prmt_mat, B: prmt_mat, C: prmt_mat, D: prmt_mat):
     c_prmt_dgemm_nt(A, B, C, D)
 
 
