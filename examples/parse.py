@@ -27,6 +27,7 @@ def iter_all_ast(node):
 
 # filename = 'code.prmt'
 filename = 'new_test.py'
+# filename = 'dummy.py'
 # filename = 'test_prmt_mat_compact.prmt'
 # filename = 'test_prmt_mat.prmt'
 module_name = 'code'
