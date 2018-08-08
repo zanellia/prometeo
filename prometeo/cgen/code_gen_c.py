@@ -174,6 +174,8 @@ class SourceGenerator(ExplicitNodeVisitor):
         result.header = self.result.header
         append_src = result.source.append
         append_hdr = result.header.append
+    
+        self.typed_record = {}
         
         def write(*params, dest):
             """ self.write is a closure for performance (to reduce the number
@@ -445,6 +447,9 @@ class SourceGenerator(ExplicitNodeVisitor):
         begin = '(' if need_parens else ''
         end = ')' if need_parens else ''
         ann = node.annotation.__dict__["id"]
+        # add variable to typed record
+        self.typed_record[node.target.__dict__["id"]] = node.annotation.__dict__["id"]
+        print(self.typed_record)
         if  ann in prmt_temp_types:
             node.annotation.__dict__["id"] = prmt_temp_types[ann]
             self.statement(node, node.annotation, ' ', node.target)
