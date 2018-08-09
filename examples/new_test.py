@@ -6,20 +6,20 @@ n: int = 10
 A: prmt_mat = prmt_mat(n, n)
 for i in range(n):
     for j in range(n):
-        prmt_set(A, i*n + j, i, j) 
+        A[i][j] = i*n + j 
 
 B: prmt_mat = prmt_mat(n, n)
 for i in range(n):
     for j in range(n):
-        prmt_set(B, 0.0, i, j) 
+        B[i][j] = 0.0 
 
 for i in range(n):
-    prmt_set(B, 1.0, i, i) 
+    B[i][i] = 1.0 
 
 C: prmt_mat = prmt_mat(n, n)
 for i in range(n):
     for j in range(n):
-        prmt_set(C, 0.0, i, j) 
+        C[i][j] = 0.0 
 
 i: int = 0.0
 while i < n:
@@ -28,7 +28,7 @@ while i < n:
 if i >= 5:
     i = i *2
 
-prmt_dgemm_nt(A, B, C, C)
+prmt_gemm_nt(A, B, C, C)
 
 # print results
 print('\n\nB = ')

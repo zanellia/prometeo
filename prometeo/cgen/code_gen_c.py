@@ -427,6 +427,22 @@ class SourceGenerator(ExplicitNodeVisitor):
     # Statements
 
     def visit_Assign(self, node):
+        if 'targets' in node.__dict__:
+            if type(node.__dict__["targets"][0]) == ast.Subscript: 
+                target = node.__dict__["targets"][0].__dict__["value"].__dict__["value"].__dict__["id"]
+                if target in self.typed_record: 
+                    first_index = node.__dict__["targets"][0].__dict__["value"].__dict__["slice"].__dict__["value"].__dict__["id"]
+                    second_index = node.__dict__["targets"][0].__dict__["slice"].__dict__["value"].__dict__["id"]
+                    if type(node.__dict__["value"]) == str: 
+                        value = node.__dict__["value"]
+                        self.statement([], 'prmt_mat_set_el(', target, ', ', first_index, ', ', second_index, ', ', value, ');')
+                    else:
+                        import pdb; pdb.set_trace()
+                        self.statement([], 'prmt_mat_set_el(', target, ', ', first_index, ', ', second_index, ', ')
+                        self.visit(node.__dict__["value"])
+                        self.write(');', dest = 'src')
+                    return
+
         set_precedence(node, node.value, *node.targets)
         self.newline(node)
         for target in node.targets:
@@ -700,7 +716,6 @@ class SourceGenerator(ExplicitNodeVisitor):
         p = Precedence.Comma if numargs > 1 else Precedence.call_one_arg
         set_precedence(p, *args)
         self.visit(node.func)
-        # import pdb; pdb.set_trace()
         write('(', dest = 'src')
         for arg in args:
             write(write_comma, arg, dest = 'src')
