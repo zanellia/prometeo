@@ -437,7 +437,6 @@ class SourceGenerator(ExplicitNodeVisitor):
                         value = node.__dict__["value"]
                         self.statement([], 'prmt_mat_set_el(', target, ', ', first_index, ', ', second_index, ', ', value, ');')
                     else:
-                        import pdb; pdb.set_trace()
                         self.statement([], 'prmt_mat_set_el(', target, ', ', first_index, ', ', second_index, ', ')
                         self.visit(node.__dict__["value"])
                         self.write(');', dest = 'src')
@@ -705,7 +704,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 write(', ', dest = 'src')
             else:
                 want_comma.append(True)
-
+        
         args = node.args
         keywords = node.keywords
         starargs = self.get_starargs(node)
