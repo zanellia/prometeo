@@ -37,16 +37,19 @@ class prmt_mat:
         self._i = None
         self._j = None
         return
-    def __call__(self, i, j):
-        self.set_get_i = i
-        self.set_get_j = j
-        return self.set_get_attr  
 
-    def __setattr__(self, name, value):
-        if name == 'set_get_attr':
-            c_prmt_set_blasfeo_dmat_el(value, self.blasfeo_dmat, set_get_i, set_get_j)  
-        else:
-            super(prmt_mat, self).__setattr__(name, value)
+    # def __call__(self, i, j):
+    #     self.set_get_i = i
+    #     self.set_get_j = j
+    #     return self.set_get_attr  
+
+    # def __setattr__(self, name, value):
+    #     if name == 'set_get_attr':
+    #         c_prmt_set_blasfeo_dmat_el(value, self.blasfeo_dmat, set_get_i, set_get_j)  
+    #     else:
+    #         super(prmt_mat, self).__setattr__(name, value)
+    
+
 
 def prmt_set_data(M: prmt_mat, data: POINTER(c_double)):
     c_prmt_set_blasfeo_dmat(M.blasfeo_dmat, data)  
