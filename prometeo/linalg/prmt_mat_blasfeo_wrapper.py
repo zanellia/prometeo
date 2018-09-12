@@ -52,6 +52,22 @@ def c_prmt_dgemm_nt(A, B, C, D):
 
     bw.blasfeo_dgemm_nt(bA.m, bA.n, bB.n, 1.0, byref(bA), 0, 0, byref(bB), 0, 0, 1, byref(bC), 0, 0, byref(bD), 0, 0)
 
+def c_prmt_dgemm_tn(A, B, C, D):
+    bA = A.blasfeo_dmat
+    bB = B.blasfeo_dmat
+    bC = C.blasfeo_dmat
+    bD = D.blasfeo_dmat
+
+    bw.blasfeo_dgemm_tn(bA.m, bA.n, bB.n, 1.0, byref(bA), 0, 0, byref(bB), 0, 0, 1, byref(bC), 0, 0, byref(bD), 0, 0)
+
+def c_prmt_dgemm_tt(A, B, C, D):
+    bA = A.blasfeo_dmat
+    bB = B.blasfeo_dmat
+    bC = C.blasfeo_dmat
+    bD = D.blasfeo_dmat
+
+    bw.blasfeo_dgemm_tt(bA.m, bA.n, bB.n, 1.0, byref(bA), 0, 0, byref(bB), 0, 0, 1, byref(bC), 0, 0, byref(bD), 0, 0)
+
 def c_prmt_dgead(alpha, A, B, C):
     bA = A.blasfeo_dmat
     bB = B.blasfeo_dmat

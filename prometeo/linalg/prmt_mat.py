@@ -59,11 +59,17 @@ class prmt_mat:
     # def __sub__(self, other):
 
 # low-level linear algebra
-    def prmt_gemm_nn(A: prmt_mat, B: prmt_mat, C: prmt_mat, D: prmt_mat):
+def prmt_gemm_nn(A: prmt_mat, B: prmt_mat, C: prmt_mat, D: prmt_mat):
         c_prmt_dgemm_nn(A, B, C, D)
 
 def prmt_gemm_nt(A: prmt_mat, B: prmt_mat, C: prmt_mat, D: prmt_mat):
     c_prmt_dgemm_nt(A, B, C, D)
+
+def prmt_gemm_tn(A: prmt_mat, B: prmt_mat, C: prmt_mat, D: prmt_mat):
+    c_prmt_dgemm_tn(A, B, C, D)
+
+def prmt_gemm_tt(A: prmt_mat, B: prmt_mat, C: prmt_mat, D: prmt_mat):
+    c_prmt_dgemm_tt(A, B, C, D)
 
 def prmt_dgead(alpha: float, A: prmt_mat, B: prmt_mat, C: prmt_mat, D: prmt_mat):
     c_prmt_dgead(alpha, A, B, C)
