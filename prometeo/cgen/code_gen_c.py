@@ -428,9 +428,11 @@ class SourceGenerator(ExplicitNodeVisitor):
 
     def visit_Assign(self, node):
         if 'targets' in node.__dict__:
+
+            # map subscript for prmt_mats to blasfeo el assign
             if type(node.__dict__["targets"][0]) == ast.Subscript: 
                 target = node.__dict__["targets"][0].__dict__["value"].__dict__["value"].__dict__["id"]
-                if target in self.typed_record: 
+                if target in self.typed_record:
                     first_index = node.__dict__["targets"][0].__dict__["value"].__dict__["slice"].__dict__["value"].__dict__["id"]
                     second_index = node.__dict__["targets"][0].__dict__["slice"].__dict__["value"].__dict__["id"]
                     if type(node.__dict__["value"]) == str: 
@@ -441,6 +443,31 @@ class SourceGenerator(ExplicitNodeVisitor):
                         self.visit(node.__dict__["value"])
                         self.write(');', dest = 'src')
                     return
+
+            # check for Assigns targeting prmt_mats
+            target = node.__dict__["targets"][0].__dict__["id"]
+            if target in self.typed_record: 
+                if self.typed_record[target] == 'prmt_mat':
+                    if type(node.__dict__["value"]) == ast.BinOp:
+                        right_op = node.__dict__["value"].__dict__["right"].__dict__["id"]
+                        left_op = node.__dict__["value"].__dict__["left"].__dict__["id"]
+                        if right_op in self.typed_record and left_op in self.typed_record:
+                            if self.typed_record[right_op] == 'prmt_mat' and self.typed_record[left_op] == 'prmt_mat':
+                                # dgemm
+                                if type(node.__dict__["value"].__dict__["op"]) == ast.Mult:
+                                    # set target to zero
+                                    self.statement([], 'prmt_fill(', target, ', 0.0);')
+                                    # call dgemm
+                                    self.statement([], 'prmt_dgemm(', left_op, ', ', right_op, ', ', target, ', ', target, ');')
+                                    return
+                                # dgead
+                                if type(node.__dict__["value"].__dict__["op"]) == ast.Add:
+                                    # set target to zero
+                                    self.statement([], 'prmt_fill(', target, ', 0.0);')
+                                    # call dgemm
+                                    self.statement([], 'prmt_dgead(', left_op, ', ', right_op, ', ', target, ', ', target, ');')
+                                    return
+
 
         set_precedence(node, node.value, *node.targets)
         self.newline(node)

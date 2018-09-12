@@ -25,22 +25,20 @@ def iter_all_ast(node):
                 print(child)
 
 
-# filename = 'code.prmt'
-filename = 'new_test.py'
-# filename = 'dummy.py'
-# filename = 'test_prmt_mat_compact.prmt'
-# filename = 'test_prmt_mat.prmt'
-module_name = 'code'
-tree = ast.parse(''.join(open(filename)))
+# filename = 'new_test'
+filename = 'dgemm'
+py_filename = filename + '.py'
+c_filename = filename + '.c'
+tree = ast.parse(''.join(open(py_filename)))
 astpretty.pprint(tree)
 
-result  = prometeo.cgen.code_gen_c.to_source(tree, module_name)
+result  = prometeo.cgen.code_gen_c.to_source(tree, filename)
 
 print("source = \n", prometeo.cgen.source_repr.pretty_source(result.source))
 print("header = \n", prometeo.cgen.source_repr.pretty_source(result.header))
 
-dest_file = open('code.c', 'w')
+dest_file = open(filename + '.c', 'w')
 dest_file.write(prometeo.cgen.source_repr.pretty_source(result.source))
 
-dest_file = open('code.h', 'w')
+dest_file = open(filename + '.h', 'w')
 dest_file.write(prometeo.cgen.source_repr.pretty_source(result.header))
