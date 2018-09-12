@@ -13,7 +13,8 @@ def c_prmt_set_blasfeo_dmat_el(value, M, ai, aj):
 
 def c_prmt_get_blasfeo_dmat_el(M, ai, aj):
          
-    bw.blasfeo_dgeex1(byref(M), ai, aj)
+    el = bw.blasfeo_dgeex1(byref(M), ai, aj)
+    return el 
 
 def c_prmt_set_prmt_blasfeo_dmat(a, M, ai, aj):
          

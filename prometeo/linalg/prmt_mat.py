@@ -14,8 +14,8 @@ class prmt_mat:
     def __getitem__(self, index):
         if self._i is not None:
             self._j = index
-            self.my_get_item()
-            return self
+            el = self.my_get_item()
+            return el
 
         self._i = index
         return self
@@ -33,10 +33,12 @@ class prmt_mat:
         return
 
     def my_get_item(self):
-        prmt_get(self._i, self._j)
+        el = prmt_get(self, self._i, self._j)
         self._i = None
         self._j = None
-        return
+
+        import pdb; pdb.set_trace()
+        return el 
     
     def fill(self, value):
         for i in range(self.blasfeo_dmat.m):
@@ -48,7 +50,7 @@ class prmt_mat:
         for i in range(self.blasfeo_dmat.m):
             for j in range(self.blasfeo_dmat.n):
                 value = to_be_copied[i][j]
-                # import pdb; pdb.set_trace()
+                import pdb; pdb.set_trace()
                 self[i][j] = value
         return
 
@@ -96,7 +98,8 @@ def prmt_set(M: prmt_mat, value, i, j):
     c_prmt_set_blasfeo_dmat_el(value, M.blasfeo_dmat, i, j)  
 
 def prmt_get(M: prmt_mat, i, j):
-    c_prmt_get_blasfeo_dmat_el(M.blasfeo_dmat, i, j)  
+    el = c_prmt_get_blasfeo_dmat_el(M.blasfeo_dmat, i, j)  
+    return el 
 
 def prmt_print(M: prmt_mat):
     c_prmt_print_blasfeo_dmat(M)
