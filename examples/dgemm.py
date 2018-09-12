@@ -14,8 +14,10 @@ C: prmt_mat = prmt_mat(n, n)
 prmt_print(C)
 C = A * B
 prmt_print(C)
-# C = A + B
-# C = A - B
+C = A + B
+prmt_print(C)
+C = A - B
+prmt_print(C)
 # C = A * B + C
 # C = C + A * B
 # C = A\B
