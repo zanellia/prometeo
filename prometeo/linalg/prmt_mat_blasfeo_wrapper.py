@@ -11,6 +11,10 @@ def c_prmt_set_blasfeo_dmat_el(value, M, ai, aj):
          
     bw.blasfeo_dgein1(value, byref(M), ai, aj)
 
+def c_prmt_get_blasfeo_dmat_el(M, ai, aj):
+         
+    bw.blasfeo_dgeex1(byref(M), ai, aj)
+
 def c_prmt_set_prmt_blasfeo_dmat(a, M, ai, aj):
          
     m = M.m
