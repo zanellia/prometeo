@@ -51,7 +51,7 @@ class prmt_mat:
         res.fill(0.0)
         zero_mat = prmt_mat(self.blasfeo_dmat.m, other.blasfeo_dmat.n)
         zero_mat.fill(0.0)
-        prmt_gemm_nt(self, other, zero_mat, res)
+        prmt_gemm_nn(self, other, zero_mat, res)
         return res
     
     # def __add__(self, other):
@@ -59,9 +59,11 @@ class prmt_mat:
     # def __sub__(self, other):
 
 # low-level linear algebra
+    def prmt_gemm_nn(A: prmt_mat, B: prmt_mat, C: prmt_mat, D: prmt_mat):
+        c_prmt_dgemm_nn(A, B, C, D)
+
 def prmt_gemm_nt(A: prmt_mat, B: prmt_mat, C: prmt_mat, D: prmt_mat):
     c_prmt_dgemm_nt(A, B, C, D)
-
 
 def prmt_dgead(alpha: float, A: prmt_mat, B: prmt_mat, C: prmt_mat, D: prmt_mat):
     c_prmt_dgead(alpha, A, B, C)
