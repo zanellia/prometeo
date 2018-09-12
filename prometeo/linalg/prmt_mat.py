@@ -36,8 +36,6 @@ class prmt_mat:
         el = prmt_get(self, self._i, self._j)
         self._i = None
         self._j = None
-
-        import pdb; pdb.set_trace()
         return el 
     
     def fill(self, value):
@@ -50,7 +48,6 @@ class prmt_mat:
         for i in range(self.blasfeo_dmat.m):
             for j in range(self.blasfeo_dmat.n):
                 value = to_be_copied[i][j]
-                import pdb; pdb.set_trace()
                 self[i][j] = value
         return
 
@@ -67,7 +64,6 @@ class prmt_mat:
     def __add__(self, other):
         res = prmt_mat(self.blasfeo_dmat.m, self.blasfeo_dmat.n)
         res.fill(0.0)
-        import pdb; pdb.set_trace()
         res.copy(other)
         prmt_dgead(1.0, self, res)
         return res 
