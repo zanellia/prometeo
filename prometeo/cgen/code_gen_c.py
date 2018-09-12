@@ -463,9 +463,16 @@ class SourceGenerator(ExplicitNodeVisitor):
                                 # dgead
                                 if type(node.__dict__["value"].__dict__["op"]) == ast.Add:
                                     # set target to zero
-                                    self.statement([], 'prmt_fill(', target, ', 0.0);')
-                                    # call dgemm
-                                    self.statement([], 'prmt_dgead(', left_op, ', ', right_op, ', ', target, ', ', target, ');')
+                                    self.statement([], 'prmt_copy(', right_op, ', ', target, ');')
+                                    # call dgead
+                                    self.statement([], 'prmt_dgead(1.0, ', left_op, ', ', target, ');')
+                                    return
+                                # dgead (Sub)
+                                if type(node.__dict__["value"].__dict__["op"]) == ast.Sub:
+                                    # set target to zero
+                                    self.statement([], 'prmt_copy(', right_op, ', ', target, ');')
+                                    # call dgead
+                                    self.statement([], 'prmt_dgead(-1.0, ', left_op, ', ', target, ');')
                                     return
 
 
