@@ -35,6 +35,7 @@ def c_prmt_create_blasfeo_dmat(m: int, n: int):
     bw.blasfeo_pack_dmat(m, n, data, n, byref(sA), 0, 0)
     return sA
 
+# low-level linear algebra
 def c_prmt_dgemm_nt(A, B, C, D):
     bA = A.blasfeo_dmat
     bB = B.blasfeo_dmat
@@ -43,7 +44,15 @@ def c_prmt_dgemm_nt(A, B, C, D):
 
     bw.blasfeo_dgemm_nt(bA.m, bA.n, bB.n, 1.0, byref(bA), 0, 0, byref(bB), 0, 0, 1, byref(bC), 0, 0, byref(bD), 0, 0)
 
+def c_prmt_dgead(alpha, A, B, C):
+    bA = A.blasfeo_dmat
+    bB = B.blasfeo_dmat
+    bC = C.blasfeo_dmat
 
+    bw.blasfeo_dgead(bA.m, bA.n, alpha, byref(bA), 0, 0, byref(bC), 0, 0)
+
+# auxiliary functions
 def c_prmt_print_blasfeo_dmat(A):
     bw.blasfeo_print_dmat(A.blasfeo_dmat.m, A.blasfeo_dmat.n, byref(A.blasfeo_dmat), 0, 0)
+
        

@@ -37,35 +37,43 @@ class prmt_mat:
         self._i = None
         self._j = None
         return
-
-    # def __call__(self, i, j):
-    #     self.set_get_i = i
-    #     self.set_get_j = j
-    #     return self.set_get_attr  
-
-    # def __setattr__(self, name, value):
-    #     if name == 'set_get_attr':
-    #         c_prmt_set_blasfeo_dmat_el(value, self.blasfeo_dmat, set_get_i, set_get_j)  
-    #     else:
-    #         super(prmt_mat, self).__setattr__(name, value)
     
+    def fill(self, value):
+        for i in range(self.blasfeo_dmat.m):
+            for j in range(self.blasfeo_dmat.n):
+                self[i][j] = value
+        return
+
+    # high-level linear algebra
+
+    def __mul__(self, other):
+        res = prmt_mat(self.blasfeo_dmat.m, other.blasfeo_dmat.n)
+        res.fill(0.0)
+        zero_mat = prmt_mat(self.blasfeo_dmat.m, other.blasfeo_dmat.n)
+        zero_mat.fill(0.0)
+        prmt_gemm_nt(self, other, zero_mat, res)
+        return res
+    
+    # def __add__(self, other):
+
+    # def __sub__(self, other):
+
+# low-level linear algebra
+def prmt_gemm_nt(A: prmt_mat, B: prmt_mat, C: prmt_mat, D: prmt_mat):
+    c_prmt_dgemm_nt(A, B, C, D)
 
 
+def prmt_dgead(alpha: float, A: prmt_mat, B: prmt_mat, C: prmt_mat, D: prmt_mat):
+    c_prmt_dgead(alpha, A, B, C)
+
+# auxiliary functions
 def prmt_set_data(M: prmt_mat, data: POINTER(c_double)):
     c_prmt_set_blasfeo_dmat(M.blasfeo_dmat, data)  
 
 def prmt_set(M: prmt_mat, value, i, j):
     c_prmt_set_blasfeo_dmat_el(value, M.blasfeo_dmat, i, j)  
 
-# def __getitem__(self, key):
-#     """ `self[row][col]` indexing and assignment. """
-#     return self.list[index]
-
-
 def prmt_print(M: prmt_mat):
     c_prmt_print_blasfeo_dmat(M)
-
-def prmt_gemm_nt(A: prmt_mat, B: prmt_mat, C: prmt_mat, D: prmt_mat):
-    c_prmt_dgemm_nt(A, B, C, D)
 
 
