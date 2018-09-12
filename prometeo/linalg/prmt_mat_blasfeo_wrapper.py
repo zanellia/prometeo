@@ -73,12 +73,11 @@ def c_prmt_dgemm_tt(A, B, C, D):
 
     bw.blasfeo_dgemm_tt(bA.m, bA.n, bB.n, 1.0, byref(bA), 0, 0, byref(bB), 0, 0, 1, byref(bC), 0, 0, byref(bD), 0, 0)
 
-def c_prmt_dgead(alpha, A, B, C):
+def c_prmt_dgead(alpha, A, B):
     bA = A.blasfeo_dmat
     bB = B.blasfeo_dmat
-    bC = C.blasfeo_dmat
 
-    bw.blasfeo_dgead(bA.m, bA.n, alpha, byref(bA), 0, 0, byref(bC), 0, 0)
+    bw.blasfeo_dgead(bA.m, bA.n, alpha, byref(bA), 0, 0, byref(bB), 0, 0)
 
 # auxiliary functions
 def c_prmt_print_blasfeo_dmat(A):
