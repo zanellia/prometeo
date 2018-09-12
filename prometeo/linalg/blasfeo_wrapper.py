@@ -30,7 +30,7 @@ bw.blasfeo_dgemm_tt.argtypes = [c_int, c_int, c_int, c_double,
     POINTER(blasfeo_dmat), c_int, c_int, POINTER(blasfeo_dmat), c_int, c_int, 
     c_double, POINTER(blasfeo_dmat), c_int, c_int, POINTER(blasfeo_dmat), c_int, c_int]
 
-bw.blasfeo_dgead[c_int, c_int, c_double, POINTER(blasfeo_dmat), c_inti, c_int, 
+bw.blasfeo_dgead.argtypes = [c_int, c_int, c_double, POINTER(blasfeo_dmat), c_int, c_int, 
         POINTER(blasfeo_dmat), c_int, c_int]
 
 bw.blasfeo_dgein1.argtypes = [c_double, POINTER(blasfeo_dmat), c_int, c_int]
