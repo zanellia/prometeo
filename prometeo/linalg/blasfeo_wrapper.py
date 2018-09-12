@@ -14,7 +14,19 @@ class blasfeo_dmat(Structure):
 	            ("memsize", c_int)]
 
 
+bw.blasfeo_dgemm_nn.argtypes = [c_int, c_int, c_int, c_double, 
+    POINTER(blasfeo_dmat), c_int, c_int, POINTER(blasfeo_dmat), c_int, c_int, 
+    c_double, POINTER(blasfeo_dmat), c_int, c_int, POINTER(blasfeo_dmat), c_int, c_int]
+
 bw.blasfeo_dgemm_nt.argtypes = [c_int, c_int, c_int, c_double, 
+    POINTER(blasfeo_dmat), c_int, c_int, POINTER(blasfeo_dmat), c_int, c_int, 
+    c_double, POINTER(blasfeo_dmat), c_int, c_int, POINTER(blasfeo_dmat), c_int, c_int]
+
+bw.blasfeo_dgemm_tn.argtypes = [c_int, c_int, c_int, c_double, 
+    POINTER(blasfeo_dmat), c_int, c_int, POINTER(blasfeo_dmat), c_int, c_int, 
+    c_double, POINTER(blasfeo_dmat), c_int, c_int, POINTER(blasfeo_dmat), c_int, c_int]
+
+bw.blasfeo_dgemm_tt.argtypes = [c_int, c_int, c_int, c_double, 
     POINTER(blasfeo_dmat), c_int, c_int, POINTER(blasfeo_dmat), c_int, c_int, 
     c_double, POINTER(blasfeo_dmat), c_int, c_int, POINTER(blasfeo_dmat), c_int, c_int]
 
