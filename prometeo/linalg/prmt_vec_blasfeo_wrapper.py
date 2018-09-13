@@ -37,3 +37,8 @@ def c_prmt_create_blasfeo_dvec(m: int):
     bw.blasfeo_create_dvec(m, byref(sv), ptr_memory_strvec)
     bw.blasfeo_pack_dvec(m, data, m, byref(sv), 0)
     return sA
+
+
+# auxiliary functions
+def c_prmt_print_blasfeo_dvec(v):
+    bw.blasfeo_print_dvec(v.blasfeo_dvec.m, byref(v.blasfeo_dvec), 0)

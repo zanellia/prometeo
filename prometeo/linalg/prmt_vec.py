@@ -38,14 +38,28 @@ class prmt_vec:
         return el 
     
     def fill(self, value):
-        for i in range(self.blasfeo_dmat.m):
-            for j in range(self.blasfeo_dmat.n):
-                self[i][j] = value
+        for i in range(self.blasfeo_dvec.m):
+            self[i] = value
         return
 
     def copy(self, to_be_copied):
         for i in range(self.blasfeo_dmat.m):
-            for j in range(self.blasfeo_dmat.n):
-                value = to_be_copied[i][j]
-                self[i][j] = value
+                value = to_be_copied[i]
+                self[i] = value
         return
+
+# auxiliary functions
+def prmt_set_data(v: prmt_vec, data: POINTER(c_double)):
+    c_prmt_set_blasfeo_dvec(v.blasfeo_dvec, data)  
+
+def prmt_set(v: prmt_vec, value, i):
+    c_prmt_set_blasfeo_dvec_el(value, v.blasfeo_dvec, i)  
+
+def prmt_get(v: prmt_vec, i):
+    el = c_prmt_get_blasfeo_dmat_el(v.blasfeo_dvec, i)  
+    return el 
+
+def prmt_print(v: prmt_vec):
+    c_prmt_print_blasfeo_dvec(v)
+
+

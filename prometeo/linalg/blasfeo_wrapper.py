@@ -37,13 +37,13 @@ bw.blasfeo_dgein1.argtypes = [c_double, POINTER(blasfeo_dmat), c_int, c_int]
 
 bw.blasfeo_dgeex1.argtypes = [POINTER(blasfeo_dmat), c_int, c_int]
 
-def blasfeo_dgemm_nt(m: c_int, n: c_int, k: c_int, alpha: c_double, 
-                     sA: POINTER(blasfeo_dmat), ai: c_int, aj: c_int, 
-                     sB: POINTER(blasfeo_dmat), bi: c_int, bj: c_int, 
-                     beta: c_double, sC: POINTER(blasfeo_dmat), 
-                     ci: c_int, cj: c_int, sD: POINTER(blasfeo_dmat), 
-                     di: c_int, dj: c_int):
+# def blasfeo_dgemm_nt(m: c_int, n: c_int, k: c_int, alpha: c_double, 
+#                      sA: POINTER(blasfeo_dmat), ai: c_int, aj: c_int, 
+#                      sB: POINTER(blasfeo_dmat), bi: c_int, bj: c_int, 
+#                      beta: c_double, sC: POINTER(blasfeo_dmat), 
+#                      ci: c_int, cj: c_int, sD: POINTER(blasfeo_dmat), 
+#                      di: c_int, dj: c_int):
     
-    bw.blasfeo_dgemm_nt(m, n, k, alpha, byref(sA), ai, aj, byref(sB), bi, bj, beta, 
-                        byref(sC), ci, cj, byref(sD), di, dj)
+#     bw.blasfeo_dgemm_nt(m, n, k, alpha, byref(sA), ai, aj, byref(sB), bi, bj, beta, 
+#                         byref(sC), ci, cj, byref(sD), di, dj)
 
