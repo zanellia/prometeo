@@ -1,9 +1,6 @@
 from .blasfeo_wrapper import *
 from ctypes import *
 
-# TODO(andrea): move body of these functions directly 
-# inside the intermediate-level and make those the
-# low-level
 
 def c_prmt_set_blasfeo_dmat(M, data: POINTER(c_double)):
          
@@ -43,6 +40,10 @@ def c_prmt_create_blasfeo_dmat(m: int, n: int):
     bw.blasfeo_create_dmat(m, n, byref(sA), ptr_memory_strmat)
     bw.blasfeo_pack_dmat(m, n, data, n, byref(sA), 0, 0)
     return sA
+
+# TODO(andrea): move body of these functions directly 
+# inside the intermediate-level and make those the
+# low-level
 
 # intermediate-level linear algebra
 def c_prmt_dgemm_nn(A, B, C, D):
@@ -88,8 +89,28 @@ def c_prmt_dgead(alpha, A, B):
     bw.blasfeo_dgead(bA.m, bA.n, alpha, byref(bA), 0, 0, byref(bB), 0, 0)
     return
 
-def c_prmt_drowpe(m, ipiv, A)
-    bw.blasfeo_drowpe(m, ipiv, A);
+def c_prmt_drowpe(m, ipiv, A):
+    bA = A.blasfeo_dmat
+    bw.blasfeo_drowpe(m, ipiv, byref(bA));
+    return
+
+def c_prmt_getrf(A, ipiv):
+    bA = A.blasfeo_dmat
+    bw.blasfeo_dgetrf_rowpivot(bA.m, bA.m, byref(bA), 0, 0, byref(bA), 0, 0, ipiv)
+    return
+
+def c_prmt_trsm_llnu(A, B):
+    bA = A.blasfeo_dmat
+    bB = B.blasfeo_dmat
+    
+    bw.blasfeo_dtrsm_llnu(bB.m, bB.n, 1.0, byref(bA), 0, 0, byref(bB), 0, 0, byref(bB), 0, 0)
+    return
+
+def c_prmt_trsm_lunn(A, B):
+    bA = A.blasfeo_dmat
+    bB = B.blasfeo_dmat
+    
+    bw.blasfeo_dtrsm_lunn(bB.m, bB.n, 1.0, byref(bA), 0, 0, byref(bB), 0, 0, byref(bB), 0, 0)
     return
 
 # auxiliary functions

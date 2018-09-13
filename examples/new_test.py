@@ -1,5 +1,5 @@
-# from prometeo.linalg import *
-# import sys 
+from prometeo.linalg import *
+import sys 
 
 n: int = 10
 

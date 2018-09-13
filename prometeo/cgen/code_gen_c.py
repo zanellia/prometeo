@@ -475,7 +475,6 @@ class SourceGenerator(ExplicitNodeVisitor):
                                     self.statement([], 'prmt_dgead(-1.0, ', left_op, ', ', target, ');')
                                     return
 
-
         set_precedence(node, node.value, *node.targets)
         self.newline(node)
         for target in node.targets:
@@ -515,7 +514,6 @@ class SourceGenerator(ExplicitNodeVisitor):
                 self.conditional_write(' = ', node.value, '', dest = 'src')
             else:
                 self.conditional_write('', dest = 'src')
-                
 
     def visit_ImportFrom(self, node):
         self.statement(node, 'from ', node.level * '.',

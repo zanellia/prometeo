@@ -18,7 +18,14 @@ C = A + B
 prmt_print(C)
 C = A - B
 prmt_print(C)
+# C = A|B
 # C = A * B + C
 # C = C + A * B
 # C = A\B
+# C = A\(B, 'lu')
+C = A + prmt_ls(A, B, 'lu')
+prmt_print(C)
+C = prmt_ls(A, B, 'lu')
+prmt_print(C)
+# C = (A + B*prmt_ls(A, B, 'lu'))*(B + C)
 

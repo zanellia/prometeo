@@ -80,7 +80,7 @@ class prmt_mat:
         prmt_gead(-1.0, self, res)
         return res 
 
-def prmt_ls(A: prmt_mat, B: prmt_mat, opts: string):
+def prmt_ls(A: prmt_mat, B: prmt_mat, opts):
     res  = prmt_mat(A.blasfeo_dmat.m, B.blasfeo_dmat.n)
     fact = prmt_mat(A.blasfeo_dmat.m, B.blasfeo_dmat.m)
     if opts is 'ch':
@@ -90,16 +90,17 @@ def prmt_ls(A: prmt_mat, B: prmt_mat, opts: string):
         fact = prmt_mat(A.blasfeo_dmat.m, A.blasfeo_dmat.n)
         fact.copy(A)
         # create permutation vector
-        ipivm = cast(A.blasfeo_dmat.m, POINTER(c_int))
+        ipiv = cast(create_string_buffer(A.blasfeo_dmat.m+100), POINTER(c_int))
         # factorize
         prmt_getrf(fact, ipiv)
         # create permuted rhs
         pB = prmt_mat(B.blasfeo_dmat.m, B.blasfeo_dmat.n)
         pB.copy(B)
-        c_prmt_rowpe(B.blasfeo_dmat.m, ipiv, pB)
+        prmt_rowpe(B.blasfeo_dmat.m, ipiv, pB)
         # solve
-        prmt_trsm_llnu(nx * ns, nx + nu, 1.0, JGK, 0, 0, &JKf[ss], 0, 0, &JKf[ss], 0, 0);
-        prmt_trsm_lunn(nx * ns, nx + nu, 1.0, JGK, 0, 0, &JKf[ss], 0, 0, &JKf[ss], 0, 0);
+        prmt_trsm_llnu(A, pB)
+        prmt_trsm_lunn(A, pB)
+        return pB
 
     elif opts is 'qr':
         raise NotImplementedError
@@ -133,13 +134,17 @@ def prmt_rowpe(m: int, ipiv: POINTER(c_int), A: prmt_mat):
     c_prmt_drowpe(m, ipiv, A)
     return
 
-def prmt_trsm_llnu(m: int, n: int, alpha: float, A: prmt_mat, B: prmt_mat):
-    c_prmt_trsm_llnu(m, n, alpha, A, B);
+def prmt_trsm_llnu(A: prmt_mat, B: prmt_mat):
+    c_prmt_trsm_llnu(A, B)
     return 
 
-def prmt_trsm_lunn(m: int, n: int, alpha: float, A: prmt_mat, B: prmt_mat):
-    c_prmt_trsm_lunn(m, n, alpha, A, B);
+def prmt_trsm_lunn(A: prmt_mat, B: prmt_mat):
+    c_prmt_trsm_lunn(A, B)
     return
+
+def prmt_getrf(fact: prmt_mat, ipiv):
+    c_prmt_getrf(fact, ipiv);
+    return 
 
 # auxiliary functions
 def prmt_set_data(M: prmt_mat, data: POINTER(c_double)):
