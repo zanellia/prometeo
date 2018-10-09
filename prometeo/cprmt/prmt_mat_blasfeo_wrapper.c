@@ -11,7 +11,7 @@ struct prmt_mat * ___c_prmt___create_prmt_mat(int m, int n){
     
     
     // create (zeroed) blasfeo_dmat and advance global heap
-    __c_prmt_assign_and_advance_blasfeo_dmat(m, n, &(pmat->bmat));
+    ___c_prmt___assign_and_advance_blasfeo_dmat(m, n, &(pmat->bmat));
 
 	return (struct prmt_mat *)(pmat_address);
 }
@@ -23,7 +23,7 @@ void ___c_prmt___assign_and_advance_blasfeo_dmat(int m, int n, struct blasfeo_dm
     ___c_prmt_heap += sizeof(struct blasfeo_dmat);
 
     // assign current address of global heap to memory in blasfeo dmat
-    blasfeo_create_dmat(m, n, bmat, ___c_prmt_heap);
+    blasfeo_create_dmat(m, n, *bmat, ___c_prmt_heap);
     // advance global heap address
     ___c_prmt_heap += (*bmat)->memsize;
 	// zero allocated memory
