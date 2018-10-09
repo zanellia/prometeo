@@ -27,7 +27,7 @@ prmt_print(C)
 
 # C = A + prmt_ls(A, B, 'lu')
 
-C = A + B + C
+# C = A + B + C
 
 # C = A + prmt_ls(A, B, 'lu')
 # prmt_print(C)

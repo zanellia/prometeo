@@ -11,6 +11,5 @@ struct prmt_mat {
     blasfeo_dmat * bmat;
 }
 
-
 void ___c_prmt___create_prmt_mat(int m, int n);	
 void ___c_prmt___assign_and_advance_blasfeo_dmat(int m, int n, struct blasfeo_dmat **bmat);

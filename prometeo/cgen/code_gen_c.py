@@ -26,7 +26,8 @@ from .string_repr import pretty_string
 from .source_repr import pretty_source
 from collections import namedtuple
 
-prmt_temp_functions = ["prmt_mat"]
+# prmt_temp_functions = ["prmt_mat"]
+prmt_temp_functions = {"prmt_mat": "___c_prmt___create_prmt_mat"}
 prmt_temp_types = {"prmt_mat": "struct prmt_mat *"}
 
 def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False,
