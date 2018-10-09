@@ -13,8 +13,7 @@ void ___c_prmt___create_prmt_mat(int m, int n){
 	return;
 }
 
-void __c_prmt_assign_and_advance_blasfeo_dmat(int m, int n, struct blasfeo_dmat **bmat)
-{
+void __c_prmt_assign_and_advance_blasfeo_dmat(int m, int n, struct blasfeo_dmat **bmat) {
     // assign current address of global heap to blasfeo dmat pointer
     *bmat = (struct blasfeo_dmat *) __c_prmt_heap;
     // advance global heap address
