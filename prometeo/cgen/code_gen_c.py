@@ -747,6 +747,11 @@ class SourceGenerator(ExplicitNodeVisitor):
         numargs += kwargs is not None
         p = Precedence.Comma if numargs > 1 else Precedence.call_one_arg
         set_precedence(p, *args)
+
+        if type(node.__dict__["func"]) == ast.Name: 
+            if  node.__dict__["func"].__dict__["id"] in prmt_temp_functions:
+                func_name = node.__dict__["func"].__dict__["id"]
+                node.__dict__["func"].__dict__["id"] = prmt_temp_functions[func_name]
         self.visit(node.func)
         write('(', dest = 'src')
         for arg in args:
