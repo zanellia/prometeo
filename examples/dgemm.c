@@ -15,3 +15,5 @@ prmt_print(C);
 prmt_copy(B, C);
 prmt_dgead(-1.0, A, C);
 prmt_print(C);
+prmt_print(C);
+prmt_print(C);
