@@ -26,7 +26,7 @@ prmt_print(C)
 C = A - B
 prmt_print(C)
 ```
-can be run from by the standard Python interpreter (version >3.6 required) and it 
+can be run by the standard Python interpreter (version >3.6 required) and it 
 will perform the described linear algebra operations. At the same time, the code
 can be parsed by prometeo and its abstract syntax tree (AST) analyzed in order
 to generate the following high-performance C code:
