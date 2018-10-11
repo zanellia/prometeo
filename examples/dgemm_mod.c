@@ -1,8 +1,10 @@
 #include "prmt_mat_blasfeo_wrapper.h"
 #include "prmt_heap.h"
 #include "dgemm_mod.h"
+#include <stdlib.h>
 
 void main(){ 
+    void *___c_prmt_heap = malloc(100);
     int n = 10;
     struct prmt_mat * A = ___c_prmt___create_prmt_mat(n, n);
     ___c_prmt___fill(A, 1.0);

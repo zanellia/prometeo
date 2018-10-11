@@ -1,12 +1,12 @@
 CC = gcc
 CFLAGS += -O2 -fPIC
 
-SRCS += dgemm_mod.c 
-CFLAGS+=-I../prometeo/cprmt/ -I../external/blasfeo/include/
-LIBPATH+=-L/home/andrea/prometeo/prometeo/cprmt/ -L/opt/lib/ 
+SRCS += dgemm.c 
+CFLAGS+=-I/opt/prometeo/include -I/opt/blasfeo/include
+LIBPATH+=-L/opt/prometeo/lib -L/opt/blasfeo/lib 
 
 all: $(SRCS) 
-	$(CC) $(LIBPATH) -o dgemm_mod $(CFLAGS)  $(SRCS)  -lcprmt -lblasfeo -lm
+	$(CC) $(LIBPATH) -o dgemm $(CFLAGS)  $(SRCS)  -lcprmt -lblasfeo -lm
 
 clean:
 	rm -f *.o
