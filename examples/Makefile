@@ -2,14 +2,12 @@ CC = gcc
 CFLAGS += -O2 -fPIC
 
 SRCS += dgemm_mod.c 
-CFLAGS+=-I../../external/blasfeo/include/
+CFLAGS+=-I../prometeo/cprmt/ -I../external/blasfeo/include/
+CFLAGS+=-L../prometeo/cprmt/ 
 
 all: $(SRCS) 
-	$(CC) -c $(CFLAGS) $(SRCS) 
+	$(CC) -o dgemm_mod $(CFLAGS) $(SRCS) -lcprmt.so 
 
-shared: all
-	$(CC) -o libcprmt.so *.o
 clean:
 	rm -f *.o
-	rm -f *.so
 
