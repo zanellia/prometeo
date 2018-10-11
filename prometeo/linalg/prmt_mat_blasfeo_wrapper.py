@@ -2,6 +2,10 @@ from .blasfeo_wrapper import *
 from ctypes import *
 
 
+bw.blasfeo_dgeex1.restype = c_double     
+# bw.blasfeo_dgead.argtypes = [c_int, c_int, double     
+# void blasfeo_dgead(int m, int n, double alpha, struct blasfeo_dmat *sA, int ai, int aj, struct blasfeo_dmat *sC, int yi, int cj);
+
 def c_prmt_set_blasfeo_dmat(M, data: POINTER(c_double)):
          
     m = M.m
@@ -13,7 +17,6 @@ def c_prmt_set_blasfeo_dmat_el(value, M, ai, aj):
     bw.blasfeo_dgein1(value, byref(M), ai, aj)
 
 def c_prmt_get_blasfeo_dmat_el(M, ai, aj):
-         
     el = bw.blasfeo_dgeex1(byref(M), ai, aj)
     return el 
 

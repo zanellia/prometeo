@@ -5,7 +5,7 @@
 
 void main(){ 
     void *___c_prmt_heap = malloc(100);
-    int n = 10;
+    int n = 2;
     struct prmt_mat * A = ___c_prmt___create_prmt_mat(n, n);
     ___c_prmt___fill(A, 1.0);
     struct prmt_mat * B = ___c_prmt___create_prmt_mat(n, n);

@@ -491,9 +491,9 @@ class SourceGenerator(ExplicitNodeVisitor):
                                 # dgead (Sub)
                                 if type(node.__dict__["value"].__dict__["op"]) == ast.Sub:
                                     # set target to zero
-                                    self.statement([], '___c_prmt___copy(', right_op, ', ', target, ');')
+                                    self.statement([], '___c_prmt___copy(', left_op, ', ', target, ');')
                                     # call dgead
-                                    self.statement([], '___c_prmt___dgead(-1.0, ', left_op, ', ', target, ');')
+                                    self.statement([], '___c_prmt___dgead(-1.0, ', right_op, ', ', target, ');')
                                     return
 
         set_precedence(node, node.value, *node.targets)

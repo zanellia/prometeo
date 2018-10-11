@@ -33,7 +33,7 @@ prmt_print(C)
 # prmt_print(C)
 
 # C = prmt_ls(A, B, 'lu')
-prmt_print(C)
+# prmt_print(C)
 
 # C = (A + B*prmt_ls(A, B, 'lu'))*(B + C)
 

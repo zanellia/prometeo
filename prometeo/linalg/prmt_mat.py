@@ -56,16 +56,14 @@ class prmt_mat:
 
     def __add__(self, other):
         res = prmt_mat(self.blasfeo_dmat.m, self.blasfeo_dmat.n)
-        prmt_fill(res, 0.0)
-        prmt_copy(res, other)
+        prmt_copy(other, res)
         prmt_gead(1.0, self, res)
         return res 
 
     def __sub__(self, other):
         res = prmt_mat(self.blasfeo_dmat.m, self.blasfeo_dmat.n)
-        prmt_fill(res, 0.0)
-        prmt_copy(res, other)
-        prmt_gead(-1.0, self, res)
+        prmt_copy(self, res)
+        prmt_gead(-1.0, other, res)
         return res 
 
 def prmt_fill(A: prmt_mat, value):
@@ -74,11 +72,10 @@ def prmt_fill(A: prmt_mat, value):
             A[i][j] = value
     return
 
-def prmt_copy(A: prmt_mat, to_be_copied):
+def prmt_copy(A: prmt_mat, B: prmt_mat):
     for i in range(A.blasfeo_dmat.m):
         for j in range(A.blasfeo_dmat.n):
-            value = to_be_copied[i][j]
-            A[i][j] = value
+            B[i][j] = A[i][j]
     return
 
 def prmt_ls(A: prmt_mat, B: prmt_mat, opts):

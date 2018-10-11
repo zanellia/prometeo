@@ -4,7 +4,7 @@
 #include "dgemm.h"
 void *___c_prmt_heap; 
 void main() { 
-___c_prmt_heap = malloc(100); 
+___c_prmt_heap = malloc(100000); 
 
 int n = 10;
 struct prmt_mat * A = ___c_prmt___create_prmt_mat(n, n);
@@ -19,8 +19,7 @@ ___c_prmt___print(C);
 ___c_prmt___copy(B, C);
 ___c_prmt___dgead(1.0, A, C);
 ___c_prmt___print(C);
-___c_prmt___copy(B, C);
-___c_prmt___dgead(-1.0, A, C);
-___c_prmt___print(C);
+___c_prmt___copy(A, C);
+___c_prmt___dgead(-1.0, B, C);
 ___c_prmt___print(C);
 }
