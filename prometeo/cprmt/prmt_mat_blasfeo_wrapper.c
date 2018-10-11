@@ -61,7 +61,7 @@ void ___c_prmt___dgead(double alpha, struct prmt_mat *A, struct prmt_mat *B) {
 }
 
 // auxiliary
-void ___c_prmt___prmt_fill(struct prmt_mat *A, double fill_value) {
+void ___c_prmt___fill(struct prmt_mat *A, double fill_value) {
     int m = A->bmat->m;
     int n = A->bmat->n;
 
@@ -70,7 +70,7 @@ void ___c_prmt___prmt_fill(struct prmt_mat *A, double fill_value) {
             blasfeo_dgein1(fill_value, A->bmat, i, j);
 }
 
-void ___c_prmt___prmt_copy(struct prmt_mat *A, struct prmt_mat *B) {
+void ___c_prmt___copy(struct prmt_mat *A, struct prmt_mat *B) {
     int m = A->bmat->m;
     int n = A->bmat->n;
     double value;
@@ -82,7 +82,7 @@ void ___c_prmt___prmt_copy(struct prmt_mat *A, struct prmt_mat *B) {
         }
 }
 
-void ___c_prmt___prmt_print(struct prmt_mat *A) {
+void ___c_prmt___print(struct prmt_mat *A) {
     int m = A->bmat->m;
     int n = A->bmat->n;
 

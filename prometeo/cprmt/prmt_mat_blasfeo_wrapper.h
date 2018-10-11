@@ -22,9 +22,9 @@ void ___c_prmt___dgemm(struct prmt_mat *A, struct prmt_mat *B, struct prmt_mat *
 void ___c_prmt___dgead(double alpha, struct prmt_mat *A, struct prmt_mat *B); 
 
 // auxiliary
-void ___c_prmt___prmt_fill(struct prmt_mat *A, double fill_value);
-void ___c_prmt___prmt_copy(struct prmt_mat *A, struct prmt_mat *B);
-void ___c_prmt___prmt_print(struct prmt_mat *A);
+void ___c_prmt___fill(struct prmt_mat *A, double fill_value);
+void ___c_prmt___copy(struct prmt_mat *A, struct prmt_mat *B);
+void ___c_prmt___print(struct prmt_mat *A);
 
 #endif // PROMETEO_PRMT_MAT_BLASFEO_WRAPPER_H_
 

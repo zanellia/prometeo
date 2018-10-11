@@ -457,23 +457,23 @@ class SourceGenerator(ExplicitNodeVisitor):
                                 # dgemm
                                 if type(node.__dict__["value"].__dict__["op"]) == ast.Mult:
                                     # set target to zero
-                                    self.statement([], '___c_prmt___prmt_fill(', target, ', 0.0);')
+                                    self.statement([], '___c_prmt___fill(', target, ', 0.0);')
                                     # call dgemm
-                                    self.statement([], '___c_prmt___prmt_dgemm(', left_op, ', ', right_op, ', ', target, ', ', target, ');')
+                                    self.statement([], '___c_prmt___dgemm(', left_op, ', ', right_op, ', ', target, ', ', target, ');')
                                     return
                                 # dgead
                                 if type(node.__dict__["value"].__dict__["op"]) == ast.Add:
                                     # set target to zero
-                                    self.statement([], '___c_prmt___prmt_copy(', right_op, ', ', target, ');')
+                                    self.statement([], '___c_prmt___copy(', right_op, ', ', target, ');')
                                     # call dgead
-                                    self.statement([], '___c_prmt___prmt_dgead(1.0, ', left_op, ', ', target, ');')
+                                    self.statement([], '___c_prmt___dgead(1.0, ', left_op, ', ', target, ');')
                                     return
                                 # dgead (Sub)
                                 if type(node.__dict__["value"].__dict__["op"]) == ast.Sub:
                                     # set target to zero
-                                    self.statement([], '___c_prmt___prmt_copy(', right_op, ', ', target, ');')
+                                    self.statement([], '___c_prmt___copy(', right_op, ', ', target, ');')
                                     # call dgead
-                                    self.statement([], '___c_prmt___prmt_dgead(-1.0, ', left_op, ', ', target, ');')
+                                    self.statement([], '___c_prmt___dgead(-1.0, ', left_op, ', ', target, ');')
                                     return
 
         set_precedence(node, node.value, *node.targets)
