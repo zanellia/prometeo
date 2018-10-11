@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS += -O2 -fPIC
+CFLAGS += -g -fPIC
 
 SRCS += dgemm.c 
 CFLAGS+=-I/opt/prometeo/include -I/opt/blasfeo/include

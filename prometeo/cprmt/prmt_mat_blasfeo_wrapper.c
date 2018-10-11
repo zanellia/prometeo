@@ -2,7 +2,7 @@
 #include "prmt_heap.h"
 #include <blasfeo_common.h>
 
-struct prmt_mat * ___c_prmt___create_prmt_mat(int m, int n){	
+struct prmt_mat * ___c_prmt___create_prmt_mat(int m, int n) {	
     // assign current address of global heap to pmat pointer
     struct prmt_mat *pmat = (struct prmt_mat *) ___c_prmt_heap;
     void *pmat_address = ___c_prmt_heap;

@@ -2,8 +2,9 @@
 #include "prmt_heap.h"
 #include "dgemm.h"
 #include "dgemm.h"
+void *___c_prmt_heap; 
 void main() { 
-void *___c_prmt_heap = malloc(100); 
+___c_prmt_heap = malloc(100); 
 
 int n = 10;
 struct prmt_mat * A = ___c_prmt___create_prmt_mat(n, n);

@@ -61,11 +61,12 @@ def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False
         generator.result.source.append('#include "%s.h"\n' %(module_name))
 
     if main==True:
+        generator.result.source.append('void *___c_prmt_heap; \n')
         generator.result.source.append('void main() { \n')
         if ___c_prmt_heap_size is None:
             error('Need to pass ___c_prmt_heap_size! Exiting.')
         else:
-            generator.result.source.append('void *___c_prmt_heap = malloc(%s); \n' %(___c_prmt_heap_size))
+            generator.result.source.append('___c_prmt_heap = malloc(%s); \n' %(___c_prmt_heap_size))
 
     generator.visit(node)
     
