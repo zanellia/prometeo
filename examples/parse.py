@@ -32,7 +32,7 @@ c_filename = filename + '.c'
 tree = ast.parse(''.join(open(py_filename)))
 astpretty.pprint(tree)
 
-result  = prometeo.cgen.code_gen_c.to_source(tree, filename, main=True, ___c_prmt_heap_size=100000)
+result  = prometeo.cgen.code_gen_c.to_source(tree, filename, main=True, ___c_prmt_8_heap_size=100, ___c_prmt_64_heap_size=100000 )
 
 print("source = \n", prometeo.cgen.source_repr.pretty_source(result.source))
 print("header = \n", prometeo.cgen.source_repr.pretty_source(result.header))

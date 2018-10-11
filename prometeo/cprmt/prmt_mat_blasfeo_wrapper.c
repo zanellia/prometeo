@@ -16,11 +16,11 @@ int align_char_to(int num, char **c_ptr)
 
 struct prmt_mat * ___c_prmt___create_prmt_mat(int m, int n) {	
     // assign current address of global heap to pmat pointer
-    struct prmt_mat *pmat = (struct prmt_mat *) ___c_prmt_heap;
-    void *pmat_address = ___c_prmt_heap;
+    struct prmt_mat *pmat = (struct prmt_mat *) ___c_prmt_8_heap;
+    void *pmat_address = ___c_prmt_8_heap;
     
     // advance global heap address
-    ___c_prmt_heap += sizeof(struct prmt_mat);
+    ___c_prmt_8_heap += sizeof(struct prmt_mat);
     
     
     // create (zeroed) blasfeo_dmat and advance global heap
@@ -31,23 +31,23 @@ struct prmt_mat * ___c_prmt___create_prmt_mat(int m, int n) {
 
 void ___c_prmt___assign_and_advance_blasfeo_dmat(int m, int n, struct blasfeo_dmat **bmat) {
     // assign current address of global heap to blasfeo dmat pointer
-    assert((size_t) ___c_prmt_heap % 8 == 0 && "pointer not 8-byte aligned!");
-    *bmat = (struct blasfeo_dmat *) ___c_prmt_heap;
+    assert((size_t) ___c_prmt_8_heap % 8 == 0 && "pointer not 8-byte aligned!");
+    *bmat = (struct blasfeo_dmat *) ___c_prmt_8_heap;
     //
     // advance global heap address
-    ___c_prmt_heap += sizeof(struct blasfeo_dmat);
+    ___c_prmt_8_heap += sizeof(struct blasfeo_dmat);
 
     // assign current address of global heap to memory in blasfeo dmat
-    char *mem_ptr = (char *)___c_prmt_heap;
-    align_char_to(64, &mem_ptr);
-    ___c_prmt_heap = mem_ptr;
-    assert((size_t) ___c_prmt_heap % 64 == 0 && "strmat not 64-byte aligned!");
-    blasfeo_create_dmat(m, n, *bmat, ___c_prmt_heap);
+    char *mem_ptr = (char *)___c_prmt_64_heap;
+    // align_char_to(64, &mem_ptr);
+    // ___c_prmt_heap = mem_ptr;
+    assert((size_t) ___c_prmt_64_heap % 64 == 0 && "dmat not 64-byte aligned!");
+    blasfeo_create_dmat(m, n, *bmat, ___c_prmt_64_heap);
 
     // advance global heap address
     int memsize = (*bmat)->memsize;
     // make_int_multiple_of(64, memsize);
-    ___c_prmt_heap += memsize;	
+    ___c_prmt_64_heap += memsize;	
 
     // zero allocated memory
 	int i;
