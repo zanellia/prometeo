@@ -6,7 +6,6 @@ high-performance self-contained C code that can be easily deployed on embedded d
 A simple example. The Python code
 ```python
 from prometeo.linalg import *
-import sys 
 
 n: int = 10
 
