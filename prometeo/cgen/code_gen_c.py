@@ -27,7 +27,7 @@ from .source_repr import pretty_source
 from collections import namedtuple
 
 # prmt_temp_functions = ["prmt_mat"]
-prmt_temp_functions = {"prmt_mat": "___c_prmt___create_prmt_mat", "prmt_print": "___c_prmt___create_print_prmt_mat", "prmt_dgemm": "___c_prmt___dgemm", "prmt_dgead": "___c_prmt___dgead", "prmt_fill": "___c_prmt___prmt_fill", "prmt_copy": "___c_prmt___prmt_copy"}
+prmt_temp_functions = {"prmt_mat": "___c_prmt___create_prmt_mat", "prmt_print": "___c_prmt___print", "prmt_dgemm": "___c_prmt___dgemm", "prmt_dgead": "___c_prmt___dgead", "prmt_fill": "___c_prmt___fill", "prmt_copy": "___c_prmt___copy"}
 prmt_temp_types = {"prmt_mat": "struct prmt_mat *"}
 
 def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False,
