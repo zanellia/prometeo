@@ -27,7 +27,7 @@ from .source_repr import pretty_source
 from collections import namedtuple
 
 # prmt_temp_functions = ["prmt_mat"]
-prmt_temp_functions = {"prmt_mat": "___c_prmt___create_prmt_mat"}
+prmt_temp_functions = {"prmt_mat": "___c_prmt___create_prmt_mat", "prmt_print": "___c_prmt___create_print_prmt_mat", "prmt_dgemm": "___c_prmt___dgemm", "prmt_dgead": "___c_prmt___dgead", "prmt_fill": "___c_prmt___prmt_fill", "prmt_copy": "___c_prmt___prmt_copy"}
 prmt_temp_types = {"prmt_mat": "struct prmt_mat *"}
 
 def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False,
@@ -457,23 +457,23 @@ class SourceGenerator(ExplicitNodeVisitor):
                                 # dgemm
                                 if type(node.__dict__["value"].__dict__["op"]) == ast.Mult:
                                     # set target to zero
-                                    self.statement([], 'prmt_fill(', target, ', 0.0);')
+                                    self.statement([], '___c_prmt___prmt_fill(', target, ', 0.0);')
                                     # call dgemm
-                                    self.statement([], 'prmt_dgemm(', left_op, ', ', right_op, ', ', target, ', ', target, ');')
+                                    self.statement([], '___c_prmt___prmt_dgemm(', left_op, ', ', right_op, ', ', target, ', ', target, ');')
                                     return
                                 # dgead
                                 if type(node.__dict__["value"].__dict__["op"]) == ast.Add:
                                     # set target to zero
-                                    self.statement([], 'prmt_copy(', right_op, ', ', target, ');')
+                                    self.statement([], '___c_prmt___prmt_copy(', right_op, ', ', target, ');')
                                     # call dgead
-                                    self.statement([], 'prmt_dgead(1.0, ', left_op, ', ', target, ');')
+                                    self.statement([], '___c_prmt___prmt_dgead(1.0, ', left_op, ', ', target, ');')
                                     return
                                 # dgead (Sub)
                                 if type(node.__dict__["value"].__dict__["op"]) == ast.Sub:
                                     # set target to zero
-                                    self.statement([], 'prmt_copy(', right_op, ', ', target, ');')
+                                    self.statement([], '___c_prmt___prmt_copy(', right_op, ', ', target, ');')
                                     # call dgead
-                                    self.statement([], 'prmt_dgead(-1.0, ', left_op, ', ', target, ');')
+                                    self.statement([], '___c_prmt___prmt_dgead(-1.0, ', left_op, ', ', target, ');')
                                     return
 
         set_precedence(node, node.value, *node.targets)
@@ -530,7 +530,17 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.comma_list(node.names)
 
     def visit_Expr(self, node):
+        if type(node.__dict__["value"]) is ast.Call:
+            if "value" in node.__dict__["value"].__dict__["func"].__dict__:
+                var_name = node.__dict__["value"].__dict__["func"].__dict__["value"].__dict__["id"]
+                # check if we are calling a method on a prmt_mat object
+                if var_name in self.typed_record: 
+                    if self.typed_record[var_name] == 'prmt_mat':
+                        fun_name = node.__dict__["value"].__dict__["func"].__dict__["attr"] 
+                        # add prefix to function call
+                        node.__dict__["value"].__dict__["func"].__dict__["attr"] = '___c_prmt___prmt_mat_' + fun_name 
         set_precedence(node, node.value)
+
         self.statement(node)
         self.generic_visit(node)
 

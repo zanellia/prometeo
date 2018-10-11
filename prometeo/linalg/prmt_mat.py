@@ -39,18 +39,6 @@ class prmt_mat:
         self._j = None
         return el 
     
-    def fill(self, value):
-        for i in range(self.blasfeo_dmat.m):
-            for j in range(self.blasfeo_dmat.n):
-                self[i][j] = value
-        return
-
-    def copy(self, to_be_copied):
-        for i in range(self.blasfeo_dmat.m):
-            for j in range(self.blasfeo_dmat.n):
-                value = to_be_copied[i][j]
-                self[i][j] = value
-        return
     
     # TODO(andrea): ideally one would have three levels:
     # 1) high-level
@@ -60,25 +48,38 @@ class prmt_mat:
     # high-level linear algebra
     def __mul__(self, other):
         res = prmt_mat(self.blasfeo_dmat.m, other.blasfeo_dmat.n)
-        res.fill(0.0)
+        prmt_fill(res, 0.0)
         zero_mat = prmt_mat(self.blasfeo_dmat.m, other.blasfeo_dmat.n)
-        zero_mat.fill(0.0)
+        prmt_fill(zero_mat, 0.0)
         prmt_gemm_nn(self, other, zero_mat, res)
         return res
 
     def __add__(self, other):
         res = prmt_mat(self.blasfeo_dmat.m, self.blasfeo_dmat.n)
-        res.fill(0.0)
-        res.copy(other)
+        prmt_fill(res, 0.0)
+        prmt_copy(res, other)
         prmt_gead(1.0, self, res)
         return res 
 
     def __sub__(self, other):
         res = prmt_mat(self.blasfeo_dmat.m, self.blasfeo_dmat.n)
-        res.fill(0.0)
-        res.copy(other)
+        prmt_fill(res, 0.0)
+        prmt_copy(res, other)
         prmt_gead(-1.0, self, res)
         return res 
+
+def prmt_fill(A: prmt_mat, value):
+    for i in range(A.blasfeo_dmat.m):
+        for j in range(A.blasfeo_dmat.n):
+            A[i][j] = value
+    return
+
+def prmt_copy(A: prmt_mat, to_be_copied):
+    for i in range(A.blasfeo_dmat.m):
+        for j in range(A.blasfeo_dmat.n):
+            value = to_be_copied[i][j]
+            A[i][j] = value
+    return
 
 def prmt_ls(A: prmt_mat, B: prmt_mat, opts):
     res  = prmt_mat(A.blasfeo_dmat.m, B.blasfeo_dmat.n)
@@ -88,14 +89,14 @@ def prmt_ls(A: prmt_mat, B: prmt_mat, opts):
     elif opts is 'lu':
         # create prmt_mat for factor
         fact = prmt_mat(A.blasfeo_dmat.m, A.blasfeo_dmat.n)
-        fact.copy(A)
+        prmt_copy(fact, A)
         # create permutation vector
         ipiv = cast(create_string_buffer(A.blasfeo_dmat.m+100), POINTER(c_int))
         # factorize
         prmt_getrf(fact, ipiv)
         # create permuted rhs
         pB = prmt_mat(B.blasfeo_dmat.m, B.blasfeo_dmat.n)
-        pB.copy(B)
+        prmt_copy(pB, B)
         prmt_rowpe(B.blasfeo_dmat.m, ipiv, pB)
         # solve
         prmt_trsm_llnu(A, pB)

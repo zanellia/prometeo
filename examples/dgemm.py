@@ -4,10 +4,10 @@
 n: int = 10
 
 A: prmt_mat = prmt_mat(n, n)
-A.fill(1.0)
+prmt_fill(A, 1.0)
 
 B: prmt_mat = prmt_mat(n, n)
-B.fill(2.0)
+prmt_fill(B, 2.0)
 
 C: prmt_mat = prmt_mat(n, n)
 
