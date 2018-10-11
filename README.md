@@ -75,5 +75,5 @@ clean:
 ```
 and run in order to carry out the same operations.
 
-<span style="color:red">Disclaimer: prometeo is still at a very preliminary stage and only very few linear algebra operations and Python constructs are supported for the time being. </span>
+# Disclaimer: prometeo is still at a very preliminary stage and only very few linear algebra operations and Python constructs are supported for the time being. 
 
