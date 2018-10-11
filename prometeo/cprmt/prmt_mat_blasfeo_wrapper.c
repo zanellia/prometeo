@@ -1,6 +1,18 @@
 #include "prmt_mat_blasfeo_wrapper.h"
 #include "prmt_heap.h"
+#include <assert.h>
 #include <blasfeo_common.h>
+
+void make_int_multiple_of(int num, int *size) { *size = (*size + num - 1) / num * num; }
+
+int align_char_to(int num, char **c_ptr)
+{
+    size_t s_ptr = (size_t) *c_ptr;
+    s_ptr = (s_ptr + num - 1) / num * num;
+    int offset = num - (int) (s_ptr - (size_t)(*c_ptr));
+    *c_ptr = (char *) s_ptr;
+    return offset;
+}
 
 struct prmt_mat * ___c_prmt___create_prmt_mat(int m, int n) {	
     // assign current address of global heap to pmat pointer
@@ -19,17 +31,24 @@ struct prmt_mat * ___c_prmt___create_prmt_mat(int m, int n) {
 
 void ___c_prmt___assign_and_advance_blasfeo_dmat(int m, int n, struct blasfeo_dmat **bmat) {
     // assign current address of global heap to blasfeo dmat pointer
+    assert((size_t) ___c_prmt_heap % 8 == 0 && "pointer not 8-byte aligned!");
     *bmat = (struct blasfeo_dmat *) ___c_prmt_heap;
     //
     // advance global heap address
     ___c_prmt_heap += sizeof(struct blasfeo_dmat);
 
     // assign current address of global heap to memory in blasfeo dmat
+    char *mem_ptr = (char *)___c_prmt_heap;
+    align_char_to(64, &mem_ptr);
+    ___c_prmt_heap = mem_ptr;
+    assert((size_t) ___c_prmt_heap % 64 == 0 && "strmat not 64-byte aligned!");
     blasfeo_create_dmat(m, n, *bmat, ___c_prmt_heap);
 
     // advance global heap address
-    ___c_prmt_heap += (*bmat)->memsize;
-	
+    int memsize = (*bmat)->memsize;
+    // make_int_multiple_of(64, memsize);
+    ___c_prmt_heap += memsize;	
+
     // zero allocated memory
 	int i;
 	double *dA = (*bmat)->dA;
