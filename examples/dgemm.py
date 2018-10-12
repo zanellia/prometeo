@@ -1,39 +1,48 @@
 # from prometeo.linalg import *
-# import sys 
 
-n: int = 10
+def function1(A: prmt_mat, B: prmt_mat, C: prmt_mat) -> None:
+    C = A * B
+    prmt_print(C)
+    return
 
-A: prmt_mat = prmt_mat(n, n)
-prmt_fill(A, 1.0)
 
-B: prmt_mat = prmt_mat(n, n)
-prmt_fill(B, 2.0)
+def main() -> None:
+    n: int = 10
 
-C: prmt_mat = prmt_mat(n, n)
+    A: prmt_mat = prmt_mat(n, n)
+    prmt_fill(A, 1.0)
 
-prmt_print(C)
-C = A * B
-prmt_print(C)
-C = A + B
-prmt_print(C)
-C = A - B
-prmt_print(C)
+    B: prmt_mat = prmt_mat(n, n)
+    prmt_fill(B, 2.0)
 
-# C = A|B
-# C = A * B + C
-# C = C + A * B
-# C = A\B
-# C = A\(B, 'lu')
+    C: prmt_mat = prmt_mat(n, n)
 
-# C = A + prmt_ls(A, B, 'lu')
+    # prmt_print(C)
+    C = A * B
+    # prmt_print(C)
+    C = A + B
+    # prmt_print(C)
+    C = A - B
+    # prmt_print(C)
+    function1(A, B, C)
+    # C = A|B
+    # C = A * B + C
+    # C = C + A * B
+    # C = A\B
+    # C = A\(B, 'lu')
 
-# C = A + B + C
+    # C = A + prmt_ls(A, B, 'lu')
 
-# C = A + prmt_ls(A, B, 'lu')
-# prmt_print(C)
+    # C = A + B + C
 
-# C = prmt_ls(A, B, 'lu')
-# prmt_print(C)
+    # C = A + prmt_ls(A, B, 'lu')
+    # prmt_print(C)
 
-# C = (A + B*prmt_ls(A, B, 'lu'))*(B + C)
+    # C = prmt_ls(A, B, 'lu')
+    # prmt_print(C)
 
+    # C = (A + B*prmt_ls(A, B, 'lu'))*(B + C)
+
+if __name__ == "__main__":
+    # execute only if run as a script
+    main()

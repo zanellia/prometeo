@@ -14,20 +14,34 @@ mem_ptr = (char *)___c_prmt_64_heap;
 align_char_to(64, &mem_ptr);
 ___c_prmt_64_heap = mem_ptr;
 
-int n = 10;
-struct prmt_mat * A = ___c_prmt___create_prmt_mat(n, n);
-___c_prmt___fill(A, 1.0);
-struct prmt_mat * B = ___c_prmt___create_prmt_mat(n, n);
-___c_prmt___fill(B, 2.0);
-struct prmt_mat * C = ___c_prmt___create_prmt_mat(n, n);
-___c_prmt___print(C);
-___c_prmt___fill(C, 0.0);
-___c_prmt___dgemm(A, B, C, C);
-___c_prmt___print(C);
-___c_prmt___copy(B, C);
-___c_prmt___dgead(1.0, A, C);
-___c_prmt___print(C);
-___c_prmt___copy(A, C);
-___c_prmt___dgead(-1.0, B, C);
-___c_prmt___print(C);
+
+
+void function1(struct prmt_mat * A, struct prmt_mat * B, struct prmt_mat * C) {
+    ___c_prmt___fill(C, 0.0);
+    ___c_prmt___dgemm(A, B, C, C);
+    ___c_prmt___print(C);
+    return ;
+}
+
+
+void main() {
+    int n = 10;
+    struct prmt_mat * A = ___c_prmt___create_prmt_mat(n, n);
+    ___c_prmt___fill(A, 1.0);
+    struct prmt_mat * B = ___c_prmt___create_prmt_mat(n, n);
+    ___c_prmt___fill(B, 2.0);
+    struct prmt_mat * C = ___c_prmt___create_prmt_mat(n, n);
+    ___c_prmt___fill(C, 0.0);
+    ___c_prmt___dgemm(A, B, C, C);
+    ___c_prmt___copy(B, C);
+    ___c_prmt___dgead(1.0, A, C);
+    ___c_prmt___copy(A, C);
+    ___c_prmt___dgead(-1.0, B, C);
+    function1(A, B, C);
+}
+
+
+if(__name__ == '__main__') {
+    main();
+}
 }

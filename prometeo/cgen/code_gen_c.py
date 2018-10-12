@@ -28,7 +28,7 @@ from collections import namedtuple
 
 # prmt_temp_functions = ["prmt_mat"]
 prmt_temp_functions = {"prmt_mat": "___c_prmt___create_prmt_mat", "prmt_print": "___c_prmt___print", "prmt_dgemm": "___c_prmt___dgemm", "prmt_dgead": "___c_prmt___dgead", "prmt_fill": "___c_prmt___fill", "prmt_copy": "___c_prmt___copy"}
-prmt_temp_types = {"prmt_mat": "struct prmt_mat *"}
+prmt_temp_types = {"prmt_mat": "struct prmt_mat *", "None": "void", "NoneType": "void"}
 
 def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False,
               pretty_string=pretty_string, pretty_source=pretty_source, main=False, ___c_prmt_8_heap_size=None, ___c_prmt_64_heap_size=None):
@@ -412,7 +412,15 @@ class SourceGenerator(ExplicitNodeVisitor):
             set_precedence(Precedence.Comma, defaults)
             padding = [None] * (len(args) - len(defaults))
             for arg, default in zip(args, padding + defaults):
-                self.write(write_comma, arg.annotation.id,' ',arg.arg, dest = dest_in)
+                # import pdb; pdb.set_trace()
+                # fish c type from typed record
+                arg_type_py = arg.annotation.id
+
+                arg_type_c = prmt_temp_types[arg_type_py]
+                self.write(write_comma, arg_type_c,' ',arg.arg, dest = dest_in)
+
+                # add variable to typed record
+                self.typed_record[arg.arg] = arg_type_py
                 self.conditional_write('=', default, dest = 'src')
 
         loop_args(node.args, node.defaults)
@@ -577,13 +585,19 @@ class SourceGenerator(ExplicitNodeVisitor):
         prefix = 'async ' if async else ''
         self.decorators(node, 1 if self.indentation else 2)
         # self.write()
-        self.statement(node, self.get_returns(node), '%s %s' % (prefix, node.name), '(')
+        returns = self.get_returns(node)
+        return_type_py = returns.__dict__["value"]
+        import pdb; pdb.set_trace()
+        print(return_type_py)
+        return_type_c = prmt_temp_types[return_type_py.__class__.__name__]
+        # self.statement(node, self.get_returns(node), '%s %s' % (prefix, node.name), '(')
+        self.write(return_type_c, ' %s' %(node.name), '(', dest = 'src')
         self.visit_arguments(node.args, 'src')
-        self.write(') {')
+        self.write(') {', dest = 'src')
         # self.write(':')
         self.body(node.body)
         self.newline(1)
-        self.write('}')
+        self.write('}', dest='src')
         if not self.indentation:
             self.newline(extra=2)
 
