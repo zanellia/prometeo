@@ -17,13 +17,13 @@ def main() -> None:
 
     C: prmt_mat = prmt_mat(n, n)
 
-    # prmt_print(C)
+    prmt_print(C)
     C = A * B
-    # prmt_print(C)
+    prmt_print(C)
     C = A + B
-    # prmt_print(C)
+    prmt_print(C)
     C = A - B
-    # prmt_print(C)
+    prmt_print(C)
     function1(A, B, C)
     # C = A|B
     # C = A * B + C

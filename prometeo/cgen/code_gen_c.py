@@ -50,32 +50,17 @@ def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False
     number information of statement nodes.
 
     """
-    generator = SourceGenerator(indent_with, add_line_information,
-                                pretty_string)
+    if ___c_prmt_8_heap_size is None or ___c_prmt_64_heap_size is None :
+        error('Need to pass heap_sizes! Exiting.')
+
+    generator = SourceGenerator(indent_with, ___c_prmt_8_heap_size,
+                                ___c_prmt_64_heap_size, add_line_information,
+                                pretty_string,
+                                )
     
     generator.result.source.append('#include "prmt_mat_blasfeo_wrapper.h"\n')
     generator.result.source.append('#include "prmt_heap.h"\n')
     generator.result.source.append('#include "%s.h"\n' %(module_name))
-
-    if main==True:
-        generator.result.source.append('#include "%s.h"\n' %(module_name))
-
-    if main==True:
-        generator.result.source.append('void *___c_prmt_8_heap; \n')
-        generator.result.source.append('void *___c_prmt_64_heap; \n')
-        generator.result.source.append('void main() { \n')
-        if ___c_prmt_8_heap_size is None or ___c_prmt_64_heap_size is None :
-            error('Need to pass heap_sizes! Exiting.')
-        else:
-            generator.result.source.append('___c_prmt_8_heap = malloc(%s); \n' %(___c_prmt_8_heap_size))
-            generator.result.source.append('char *mem_ptr = (char *)___c_prmt_8_heap; \n')
-            generator.result.source.append('align_char_to(8, &mem_ptr);\n')
-            generator.result.source.append('___c_prmt_8_heap = mem_ptr;\n')
-            
-            generator.result.source.append('___c_prmt_64_heap = malloc(%s); \n' %(___c_prmt_64_heap_size))
-            generator.result.source.append('mem_ptr = (char *)___c_prmt_64_heap; \n')
-            generator.result.source.append('align_char_to(64, &mem_ptr);\n')
-            generator.result.source.append('___c_prmt_64_heap = mem_ptr;\n')
 
     generator.visit(node)
     
@@ -87,11 +72,11 @@ def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False
     if set(generator.result.header[0]) == set('\n'):
         generator.result.header[0] = ''
 
-    if main==True:
-        generator.result.source.append('')
-        generator.result.source.append('}')
-        generator.result.source.append('\n')
-        generator.result.source.append('')
+    # if main==True:
+    #     generator.result.source.append('')
+    #     generator.result.source.append('}')
+    #     generator.result.source.append('\n')
+    #     generator.result.source.append('')
     
     return generator.result
 
@@ -180,8 +165,8 @@ class SourceGenerator(ExplicitNodeVisitor):
     """
     using_unicode_literals = False
     
-    def __init__(self, indent_with, add_line_information=False,
-                 pretty_string=pretty_string,
+    def __init__(self, indent_with,  ___c_prmt_8_heap_size, ___c_prmt_64_heap_size, 
+                add_line_information=False,pretty_string=pretty_string,
                  # constants
                  len=len, isinstance=isinstance, callable=callable):
         
@@ -205,6 +190,9 @@ class SourceGenerator(ExplicitNodeVisitor):
         append_src = result.source.append
         append_hdr = result.header.append
     
+        self.heap8_size = ___c_prmt_8_heap_size 
+        self.heap64_size = ___c_prmt_64_heap_size 
+
         self.typed_record = {}
         
         def write(*params, dest):
@@ -268,7 +256,7 @@ class SourceGenerator(ExplicitNodeVisitor):
     def newline(self, node=None, extra=0):
         self.new_lines = max(self.new_lines, 1 + extra)
         if node is not None and self.add_line_information:
-            self.write('# line: %s' % node.lineno, dest)
+            self.write('# line: %s' % node.lineno, dest = 'src')
             self.new_lines = 1
 
     def body(self, statements):
@@ -587,13 +575,28 @@ class SourceGenerator(ExplicitNodeVisitor):
         # self.write()
         returns = self.get_returns(node)
         return_type_py = returns.__dict__["value"]
-        import pdb; pdb.set_trace()
+
+        if node.name == 'main':
+            self.write('void *___c_prmt_8_heap; \n', dest = 'src')
+            self.write('void *___c_prmt_64_heap; \n', dest = 'src')
+
         print(return_type_py)
         return_type_c = prmt_temp_types[return_type_py.__class__.__name__]
         # self.statement(node, self.get_returns(node), '%s %s' % (prefix, node.name), '(')
         self.write(return_type_c, ' %s' %(node.name), '(', dest = 'src')
         self.visit_arguments(node.args, 'src')
-        self.write(') {', dest = 'src')
+        self.write(') {\n', dest = 'src')
+        if node.name == 'main':
+            self.write('    ___c_prmt_8_heap = malloc(%s); \n' %(self.heap8_size), dest = 'src')
+            self.write('    char *mem_ptr = (char *)___c_prmt_8_heap; \n', dest = 'src')
+            self.write('    align_char_to(8, &mem_ptr);\n', dest = 'src')
+            self.write('    ___c_prmt_8_heap = mem_ptr;\n', dest = 'src')
+            
+            self.write('    ___c_prmt_64_heap = malloc(%s); \n' %(self.heap64_size), dest = 'src')
+            self.write('    mem_ptr = (char *)___c_prmt_64_heap; \n', dest = 'src')
+            self.write('    align_char_to(64, &mem_ptr);\n', dest = 'src')
+            self.write('    ___c_prmt_64_heap = mem_ptr;\n', dest = 'src')
+
         # self.write(':')
         self.body(node.body)
         self.newline(1)
