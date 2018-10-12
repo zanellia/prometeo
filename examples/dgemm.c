@@ -5,8 +5,14 @@
 void *___c_prmt_8_heap; 
 void *___c_prmt_64_heap; 
 void main() { 
-___c_prmt_8_heap = malloc(1000); 
-___c_prmt_64_heap = malloc(1000000); 
+___c_prmt_8_heap = malloc(100); 
+char *mem_ptr = (char *)___c_prmt_8_heap; 
+align_char_to(8, &mem_ptr);
+___c_prmt_8_heap = mem_ptr;
+___c_prmt_64_heap = malloc(100000); 
+mem_ptr = (char *)___c_prmt_64_heap; 
+align_char_to(64, &mem_ptr);
+___c_prmt_64_heap = mem_ptr;
 
 int n = 10;
 struct prmt_mat * A = ___c_prmt___create_prmt_mat(n, n);

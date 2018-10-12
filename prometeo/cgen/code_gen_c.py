@@ -68,7 +68,14 @@ def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False
             error('Need to pass heap_sizes! Exiting.')
         else:
             generator.result.source.append('___c_prmt_8_heap = malloc(%s); \n' %(___c_prmt_8_heap_size))
+            generator.result.source.append('char *mem_ptr = (char *)___c_prmt_8_heap; \n')
+            generator.result.source.append('align_char_to(8, &mem_ptr);\n')
+            generator.result.source.append('___c_prmt_8_heap = mem_ptr;\n')
+            
             generator.result.source.append('___c_prmt_64_heap = malloc(%s); \n' %(___c_prmt_64_heap_size))
+            generator.result.source.append('mem_ptr = (char *)___c_prmt_64_heap; \n')
+            generator.result.source.append('align_char_to(64, &mem_ptr);\n')
+            generator.result.source.append('___c_prmt_64_heap = mem_ptr;\n')
 
     generator.visit(node)
     
