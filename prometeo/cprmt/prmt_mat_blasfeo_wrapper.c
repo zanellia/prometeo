@@ -28,7 +28,7 @@ struct prmt_mat * ___c_prmt___create_prmt_mat(int m, int n) {
 	return (struct prmt_mat *)(pmat_address);
 }
 
-inline void ___c_prmt___assign_and_advance_blasfeo_dmat(int m, int n, struct blasfeo_dmat **bmat) {
+void ___c_prmt___assign_and_advance_blasfeo_dmat(int m, int n, struct blasfeo_dmat **bmat) {
     // assign current address of global heap to blasfeo dmat pointer
     assert((size_t) ___c_prmt_8_heap % 8 == 0 && "pointer not 8-byte aligned!");
     *bmat = (struct blasfeo_dmat *) ___c_prmt_8_heap;
@@ -38,6 +38,8 @@ inline void ___c_prmt___assign_and_advance_blasfeo_dmat(int m, int n, struct bla
 
     // assign current address of global heap to memory in blasfeo dmat
     char *mem_ptr = (char *)___c_prmt_64_heap;
+    // align_char_to(64, &mem_ptr);
+    // ___c_prmt_heap = mem_ptr;
     assert((size_t) ___c_prmt_64_heap % 64 == 0 && "dmat not 64-byte aligned!");
     blasfeo_create_dmat(m, n, *bmat, ___c_prmt_64_heap);
 
@@ -59,7 +61,7 @@ inline void ___c_prmt___assign_and_advance_blasfeo_dmat(int m, int n, struct bla
 
 // BLAS API
 
-inline void ___c_prmt___dgemm(struct prmt_mat *A, struct prmt_mat *B, struct prmt_mat *C, struct prmt_mat *D) {
+void ___c_prmt___dgemm(struct prmt_mat *A, struct prmt_mat *B, struct prmt_mat *C, struct prmt_mat *D) {
     int mA = A->bmat->m; 
     int nA = A->bmat->n; 
     int nB = B->bmat->n; 
@@ -77,7 +79,7 @@ inline void ___c_prmt___dgemm(struct prmt_mat *A, struct prmt_mat *B, struct prm
     blasfeo_dgemm_nn(mA, nA, nB, 1.0, bA, 0, 0, bB, 0, 0, 1, bC, 0, 0, bD, 0, 0);
 }
 
-inline void ___c_prmt___dgead(double alpha, struct prmt_mat *A, struct prmt_mat *B) {
+void ___c_prmt___dgead(double alpha, struct prmt_mat *A, struct prmt_mat *B) {
     int mA = A->bmat->m; 
     int nA = A->bmat->n; 
     struct blasfeo_dmat *bA = A->bmat;
@@ -87,7 +89,7 @@ inline void ___c_prmt___dgead(double alpha, struct prmt_mat *A, struct prmt_mat 
 }
 
 // auxiliary
-inline void ___c_prmt___fill(struct prmt_mat *A, double fill_value) {
+void ___c_prmt___fill(struct prmt_mat *A, double fill_value) {
     int m = A->bmat->m;
     int n = A->bmat->n;
 
@@ -96,7 +98,7 @@ inline void ___c_prmt___fill(struct prmt_mat *A, double fill_value) {
             blasfeo_dgein1(fill_value, A->bmat, i, j);
 }
 
-inline void ___c_prmt___copy(struct prmt_mat *A, struct prmt_mat *B) {
+void ___c_prmt___copy(struct prmt_mat *A, struct prmt_mat *B) {
     int m = A->bmat->m;
     int n = A->bmat->n;
     double value;
@@ -108,7 +110,7 @@ inline void ___c_prmt___copy(struct prmt_mat *A, struct prmt_mat *B) {
         }
 }
 
-inline void ___c_prmt___print(struct prmt_mat *A) {
+void ___c_prmt___print(struct prmt_mat *A) {
     int m = A->bmat->m;
     int n = A->bmat->n;
 
