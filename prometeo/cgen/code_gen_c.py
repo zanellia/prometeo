@@ -28,7 +28,7 @@ from collections import namedtuple
 
 # prmt_temp_functions = ["prmt_mat"]
 prmt_temp_functions = {"prmt_mat": "___c_prmt___create_prmt_mat", "prmt_print": "___c_prmt___print", "prmt_dgemm": "___c_prmt___dgemm", "prmt_dgead": "___c_prmt___dgead", "prmt_fill": "___c_prmt___fill", "prmt_copy": "___c_prmt___copy"}
-prmt_temp_types = {"prmt_mat": "struct prmt_mat *", "None": "void", "NoneType": "void"}
+prmt_temp_types = {"prmt_mat": "struct prmt_mat *", "None": "void", "NoneType": "void", "ptr_int": "int *", "ptr_prmt_mat": "struct prmt_mat **","int": "int", "double": "double"}
 
 def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False,
               pretty_string=pretty_string, pretty_source=pretty_source, main=False, ___c_prmt_8_heap_size=None, ___c_prmt_64_heap_size=None):
@@ -190,7 +190,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         append_src = result.source.append
         append_hdr = result.header.append
     
-        self.heap8_size = ___c_prmt_8_heap_size 
+        self.heap8_size  = ___c_prmt_8_heap_size 
         self.heap64_size = ___c_prmt_64_heap_size 
 
         self.typed_record = {}
@@ -520,23 +520,39 @@ class SourceGenerator(ExplicitNodeVisitor):
         need_parens = isinstance(node.target, ast.Name) and not node.simple
         begin = '(' if need_parens else ''
         end = ')' if need_parens else ''
-        ann = node.annotation.__dict__["id"]
-        # add variable to typed record
-        self.typed_record[node.target.__dict__["id"]] = node.annotation.__dict__["id"]
-        print(self.typed_record)
-        if  ann in prmt_temp_types:
-            node.annotation.__dict__["id"] = prmt_temp_types[ann]
-            self.statement(node, node.annotation, ' ', node.target)
-        else:
-            self.statement(node, node.annotation, ' ', node.target)
+        # check if the annotation contains directly a type or something fancier
+        if "id" in node.annotation.__dict__:
+            ann = node.annotation.__dict__["id"]
+            # add variable to typed record
+            self.typed_record[node.target.__dict__["id"]] = node.annotation.__dict__["id"]
+            print(self.typed_record)
+            if  ann in prmt_temp_types:
+                node.annotation.__dict__["id"] = prmt_temp_types[ann]
+                self.statement(node, node.annotation, ' ', node.target)
+            else:
+                raise Exception("Could not resolve type '{}'. Exiting.".format(ann))
+                # self.statement(node, node.annotation, ' ', node.target)
+        # List[<type>]
+        elif "slice" in node.annotation.__dict__:
+            ann = 'ptr_' + node.annotation.__dict__["slice"].__dict__["value"].__dict__["id"]
+            # add variable to typed record
+            self.typed_record[node.target.__dict__["id"]] = ann
+            print(self.typed_record)
+            if  ann in prmt_temp_types:
+                c_ann = prmt_temp_types[ann]
+                self.statement(node, c_ann, ' ', node.target.__dict__["id"])
+            else:
+                # self.write(node, node.annotation, ' ', node.target)
+                raise Exception("Could not resolve type '{}'. Exiting.".format(ann))
+
         # switch to avoid double ';'
         if type(node.value) != ast.Call:
-            if node.value is not 'None':
+            if node.value is not None:
                 self.conditional_write(' = ', node.value, ';', dest = 'src')
             else:
                 self.conditional_write(';', dest = 'src')
         else:
-            if node.value is not 'None':
+            if node.value is not None:
                 self.conditional_write(' = ', node.value, '', dest = 'src')
             else:
                 self.conditional_write('', dest = 'src')

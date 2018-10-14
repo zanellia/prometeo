@@ -25,6 +25,8 @@ void main() {
     align_char_to(64, &mem_ptr);
     ___c_prmt_64_heap = mem_ptr;
 
+    int * n_list;
+    struct prmt_mat ** pmat_list;
     int n = 10;
     struct prmt_mat * A = ___c_prmt___create_prmt_mat(n, n);
     ___c_prmt___fill(A, 1.0);
