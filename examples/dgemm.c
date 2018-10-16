@@ -27,12 +27,14 @@ void main() {
 
     int * n_list;
     struct prmt_mat ** pmat_list;
-    int n = 10;
     struct prmt_mat * A = ___c_prmt___create_prmt_mat(n, n);
+    prmt_mat_set_el(A, 0, 2, 2.0);
+    int n = 10;
     ___c_prmt___fill(A, 1.0);
     struct prmt_mat * B = ___c_prmt___create_prmt_mat(n, n);
     ___c_prmt___fill(B, 2.0);
     struct prmt_mat * C = ___c_prmt___create_prmt_mat(n, n);
+    pmat_list[0] = A;
     ___c_prmt___print(C);
     ___c_prmt___fill(C, 0.0);
     ___c_prmt___dgemm(A, B, C, C);

@@ -451,55 +451,58 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.write(',' if trailing else '')
 
     # Statements
-
     def visit_Assign(self, node):
+        # import pdb; pdb.set_trace()
         if 'targets' in node.__dict__:
-
-            # map subscript for prmt_mats to blasfeo el assign
             if type(node.__dict__["targets"][0]) == ast.Subscript: 
-                target = node.__dict__["targets"][0].__dict__["value"].__dict__["value"].__dict__["id"]
-                if target in self.typed_record:
-                    first_index = node.__dict__["targets"][0].__dict__["value"].__dict__["slice"].__dict__["value"].__dict__["id"]
-                    second_index = node.__dict__["targets"][0].__dict__["slice"].__dict__["value"].__dict__["id"]
-                    if type(node.__dict__["value"]) == str: 
-                        value = node.__dict__["value"]
-                        self.statement([], 'prmt_mat_set_el(', target, ', ', first_index, ', ', second_index, ', ', value, ');')
-                    else:
-                        self.statement([], 'prmt_mat_set_el(', target, ', ', first_index, ', ', second_index, ', ')
-                        self.visit(node.__dict__["value"])
-                        self.write(');', dest = 'src')
-                    return
+                # import pdb; pdb.set_trace()
+                if 'value' in node.__dict__["targets"][0].__dict__["value"].__dict__:
+                    target = node.__dict__["targets"][0].__dict__["value"].__dict__["value"].__dict__["id"]
+                    if target in self.typed_record: 
+                        # map subscript for prmt_mats to blasfeo el assign
+                        if self.typed_record[target] == 'prmt_mat':
+                            first_index = node.__dict__["targets"][0].__dict__["value"].__dict__["slice"].__dict__["value"].__dict__["n"]
+                            second_index = node.__dict__["targets"][0].__dict__["slice"].__dict__["value"].__dict__["n"]
+                            if type(node.__dict__["value"]) == str: 
+                                value = node.__dict__["value"]
+                                import pdb; pdb.set_trace()
+                                self.statement([], 'prmt_mat_set_el(', target, ', ', first_index, ', ', second_index, ', ', value, ');')
+                            else:
+                                value = node.__dict__["value"].__dict__["n"]
+                                self.statement([], "prmt_mat_set_el(", target, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value), ');')
+                            return
 
-            # check for Assigns targeting prmt_mats
-            target = node.__dict__["targets"][0].__dict__["id"]
-            if target in self.typed_record: 
-                if self.typed_record[target] == 'prmt_mat':
-                    if type(node.__dict__["value"]) == ast.BinOp:
-                        right_op = node.__dict__["value"].__dict__["right"].__dict__["id"]
-                        left_op = node.__dict__["value"].__dict__["left"].__dict__["id"]
-                        if right_op in self.typed_record and left_op in self.typed_record:
-                            if self.typed_record[right_op] == 'prmt_mat' and self.typed_record[left_op] == 'prmt_mat':
-                                # dgemm
-                                if type(node.__dict__["value"].__dict__["op"]) == ast.Mult:
-                                    # set target to zero
-                                    self.statement([], '___c_prmt___fill(', target, ', 0.0);')
-                                    # call dgemm
-                                    self.statement([], '___c_prmt___dgemm(', left_op, ', ', right_op, ', ', target, ', ', target, ');')
-                                    return
-                                # dgead
-                                if type(node.__dict__["value"].__dict__["op"]) == ast.Add:
-                                    # set target to zero
-                                    self.statement([], '___c_prmt___copy(', right_op, ', ', target, ');')
-                                    # call dgead
-                                    self.statement([], '___c_prmt___dgead(1.0, ', left_op, ', ', target, ');')
-                                    return
-                                # dgead (Sub)
-                                if type(node.__dict__["value"].__dict__["op"]) == ast.Sub:
-                                    # set target to zero
-                                    self.statement([], '___c_prmt___copy(', left_op, ', ', target, ');')
-                                    # call dgead
-                                    self.statement([], '___c_prmt___dgead(-1.0, ', right_op, ', ', target, ');')
-                                    return
+            else:
+                # check for Assigns targeting prmt_mats
+                target = node.__dict__["targets"][0].__dict__["id"]
+                if target in self.typed_record: 
+                    if self.typed_record[target] == 'prmt_mat':
+                        if type(node.__dict__["value"]) == ast.BinOp:
+                            right_op = node.__dict__["value"].__dict__["right"].__dict__["id"]
+                            left_op = node.__dict__["value"].__dict__["left"].__dict__["id"]
+                            if right_op in self.typed_record and left_op in self.typed_record:
+                                if self.typed_record[right_op] == 'prmt_mat' and self.typed_record[left_op] == 'prmt_mat':
+                                    # dgemm
+                                    if type(node.__dict__["value"].__dict__["op"]) == ast.Mult:
+                                        # set target to zero
+                                        self.statement([], '___c_prmt___fill(', target, ', 0.0);')
+                                        # call dgemm
+                                        self.statement([], '___c_prmt___dgemm(', left_op, ', ', right_op, ', ', target, ', ', target, ');')
+                                        return
+                                    # dgead
+                                    if type(node.__dict__["value"].__dict__["op"]) == ast.Add:
+                                        # set target to zero
+                                        self.statement([], '___c_prmt___copy(', right_op, ', ', target, ');')
+                                        # call dgead
+                                        self.statement([], '___c_prmt___dgead(1.0, ', left_op, ', ', target, ');')
+                                        return
+                                    # dgead (Sub)
+                                    if type(node.__dict__["value"].__dict__["op"]) == ast.Sub:
+                                        # set target to zero
+                                        self.statement([], '___c_prmt___copy(', left_op, ', ', target, ');')
+                                        # call dgead
+                                        self.statement([], '___c_prmt___dgead(-1.0, ', right_op, ', ', target, ');')
+                                        return
 
         set_precedence(node, node.value, *node.targets)
         self.newline(node)

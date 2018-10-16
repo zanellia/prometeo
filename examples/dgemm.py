@@ -23,16 +23,19 @@ def main() -> None:
     n_list: List[int]
 
     pmat_list: List[prmt_mat]
+    A: prmt_mat = prmt_mat(n, n)
+    A[0][2] = 2.0
 
     n: int = 10
 
-    A: prmt_mat = prmt_mat(n, n)
     prmt_fill(A, 1.0)
 
     B: prmt_mat = prmt_mat(n, n)
     prmt_fill(B, 2.0)
 
     C: prmt_mat = prmt_mat(n, n)
+
+    pmat_list[0] = A
 
     prmt_print(C)
     C = A * B
@@ -60,6 +63,6 @@ def main() -> None:
 
     # C = (A + B*prmt_ls(A, B, 'lu'))*(B + C)
 
-if __name__ == "__main__":
-    # execute only if run as a script
-    main()
+# if __name__ == "__main__":
+#     # execute only if run as a script
+#     main()
