@@ -22,11 +22,11 @@ def main() -> None:
     # test_class: p_class
     n_list: List[int]
 
-    pmat_list: List[prmt_mat]
+    n: int = 10
     A: prmt_mat = prmt_mat(n, n)
     A[0][2] = 2.0
+    A[0][1] = A[0][3]
 
-    n: int = 10
 
     prmt_fill(A, 1.0)
 
@@ -35,6 +35,7 @@ def main() -> None:
 
     C: prmt_mat = prmt_mat(n, n)
 
+    pmat_list: List[prmt_mat]
     pmat_list[0] = A
 
     prmt_print(C)

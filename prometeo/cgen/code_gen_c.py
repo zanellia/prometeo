@@ -452,10 +452,8 @@ class SourceGenerator(ExplicitNodeVisitor):
 
     # Statements
     def visit_Assign(self, node):
-        # import pdb; pdb.set_trace()
         if 'targets' in node.__dict__:
             if type(node.__dict__["targets"][0]) == ast.Subscript: 
-                # import pdb; pdb.set_trace()
                 if 'value' in node.__dict__["targets"][0].__dict__["value"].__dict__:
                     target = node.__dict__["targets"][0].__dict__["value"].__dict__["value"].__dict__["id"]
                     if target in self.typed_record: 
@@ -463,13 +461,21 @@ class SourceGenerator(ExplicitNodeVisitor):
                         if self.typed_record[target] == 'prmt_mat':
                             first_index = node.__dict__["targets"][0].__dict__["value"].__dict__["slice"].__dict__["value"].__dict__["n"]
                             second_index = node.__dict__["targets"][0].__dict__["slice"].__dict__["value"].__dict__["n"]
-                            if type(node.__dict__["value"]) == str: 
-                                value = node.__dict__["value"]
-                                import pdb; pdb.set_trace()
-                                self.statement([], 'prmt_mat_set_el(', target, ', ', first_index, ', ', second_index, ', ', value, ');')
+                            # check if subscripted expression is used in the value
+                            if type(node.__dict__["value"]) == ast.Subscript:
+                                # if value is a prmt_mat
+                                value = node.__dict__["value"].__dict__["value"].__dict__["value"].__dict__["id"]
+                                if value in self.typed_record:
+                                    if self.typed_record[value] == 'prmt_mat':
+                                        first_index_value = node.__dict__["value"].__dict__["value"].__dict__["slice"].__dict__["value"].__dict__["n"]
+                                        second_index_value = node.__dict__["value"].__dict__["slice"].__dict__["value"].__dict__["n"]
+                                        value_expr = 'prmt_mat_get_el(' + value + ', {}, {})'.format(first_index_value, second_index_value) 
+                                        # self.statement([], 'prmt_mat_set_el(', target, ', ', first_index, ', ', second_index, ', ', value_expr, ');')
+                                        self.statement([], 'prmt_mat_set_el(', target, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value_expr), ');')
+                                        # import pdb; pdb.set_trace()
                             else:
                                 value = node.__dict__["value"].__dict__["n"]
-                                self.statement([], "prmt_mat_set_el(", target, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value), ');')
+                                self.statement([], 'prmt_mat_set_el(', target, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value), ');')
                             return
 
             else:
