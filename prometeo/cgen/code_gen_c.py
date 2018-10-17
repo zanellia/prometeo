@@ -331,7 +331,6 @@ class SourceGenerator(ExplicitNodeVisitor):
                 begin = '(' if need_parens else ''
                 end = ')' if need_parens else ''
                 # self.statement(item, item.target, ';')
-                #import pdb; pdb.set_trace()
                 if item.value != None:
                     if hasattr(item.value, 'value') is False:
                         self.conditional_write('\n', 'object->', item.target, ' = ', item.value, ';', dest = 'src')
@@ -400,7 +399,6 @@ class SourceGenerator(ExplicitNodeVisitor):
             set_precedence(Precedence.Comma, defaults)
             padding = [None] * (len(args) - len(defaults))
             for arg, default in zip(args, padding + defaults):
-                # import pdb; pdb.set_trace()
                 # fish c type from typed record
                 arg_type_py = arg.annotation.id
 
@@ -490,7 +488,6 @@ class SourceGenerator(ExplicitNodeVisitor):
                                         else:
                                             raise Exception("Subscripting with value of type {} not implemented".format(sub_type))
 
-                                        import pdb; pdb.set_trace()
                                         sub_type = type(node.__dict__["value"].__dict__["value"].__dict__["slice"].__dict__["value"])
                                         if sub_type == ast.Num: 
                                             second_index_value = node.__dict__["value"].__dict__["value"].__dict__["slice"].__dict__["value"].__dict__["n"]
@@ -502,7 +499,6 @@ class SourceGenerator(ExplicitNodeVisitor):
                                         value_expr = 'prmt_mat_get_el(' + value + ', {}, {})'.format(first_index_value, second_index_value) 
                                         # self.statement([], 'prmt_mat_set_el(', target, ', ', first_index, ', ', second_index, ', ', value_expr, ');')
                                         self.statement([], 'prmt_mat_set_el(', target, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value_expr), ');')
-                                        # import pdb; pdb.set_trace()
                             else:
                                 value = node.__dict__["value"].__dict__["n"]
                                 self.statement([], 'prmt_mat_set_el(', target, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value), ');')
@@ -715,7 +711,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                        '; ',node.target, '++) {')
 
         self.body_or_else(node)
-        self.write('\n}', dest = 'src')
+        self.write('\n    }\n', dest = 'src')
 
     # introduced in Python 3.5
     def visit_AsyncFor(self, node):
@@ -725,7 +721,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         set_precedence(node, node.test)
         self.statement(node, 'while(', node.test, ') {')
         self.body_or_else(node)
-        self.write('\n}', dest = 'src')
+        self.write('\n    }\n', dest = 'src')
 
 
     def visit_With(self, node, async=False):
@@ -1131,7 +1127,6 @@ class SourceGenerator(ExplicitNodeVisitor):
     visit_Interactive = visit_Module
 
     def visit_Expression(self, node):
-        # import pdb; pdb.set_trace()
         self.visit(node.body)
 
     # Helper Nodes
