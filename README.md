@@ -12,17 +12,35 @@ def function1(A: prmt_mat, B: prmt_mat, C: prmt_mat) -> None:
     prmt_print(C)
     return
 
-
 def main() -> None:
-    n: int = 10
 
+    j: int = 0
+    for i in range(10):
+        j = j + 1
+
+    while j > 0:
+        j = j - 1
+
+    # test_class: p_class
+    n_list: List[int]
+
+    n: int = 10
     A: prmt_mat = prmt_mat(n, n)
+    A[0][2] = 2.0
+
+    for i in range(2):
+        A[0][i] = A[0][i]
+
+
     prmt_fill(A, 1.0)
 
     B: prmt_mat = prmt_mat(n, n)
     prmt_fill(B, 2.0)
 
     C: prmt_mat = prmt_mat(n, n)
+
+    pmat_list: List[prmt_mat]
+    pmat_list[0] = A
 
     prmt_print(C)
     C = A * B
@@ -69,12 +87,29 @@ void main() {
     align_char_to(64, &mem_ptr);
     ___c_prmt_64_heap = mem_ptr;
 
+    int j = 0;
+    for(int i = 0; i < 10; i++) {
+        j = j + 1;
+    }
+
+    while(j > 0) {
+        j = j - 1;
+    }
+
+    int * n_list;
     int n = 10;
     struct prmt_mat * A = ___c_prmt___create_prmt_mat(n, n);
+    prmt_mat_set_el(A[0][2], 0, 2, 2.0);
+    for(int i = 0; i < 2; i++) {
+        prmt_mat_set_el(A[0][i], 0, i, prmt_mat_get_el(A, i, 0));
+    }
+
     ___c_prmt___fill(A, 1.0);
     struct prmt_mat * B = ___c_prmt___create_prmt_mat(n, n);
     ___c_prmt___fill(B, 2.0);
     struct prmt_mat * C = ___c_prmt___create_prmt_mat(n, n);
+    struct prmt_mat ** pmat_list;
+    pmat_list[0] = A;
     ___c_prmt___print(C);
     ___c_prmt___fill(C, 0.0);
     ___c_prmt___dgemm(A, B, C, C);
