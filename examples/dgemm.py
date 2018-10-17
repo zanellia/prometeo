@@ -19,13 +19,22 @@ def function1(A: prmt_mat, B: prmt_mat, C: prmt_mat) -> None:
 
 def main() -> None:
 
+    j: int = 0
+    for i in range(10):
+        j = j + 1
+
+    while j > 0:
+        j = j - 1
+
     # test_class: p_class
     n_list: List[int]
 
     n: int = 10
     A: prmt_mat = prmt_mat(n, n)
     A[0][2] = 2.0
-    A[0][1] = A[0][3]
+
+    for i in range(2):
+        A[0][i] = A[0][i]
 
 
     prmt_fill(A, 1.0)

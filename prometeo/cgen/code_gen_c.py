@@ -459,16 +459,46 @@ class SourceGenerator(ExplicitNodeVisitor):
                     if target in self.typed_record: 
                         # map subscript for prmt_mats to blasfeo el assign
                         if self.typed_record[target] == 'prmt_mat':
-                            first_index = node.__dict__["targets"][0].__dict__["value"].__dict__["slice"].__dict__["value"].__dict__["n"]
-                            second_index = node.__dict__["targets"][0].__dict__["slice"].__dict__["value"].__dict__["n"]
+                            target = node.__dict__["targets"][0]
+                            sub_type = type(target.__dict__["value"].__dict__["slice"].__dict__["value"])
+                            if sub_type == ast.Num:
+                                first_index = node.__dict__["targets"][0].__dict__["value"].__dict__["slice"].__dict__["value"].__dict__["n"]
+                            elif sub_type == ast.Name:
+                                first_index = node.__dict__["targets"][0].__dict__["value"].__dict__["slice"].__dict__["value"].__dict__["id"]
+                            else:
+                                raise Exception("Subscripting with value of type {} not implemented".format(sub_type))
+
+                            sub_type = type(target.__dict__["slice"].__dict__["value"])
+                            if sub_type == ast.Num: 
+                                second_index = node.__dict__["targets"][0].__dict__["slice"].__dict__["value"].__dict__["n"]
+                            elif sub_type == ast.Name: 
+                                second_index = node.__dict__["targets"][0].__dict__["slice"].__dict__["value"].__dict__["id"]
+                            else:
+                                raise Exception("Subscripting with value of type {} not implemented".format(sub_type))
+
                             # check if subscripted expression is used in the value
                             if type(node.__dict__["value"]) == ast.Subscript:
                                 # if value is a prmt_mat
                                 value = node.__dict__["value"].__dict__["value"].__dict__["value"].__dict__["id"]
                                 if value in self.typed_record:
                                     if self.typed_record[value] == 'prmt_mat':
-                                        first_index_value = node.__dict__["value"].__dict__["value"].__dict__["slice"].__dict__["value"].__dict__["n"]
-                                        second_index_value = node.__dict__["value"].__dict__["slice"].__dict__["value"].__dict__["n"]
+                                        sub_type = type(node.__dict__["value"].__dict__["slice"].__dict__["value"])
+                                        if sub_type == ast.Num:
+                                            first_index_value = node.__dict__["value"].__dict__["slice"].__dict__["value"].__dict__["n"]
+                                        elif sub_type == ast.Name:
+                                            first_index_value = node.__dict__["value"].__dict__["slice"].__dict__["value"].__dict__["id"]
+                                        else:
+                                            raise Exception("Subscripting with value of type {} not implemented".format(sub_type))
+
+                                        import pdb; pdb.set_trace()
+                                        sub_type = type(node.__dict__["value"].__dict__["value"].__dict__["slice"].__dict__["value"])
+                                        if sub_type == ast.Num: 
+                                            second_index_value = node.__dict__["value"].__dict__["value"].__dict__["slice"].__dict__["value"].__dict__["n"]
+                                        elif sub_type == ast.Name: 
+                                            second_index_value = node.__dict__["value"].__dict__["value"].__dict__["slice"].__dict__["value"].__dict__["id"]
+                                        else:
+                                            raise Exception("Subscripting with value of type {} not implemented".format(sub_type))
+
                                         value_expr = 'prmt_mat_get_el(' + value + ', {}, {})'.format(first_index_value, second_index_value) 
                                         # self.statement([], 'prmt_mat_set_el(', target, ', ', first_index, ', ', second_index, ', ', value_expr, ');')
                                         self.statement([], 'prmt_mat_set_el(', target, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value_expr), ');')
@@ -523,7 +553,6 @@ class SourceGenerator(ExplicitNodeVisitor):
                        node.value)
 
     def visit_AnnAssign(self, node):
-        # import pdb; pdb.set_trace()
         set_precedence(node, node.target, node.annotation)
         set_precedence(Precedence.Comma, node.value)
         need_parens = isinstance(node.target, ast.Name) and not node.simple
@@ -679,11 +708,12 @@ class SourceGenerator(ExplicitNodeVisitor):
     def visit_For(self, node, async=False):
         set_precedence(node, node.target)
         prefix = 'async ' if async else ''
-        # import pdb; pdb.set_trace()
-        
-        self.statement(node, 'for (int ',
-                       node.target, ' = 0; ', node.target, ' < ',
-                       node.iter.args[0].id, '; ',node.target, '++) {')
+       
+        self.statement(node, 'for(int ',
+                       node.target, ' = 0; ', node.target, 
+                       ' < {}'.format(node.iter.args[0].n), 
+                       '; ',node.target, '++) {')
+
         self.body_or_else(node)
         self.write('\n}', dest = 'src')
 
