@@ -21,7 +21,6 @@ def main() -> None:
     while j > 0:
         j = j - 1
 
-    # test_class: p_class
     n_list: List[int]
 
     n: int = 10
@@ -30,7 +29,6 @@ def main() -> None:
 
     for i in range(2):
         A[0][i] = A[0][i]
-
 
     prmt_fill(A, 1.0)
 
