@@ -498,8 +498,9 @@ class SourceGenerator(ExplicitNodeVisitor):
 
                                         value_expr = 'prmt_mat_get_el(' + value + ', {}, {})'.format(first_index_value, second_index_value) 
                                         # self.statement([], 'prmt_mat_set_el(', target, ', ', first_index, ', ', second_index, ', ', value_expr, ');')
-                                        self.statement([], 'prmt_mat_set_el(', target, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value_expr), ');')
+                                        self.statement([], 'prmt_mat_set_el(', value, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value_expr), ');')
                             else:
+                                target = node.__dict__["targets"][0].__dict__["value"].__dict__["value"].__dict__["id"]
                                 value = node.__dict__["value"].__dict__["n"]
                                 self.statement([], 'prmt_mat_set_el(', target, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value), ');')
                             return
