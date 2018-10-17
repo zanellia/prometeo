@@ -482,17 +482,17 @@ class SourceGenerator(ExplicitNodeVisitor):
                                     if self.typed_record[value] == 'prmt_mat':
                                         sub_type = type(node.__dict__["value"].__dict__["slice"].__dict__["value"])
                                         if sub_type == ast.Num:
-                                            first_index_value = node.__dict__["value"].__dict__["slice"].__dict__["value"].__dict__["n"]
+                                            second_index_value = node.__dict__["value"].__dict__["slice"].__dict__["value"].__dict__["n"]
                                         elif sub_type == ast.Name:
-                                            first_index_value = node.__dict__["value"].__dict__["slice"].__dict__["value"].__dict__["id"]
+                                            second_index_value = node.__dict__["value"].__dict__["slice"].__dict__["value"].__dict__["id"]
                                         else:
                                             raise Exception("Subscripting with value of type {} not implemented".format(sub_type))
 
                                         sub_type = type(node.__dict__["value"].__dict__["value"].__dict__["slice"].__dict__["value"])
                                         if sub_type == ast.Num: 
-                                            second_index_value = node.__dict__["value"].__dict__["value"].__dict__["slice"].__dict__["value"].__dict__["n"]
+                                            first_index_value = node.__dict__["value"].__dict__["value"].__dict__["slice"].__dict__["value"].__dict__["n"]
                                         elif sub_type == ast.Name: 
-                                            second_index_value = node.__dict__["value"].__dict__["value"].__dict__["slice"].__dict__["value"].__dict__["id"]
+                                            first_index_value = node.__dict__["value"].__dict__["value"].__dict__["slice"].__dict__["value"].__dict__["id"]
                                         else:
                                             raise Exception("Subscripting with value of type {} not implemented".format(sub_type))
 
