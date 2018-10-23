@@ -98,6 +98,16 @@ void ___c_prmt___fill(struct prmt_mat *A, double fill_value) {
             blasfeo_dgein1(fill_value, A->bmat, i, j);
 }
 
+void ___c_prmt___prmt_mat_set_el(struct prmt_mat *A, int i, int j, double fill_value) {
+
+    blasfeo_dgein1(fill_value, A->bmat, i, j);
+}
+
+double ___c_prmt___prmt_mat_get_el(struct prmt_mat *A, int i, int j) {
+
+    blasfeo_dgeex1(A->bmat, i, j);
+}
+
 void ___c_prmt___copy(struct prmt_mat *A, struct prmt_mat *B) {
     int m = A->bmat->m;
     int n = A->bmat->n;

@@ -37,9 +37,9 @@ void main() {
     int * n_list;
     int n = 10;
     struct prmt_mat * A = ___c_prmt___create_prmt_mat(n, n);
-    prmt_mat_set_el(A, 0, 2, 2.0);
+    ___c_prmt___prmt_mat_set_el(A, 0, 2, 2.0);
     for(int i = 0; i < 2; i++) {
-        prmt_mat_set_el(A, 0, i, prmt_mat_get_el(A, 0, i));
+        ___c_prmt___prmt_mat_set_el(A, 0, i, ___c_prmt___prmt_mat_get_el(A, 0, i));
     }
 
     ___c_prmt___fill(A, 1.0);

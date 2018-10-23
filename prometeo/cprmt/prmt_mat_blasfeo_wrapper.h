@@ -23,6 +23,8 @@ void ___c_prmt___dgead(double alpha, struct prmt_mat *A, struct prmt_mat *B);
 
 // auxiliary
 void ___c_prmt___fill(struct prmt_mat *A, double fill_value);
+void ___c_prmt___prmt_set_el(struct prmt_mat *A, int i, int j, double value);
+double ___c_prmt___prmt_get_el(struct prmt_mat *A, int i, int j);
 void ___c_prmt___copy(struct prmt_mat *A, struct prmt_mat *B);
 void ___c_prmt___print(struct prmt_mat *A);
 
