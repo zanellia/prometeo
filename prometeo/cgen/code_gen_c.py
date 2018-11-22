@@ -30,6 +30,8 @@ from collections import namedtuple
 prmt_temp_functions = {"prmt_mat": "___c_prmt___create_prmt_mat", "prmt_print": "___c_prmt___print", "prmt_dgemm": "___c_prmt___dgemm", "prmt_dgead": "___c_prmt___dgead", "prmt_fill": "___c_prmt___fill", "prmt_copy": "___c_prmt___copy"}
 prmt_temp_types = {"prmt_mat": "struct prmt_mat *", "None": "void", "NoneType": "void", "ptr_int": "int *", "ptr_prmt_mat": "struct prmt_mat **","int": "int", "double": "double"}
 
+usr_temp_types = {}
+
 def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False,
               pretty_string=pretty_string, pretty_source=pretty_source, main=False, ___c_prmt_8_heap_size=None, ___c_prmt_64_heap_size=None):
     """This function can convert a node tree back into python sourcecode.
@@ -321,7 +323,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         """ self.write is a closure for performance (to reduce the number
             of attribute lookups).
         """
-        self.write('void ', name, '_init(', name, ' *object){', dest = 'src')
+        self.write('void ', name, '_init(struct ', name, ' *object){', dest = 'src')
         self.indentation += 1
         for item in params:
             if isinstance(item, ast.AnnAssign):
@@ -505,7 +507,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                                 self.statement([], '___c_prmt___prmt_mat_set_el(', target, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value), ');')
                             return
 
-            else:
+            elif 'id' in node.__dict__["targets"][0].__dict__: 
                 # check for Assigns targeting prmt_mats
                 target = node.__dict__["targets"][0].__dict__["id"]
                 if target in self.typed_record: 
@@ -537,6 +539,20 @@ class SourceGenerator(ExplicitNodeVisitor):
                                         self.statement([], '___c_prmt___dgead(-1.0, ', right_op, ', ', target, ');')
                                         return
 
+            elif 'attr' in node.__dict__["targets"][0].__dict__: 
+                # Assign targeting a user-defined class (C struct)
+                struct_name = node.__dict__["targets"][0].__dict__["value"].__dict__["id"]
+                if struct_name in self.typed_record:
+                    attr_value = node.__dict__["value"].__dict__["n"]
+                    attr_name = node.__dict__["targets"][0].__dict__["attr"] 
+                    self.statement([], struct_name, '.', attr_name, ' = ', str(attr_value), ';')
+                else:
+                    raise Exception("Unknown variable {}".format(struct_name))
+                return
+
+            else:
+                raise Exception("Could not resolve Assign node.")
+
         set_precedence(node, node.value, *node.targets)
         self.newline(node)
         for target in node.targets:
@@ -564,9 +580,16 @@ class SourceGenerator(ExplicitNodeVisitor):
             if  ann in prmt_temp_types:
                 node.annotation.__dict__["id"] = prmt_temp_types[ann]
                 self.statement(node, node.annotation, ' ', node.target)
+            # check if annotation corresponds to user-defined class name
+            elif  ann in usr_temp_types:
+                class_name = node.annotation.__dict__["id"]
+                node.annotation.__dict__["id"] = usr_temp_types[ann]
+                self.statement(node, node.annotation, ' ', node.target, ';')
+                self.statement([], class_name, '_init(&', node.target, ')')
             else:
-                raise Exception("Could not resolve type '{}'. Exiting.".format(ann))
-                # self.statement(node, node.annotation, ' ', node.target)
+                self.statement(node, node.annotation, ' ', node.target)
+                # raise Exception("Could not resolve type '{}'. Exiting.".format(ann))
+
         # List[<type>]
         elif "slice" in node.annotation.__dict__:
             ann = 'ptr_' + node.annotation.__dict__["slice"].__dict__["value"].__dict__["id"]
@@ -579,7 +602,6 @@ class SourceGenerator(ExplicitNodeVisitor):
             else:
                 # self.write(node, node.annotation, ' ', node.target)
                 raise Exception("Could not resolve type '{}'. Exiting.".format(ann))
-
         # switch to avoid double ';'
         if type(node.value) != ast.Call:
             if node.value is not None:
@@ -591,6 +613,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                 self.conditional_write(' = ', node.value, '', dest = 'src')
             else:
                 self.conditional_write('', dest = 'src')
+
+
 
     def visit_ImportFrom(self, node):
         self.statement(node, 'from ', node.level * '.',
@@ -668,6 +692,8 @@ class SourceGenerator(ExplicitNodeVisitor):
             else:
                 have_args.append(True)
                 self.write('(')
+        # add new type to templated types
+        usr_temp_types[node.name] = 'struct ' + node.name 
 
         self.decorators(node, 0)
         self.write('typedef struct %s %s;\n\n' %(node.name, node.name), dest = 'hdr')
@@ -837,6 +863,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.write(node.value, '.', node.attr, dest = 'src')
 
     def visit_Call(self, node, len=len):
+        import pdb; pdb.set_trace()
         write = self.write
         want_comma = []
 

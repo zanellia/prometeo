@@ -1,15 +1,20 @@
 # from prometeo.linalg import *
 
-# class p_class:
-#     attr_1: int = 1
-#     attr_2: double = 3.0
+class p_class:
+    attr_1: int = 1
+    attr_2: double = 3.0
 
-#     def method_1(arg1: prmt_mat, arg2: prmt_mat) -> double:
-#         a: double = arg1.field1
-#         b: double = arg2.field2
-#         copyarg2: double = arg2
-#         c: double = a*b + b*a*a
-#         return c
+    # def method_1(arg1: prmt_mat, arg2: prmt_mat) -> double:
+    #     a: double = arg1.field1
+    #     b: double = arg2.field2
+    #     copyarg2: double = arg2
+    #     c: double = a*b + b*a*a
+    #     return c
+
+    def method_2(A: prmt_mat, B: prmt_mat, C: prmt_mat) -> void:
+        C = A * B
+        prmt_print(C)
+        return
 
 def function1(A: prmt_mat, B: prmt_mat, C: prmt_mat) -> None:
     C = A * B
@@ -19,6 +24,11 @@ def function1(A: prmt_mat, B: prmt_mat, C: prmt_mat) -> None:
 
 def main() -> None:
 
+    test_class: p_class
+    test_class.attr_1 = 2
+
+    test_class.method_2(A, B, C)
+
     j: int = 0
     for i in range(10):
         j = j + 1
@@ -26,8 +36,9 @@ def main() -> None:
     while j > 0:
         j = j - 1
 
-    # test_class: p_class
+
     n_list: List[int]
+    n_list[0] = 1
 
     n: int = 10
     A: prmt_mat = prmt_mat(n, n)
@@ -36,13 +47,13 @@ def main() -> None:
     for i in range(2):
         A[0][i] = A[0][i]
 
-
     prmt_fill(A, 1.0)
 
     B: prmt_mat = prmt_mat(n, n)
     prmt_fill(B, 2.0)
 
     C: prmt_mat = prmt_mat(n, n)
+
 
     pmat_list: List[prmt_mat]
     pmat_list[0] = A

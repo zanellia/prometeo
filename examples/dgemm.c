@@ -2,6 +2,20 @@
 #include "prmt_heap.h"
 #include "dgemm.h"
 
+void p_class_init(struct p_class *object){
+    object->attr_1 = 1;
+    object->attr_2 = 3.0;
+    object->_Z8method_2prmt_matprmt_matprmt_mat = &_Z8method_2prmt_matprmt_matprmt_matp_class_impl;
+}
+
+
+
+void _Z8method_2prmt_matprmt_matprmt_matp_class_impl(p_class *self, struct prmt_mat * A, struct prmt_mat * B, struct prmt_mat * C) {
+    ___c_prmt___fill(C, 0.0);
+    ___c_prmt___dgemm(A, B, C, C);
+    ___c_prmt___print(C);
+    return ;
+}
 
 
 void function1(struct prmt_mat * A, struct prmt_mat * B, struct prmt_mat * C) {
@@ -25,6 +39,10 @@ void main() {
     align_char_to(64, &mem_ptr);
     ___c_prmt_64_heap = mem_ptr;
 
+    struct p_class test_class;
+    p_class_init(&test_class);
+    test_class.attr_1 = 2;
+    test_class.method_2(A, B, C);
     int j = 0;
     for(int i = 0; i < 10; i++) {
         j = j + 1;
@@ -35,6 +53,7 @@ void main() {
     }
 
     int * n_list;
+    n_list[0] = 1;
     int n = 10;
     struct prmt_mat * A = ___c_prmt___create_prmt_mat(n, n);
     ___c_prmt___prmt_mat_set_el(A, 0, 2, 2.0);
