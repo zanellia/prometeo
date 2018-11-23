@@ -39,10 +39,10 @@ void main() {
     align_char_to(64, &mem_ptr);
     ___c_prmt_64_heap = mem_ptr;
 
-    struct p_class test_class;
-    p_class_init(&test_class);
-    test_class.attr_1 = 2;
-    test_class.method_2(A, B, C);
+    struct p_class test_class___;
+    struct p_class * test_class= &test_class___;
+    p_class_init(test_class);
+    test_class->attr_1 = 2;
     int j = 0;
     for(int i = 0; i < 10; i++) {
         j = j + 1;
@@ -52,8 +52,6 @@ void main() {
         j = j - 1;
     }
 
-    int * n_list;
-    n_list[0] = 1;
     int n = 10;
     struct prmt_mat * A = ___c_prmt___create_prmt_mat(n, n);
     ___c_prmt___prmt_mat_set_el(A, 0, 2, 2.0);
@@ -65,9 +63,7 @@ void main() {
     struct prmt_mat * B = ___c_prmt___create_prmt_mat(n, n);
     ___c_prmt___fill(B, 2.0);
     struct prmt_mat * C = ___c_prmt___create_prmt_mat(n, n);
-    struct prmt_mat ** pmat_list;
-    pmat_list[0] = A;
-    ___c_prmt___print(C);
+    test_class->_Z8method_2prmt_matprmt_matprmt_mat(test_class, A, B, C);
     ___c_prmt___fill(C, 0.0);
     ___c_prmt___dgemm(A, B, C, C);
     ___c_prmt___print(C);

@@ -2,7 +2,8 @@
 
 class p_class:
     attr_1: int = 1
-    attr_2: double = 3.0
+    # attr_2: double = 3.0
+    attr_2: float = 3.0
 
     # def method_1(arg1: prmt_mat, arg2: prmt_mat) -> double:
     #     a: double = arg1.field1
@@ -12,6 +13,7 @@ class p_class:
     #     return c
 
     def method_2(A: prmt_mat, B: prmt_mat, C: prmt_mat) -> void:
+    # def method_2(A: prmt_mat, B: prmt_mat, C: prmt_mat) -> None:
         C = A * B
         prmt_print(C)
         return
@@ -27,7 +29,6 @@ def main() -> None:
     test_class: p_class
     test_class.attr_1 = 2
 
-    test_class.method_2(A, B, C)
 
     j: int = 0
     for i in range(10):
@@ -37,8 +38,8 @@ def main() -> None:
         j = j - 1
 
 
-    n_list: List[int]
-    n_list[0] = 1
+    # n_list: List[int] = [int] * 10 
+    # n_list[0] = 1
 
     n: int = 10
     A: prmt_mat = prmt_mat(n, n)
@@ -54,11 +55,12 @@ def main() -> None:
 
     C: prmt_mat = prmt_mat(n, n)
 
+    test_class.method_2(A, B, C)
 
-    pmat_list: List[prmt_mat]
-    pmat_list[0] = A
+    # pmat_list: List[prmt_mat]
+    # pmat_list[0] = A
 
-    prmt_print(C)
+    # prmt_print(C)
     C = A * B
     prmt_print(C)
     C = A + B

@@ -435,6 +435,18 @@ class SourceGenerator(ExplicitNodeVisitor):
         arg_mangl = loop_args_mangl(node.args, node.defaults)
         return arg_mangl
     
+    def build_arg_mangling_mod(self, args):
+        want_comma = []
+
+        def loop_args_mangl(args):
+            arg_mangl = ''
+            for arg in args:
+                arg_mangl = arg_mangl + self.typed_record[arg.__dict__['id']]
+            return arg_mangl
+
+        arg_mangl = loop_args_mangl(args)
+        return arg_mangl
+
     def statement(self, node, *params, **kw):
         self.newline(node)
         self.write(*params, dest = 'src')
@@ -545,7 +557,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 if struct_name in self.typed_record:
                     attr_value = node.__dict__["value"].__dict__["n"]
                     attr_name = node.__dict__["targets"][0].__dict__["attr"] 
-                    self.statement([], struct_name, '.', attr_name, ' = ', str(attr_value), ';')
+                    self.statement([], struct_name, '->', attr_name, ' = ', str(attr_value), ';')
                 else:
                     raise Exception("Unknown variable {}".format(struct_name))
                 return
@@ -584,8 +596,9 @@ class SourceGenerator(ExplicitNodeVisitor):
             elif  ann in usr_temp_types:
                 class_name = node.annotation.__dict__["id"]
                 node.annotation.__dict__["id"] = usr_temp_types[ann]
-                self.statement(node, node.annotation, ' ', node.target, ';')
-                self.statement([], class_name, '_init(&', node.target, ')')
+                self.statement([], 'struct ', class_name, ' ', node.target, '___;')
+                self.statement(node, node.annotation, ' ', node.target, '= &', node.target, '___;')
+                self.statement([], class_name, '_init(', node.target, ')')
             else:
                 self.statement(node, node.annotation, ' ', node.target)
                 # raise Exception("Could not resolve type '{}'. Exiting.".format(ann))
@@ -693,7 +706,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 have_args.append(True)
                 self.write('(')
         # add new type to templated types
-        usr_temp_types[node.name] = 'struct ' + node.name 
+        usr_temp_types[node.name] = 'struct ' + node.name + ' *' 
 
         self.decorators(node, 0)
         self.write('typedef struct %s %s;\n\n' %(node.name, node.name), dest = 'hdr')
@@ -860,10 +873,12 @@ class SourceGenerator(ExplicitNodeVisitor):
     # Expressions
 
     def visit_Attribute(self, node):
-        self.write(node.value, '.', node.attr, dest = 'src')
+        if  self.typed_record[node.value.__dict__['id']] in usr_temp_types: 
+            self.write(node.value, '->', node.attr, dest = 'src')
+        else:
+            raise Exception("Accessing attribute of object {} of unknown type".format(node.value))
 
     def visit_Call(self, node, len=len):
-        import pdb; pdb.set_trace()
         write = self.write
         want_comma = []
 
@@ -872,7 +887,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 write(', ', dest = 'src')
             else:
                 want_comma.append(True)
-        
+       
         args = node.args
         keywords = node.keywords
         starargs = self.get_starargs(node)
@@ -887,8 +902,21 @@ class SourceGenerator(ExplicitNodeVisitor):
             if  node.__dict__["func"].__dict__["id"] in prmt_temp_functions:
                 func_name = node.__dict__["func"].__dict__["id"]
                 node.__dict__["func"].__dict__["id"] = prmt_temp_functions[func_name]
+        elif type(node.__dict__["func"]) == ast.Attribute: 
+            # calling a method of a user-defined class
+            func_name = node.__dict__["func"].__dict__["attr"]
+            f_name_len = len(func_name)
+            pre_mangl = '_Z%s' %f_name_len 
+            post_mangl = self.build_arg_mangling_mod(args)
+            node.__dict__["func"].__dict__["attr"] = pre_mangl + func_name + post_mangl
+
         self.visit(node.func)
-        write('(', dest = 'src')
+        if type(node.__dict__["func"]) == ast.Attribute: 
+            code = '(' +  node.__dict__["func"].__dict__["value"].__dict__["id"] + ', '
+            write(code, dest = 'src')
+        else:
+            write('(', dest = 'src')
+
         for arg in args:
             write(write_comma, arg, dest = 'src')
 
