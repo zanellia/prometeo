@@ -583,6 +583,21 @@ class SourceGenerator(ExplicitNodeVisitor):
         need_parens = isinstance(node.target, ast.Name) and not node.simple
         begin = '(' if need_parens else ''
         end = ')' if need_parens else ''
+        # check if a List is being declared
+        if "value" in node.__dict__:
+            if "value" in node.annotation.__dict__:
+                if "id" in node.annotation.__dict__["value"].__dict__:
+                    if node.annotation.__dict__["value"].__dict__["id"] is 'List':
+                        if node.value.__dict__["func"].__dict__["id"] is not 'prmt_list': 
+                            raise Exception("Cannot create Lists without using prmt_list constructor.")
+                        else:
+                            ann = node.annotation.__dict__["slice"].__dict__["value"].__dict__["id"]
+                            if  ann in prmt_temp_types:
+                                ann = prmt_temp_types[ann]
+                            array_size = str(node.value.__dict__["args"][1].__dict__["n"])
+                            self.statement([], ann, ' * ', node.target, '[', array_size, '];')
+                            return
+
         # check if the annotation contains directly a type or something fancier
         if "id" in node.annotation.__dict__:
             ann = node.annotation.__dict__["id"]
@@ -602,6 +617,7 @@ class SourceGenerator(ExplicitNodeVisitor):
             else:
                 self.statement(node, node.annotation, ' ', node.target)
                 # raise Exception("Could not resolve type '{}'. Exiting.".format(ann))
+
 
         # List[<type>]
         elif "slice" in node.annotation.__dict__:

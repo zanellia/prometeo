@@ -26,6 +26,9 @@ def function1(A: prmt_mat, B: prmt_mat, C: prmt_mat) -> None:
 
 def main() -> None:
 
+    n_list: List[int] = prmt_list(int, 10) 
+    n_list[0] = 1
+
     test_class: p_class
     test_class.attr_1 = 2
 
@@ -38,8 +41,6 @@ def main() -> None:
         j = j - 1
 
 
-    # n_list: List[int] = [int] * 10 
-    # n_list[0] = 1
 
     n: int = 10
     A: prmt_mat = prmt_mat(n, n)
@@ -57,8 +58,8 @@ def main() -> None:
 
     test_class.method_2(A, B, C)
 
-    # pmat_list: List[prmt_mat]
-    # pmat_list[0] = A
+    pmat_list: List[prmt_mat] = prmt_list(prmt_mat, 10)
+    pmat_list[0] = A
 
     # prmt_print(C)
     C = A * B
@@ -68,6 +69,7 @@ def main() -> None:
     C = A - B
     prmt_print(C)
     function1(A, B, C)
+    function1(pmat_list[0], B, C)
     # C = A|B
     # C = A * B + C
     # C = C + A * B
