@@ -3,15 +3,7 @@ from prometeo.auxl import *
 
 class p_class:
     attr_1: int = 1
-    # attr_2: double = 3.0
     attr_2: float = 3.0
-
-    # def method_1(arg1: prmt_mat, arg2: prmt_mat) -> double:
-    #     a: double = arg1.field1
-    #     b: double = arg2.field2
-    #     copyarg2: double = arg2
-    #     c: double = a*b + b*a*a
-    #     return c
 
     def method_2(self, A: prmt_mat, B: prmt_mat, C: prmt_mat) -> None:
         C = A * B
@@ -22,7 +14,6 @@ def function1(A: prmt_mat, B: prmt_mat, C: prmt_mat) -> None:
     C = A * B
     prmt_print(C)
     return
-
 
 def main() -> None:
 
@@ -77,8 +68,12 @@ def main() -> None:
 
     # C = A + B + C
 
-    # C = A + prmt_ls(A, B, 'lu')
-    # prmt_print(C)
+    prmt_fill(A, 0.0)
+    for i in range(10):
+        A[i][i] = 1.0
+    prmt_print(A)
+    C = prmt_ls(A, B, 'lu')
+    prmt_print(C)
 
     # C = prmt_ls(A, B, 'lu')
     # prmt_print(C)

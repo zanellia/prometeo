@@ -86,14 +86,15 @@ def prmt_ls(A: prmt_mat, B: prmt_mat, opts):
     elif opts is 'lu':
         # create prmt_mat for factor
         fact = prmt_mat(A.blasfeo_dmat.m, A.blasfeo_dmat.n)
-        prmt_copy(fact, A)
+        import pdb; pdb.set_trace()
+        prmt_copy(A, fact)
         # create permutation vector
-        ipiv = cast(create_string_buffer(A.blasfeo_dmat.m+100), POINTER(c_int))
+        ipiv = cast(create_string_buffer(A.blasfeo_dmat.m*A.blasfeo_dmat.m), POINTER(c_int))
         # factorize
         prmt_getrf(fact, ipiv)
         # create permuted rhs
         pB = prmt_mat(B.blasfeo_dmat.m, B.blasfeo_dmat.n)
-        prmt_copy(pB, B)
+        prmt_copy(B, pB)
         prmt_rowpe(B.blasfeo_dmat.m, ipiv, pB)
         # solve
         prmt_trsm_llnu(A, pB)
