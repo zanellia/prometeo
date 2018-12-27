@@ -43,7 +43,7 @@ void main() {
     n_list[0] = 1;
     struct p_class test_class___;
     struct p_class * test_class= &test_class___;
-    p_class_init(test_class);
+    p_class_init(test_class); // = p_class();
     test_class->attr_1 = 2;
     int j = 0;
     for(int i = 0; i < 10; i++) {

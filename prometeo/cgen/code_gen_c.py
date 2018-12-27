@@ -296,12 +296,35 @@ class SourceGenerator(ExplicitNodeVisitor):
                 # build argument mangling
                 f_name_len = len(item.name)
                 pre_mangl = '_Z%s' %f_name_len 
+                if item.args.__dict__['args'][0].__dict__['arg'] is not 'self':
+                    raise Exception("First argument in method {} \
+                        must be 'self'. You have '{}'".format(item.name, item.args.__dict__['args'][0].__dict__['arg']))
+                else: 
+                    # store self argument
+                    self_arg = item.args.__dict__['args'][0]
+                    # pop self from argument list
+                    item.args.__dict__['args'].pop(0)
+
                 post_mangl = self.build_arg_mangling(item.args)
                 
                 #self.statement(item, self.get_returns(item), ' %s%s%s%s' % (pre_mangl, item.name, post_mangl, name), '_impl(', name, ' *self, ')
-                self.write('%s (*%s%s%s' % (self.get_returns(item).id, pre_mangl, item.name, post_mangl) , ')', '(%s *self, ' %name, dest = 'hdr')
+                if hasattr(self.get_returns(item), "id"):
+                    ret_type = self.get_returns(item).__dict__["id"]
+                else:
+                    ret_type = self.get_returns(item).__dict__["value"]
+                    import pdb; pdb.set_trace()
+
+                if ret_type is None: 
+                    ret_type = 'None'
+
+                if  ret_type in prmt_temp_types:
+                    ret_type = prmt_temp_types[ret_type]
+
+                self.write('%s (*%s%s%s' % (ret_type, pre_mangl, item.name, post_mangl) , ')', '(%s *self, ' %name, dest = 'hdr')
                 self.visit_arguments(item.args, 'hdr')
                 self.write(');\n', dest = 'hdr')
+                # insert back self argument 
+                item.args.__dict__['args'].insert(0, self_arg)
         
     def write_class_method_prototypes(self, *params, name):
         """ self.write is a closure for performance (to reduce the number
@@ -314,10 +337,32 @@ class SourceGenerator(ExplicitNodeVisitor):
                 # build argument mangling
                 f_name_len = len(item.name)
                 pre_mangl = '_Z%s' %f_name_len 
+                if item.args.__dict__['args'][0].__dict__['arg'] is not 'self':
+                    raise Exception("First argument in method {} \
+                        must be 'self'. You have '{}'".format(item.name, item.args.__dict__['args'][0].__dict__['arg']))
+                else: 
+                    # store self argument
+                    self_arg = item.args.__dict__['args'][0]
+                    # pop self from argument list
+                    item.args.__dict__['args'].pop(0)
+
                 post_mangl = self.build_arg_mangling(item.args)
-                self.write('%s (%s%s%s%s' % (self.get_returns(item).id, pre_mangl, item.name, post_mangl, name) , '_impl)', '(%s *self, ' %name, dest = 'hdr')
+                if hasattr(self.get_returns(item), "id"):
+                    ret_type = self.get_returns(item).__dict__["id"]
+                else:
+                    ret_type = self.get_returns(item).__dict__["value"]
+
+                if ret_type is None: 
+                    ret_type = 'None'
+
+                if  ret_type in prmt_temp_types:
+                    ret_type = prmt_temp_types[ret_type]
+
+                self.write('%s (%s%s%s%s' % (ret_type, pre_mangl, item.name, post_mangl, name) , '_impl)', '(%s *self, ' %name, dest = 'hdr')
                 self.visit_arguments(item.args, 'hdr')
                 self.write(');\n', dest = 'hdr')
+                # insert back self argument 
+                item.args.__dict__['args'].insert(0, self_arg)
     
     def write_class_init(self, *params, name):
         """ self.write is a closure for performance (to reduce the number
@@ -344,14 +389,24 @@ class SourceGenerator(ExplicitNodeVisitor):
                 # build argument mangling
                 f_name_len = len(item.name)
                 pre_mangl = '_Z%s' %f_name_len 
+                if item.args.__dict__['args'][0].__dict__['arg'] is not 'self':
+                    raise Exception("First argument in method {} \
+                        must be 'self'. You have '{}'".format(item.name, item.args.__dict__['args'][0].__dict__['arg']))
+                else: 
+                    # store self argument
+                    self_arg = item.args.__dict__['args'][0]
+                    # pop self from argument list
+                    item.args.__dict__['args'].pop(0)
+
                 post_mangl = self.build_arg_mangling(item.args)
                 
                 self.statement(item, 'object->%s%s%s' %(pre_mangl, item.name, post_mangl), ' = &', '%s%s%s%s' %(pre_mangl, item.name, post_mangl, name), '_impl;')
                 
                 # build argument mangling
                 arg_mangl = self.build_arg_mangling(item.args)
-                #self.visit_arguments(item.args, 'src')
-                # self.write(');')
+                # insert back self argument 
+                item.args.__dict__['args'].insert(0, self_arg)
+
         self.write('\n}\n', dest = 'src')
         self.indentation -=1
     
@@ -367,17 +422,41 @@ class SourceGenerator(ExplicitNodeVisitor):
                 # build argument mangling
                 f_name_len = len(item.name)
                 pre_mangl = '_Z%s' %f_name_len 
+                if item.args.__dict__['args'][0].__dict__['arg'] is not 'self':
+                    raise Exception("First argument in method {} \
+                        must be 'self'. You have '{}'".format(item.name, item.args.__dict__['args'][0].__dict__['arg']))
+                else: 
+                    # store self argument
+                    self_arg = item.args.__dict__['args'][0]
+                    # pop self from argument list
+                    item.args.__dict__['args'].pop(0)
+
                 post_mangl = self.build_arg_mangling(item.args)
-                
-                self.statement(item, self.get_returns(item), ' %s%s%s%s' % (pre_mangl, item.name, post_mangl, name), '_impl(', name, ' *self, ')
+
+                if hasattr(self.get_returns(item), "id"):
+                    ret_type = self.get_returns(item).__dict__["id"]
+                else:
+                    ret_type = self.get_returns(item).__dict__["value"]
+
+                if ret_type is None: 
+                    ret_type = 'None'
+
+                if  ret_type in prmt_temp_types:
+                    ret_type = prmt_temp_types[ret_type]
+
+                self.statement(item, ret_type, ' %s%s%s%s' % (pre_mangl, \
+                        item.name, post_mangl, name), '_impl(', name, ' *self, ')
+
                 self.visit_arguments(item.args, 'src')
                 self.write(') {', dest = 'src')
-                # self.write(':')
                 self.body(item.body)
                 self.newline(1)
                 self.write('}', dest = 'src')
+
                 if not self.indentation:
                     self.newline(extra=2)
+                # insert back self argument 
+                item.args.__dict__['args'].insert(0, self_arg)
 
     def else_body(self, elsewhat):
         if elsewhat:
@@ -613,11 +692,10 @@ class SourceGenerator(ExplicitNodeVisitor):
                 node.annotation.__dict__["id"] = usr_temp_types[ann]
                 self.statement([], 'struct ', class_name, ' ', node.target, '___;')
                 self.statement(node, node.annotation, ' ', node.target, '= &', node.target, '___;')
-                self.statement([], class_name, '_init(', node.target, ')')
+                self.statement([], class_name, '_init(', node.target, '); //')
             else:
                 self.statement(node, node.annotation, ' ', node.target)
                 # raise Exception("Could not resolve type '{}'. Exiting.".format(ann))
-
 
         # List[<type>]
         elif "slice" in node.annotation.__dict__:
@@ -800,7 +878,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.conditional_write(' as ', node.optional_vars, dest = 'src')
 
     def visit_NameConstant(self, node):
-        self.write(str(node.value))
+        self.write(str(node.value), dest = 'src')
 
     def visit_Pass(self, node):
         self.statement(node, 'pass')
