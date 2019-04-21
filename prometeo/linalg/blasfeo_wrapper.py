@@ -39,7 +39,7 @@ bw.blasfeo_dgeex1.argtypes = [POINTER(blasfeo_dmat), c_int, c_int]
 
 bw.blasfeo_drowpe.argtypes = [c_int, POINTER(c_int), POINTER(blasfeo_dmat)]
 
-bw.blasfeo_dgetrf_rowpivot.argtypes = [c_int, c_int, POINTER(blasfeo_dmat), c_int, c_int, 
+bw.blasfeo_dgetrf_rp.argtypes = [c_int, c_int, POINTER(blasfeo_dmat), c_int, c_int, 
         POINTER(blasfeo_dmat), c_int, c_int, POINTER(c_int)]
 
 bw.blasfeo_dtrsm_llnu.argtypes = [c_int, c_int, c_double, POINTER(blasfeo_dmat), c_int, c_int, 

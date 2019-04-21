@@ -78,35 +78,24 @@ def prmt_copy(A: prmt_mat, B: prmt_mat):
             B[i][j] = A[i][j]
     return
 
-def prmt_ls(A: prmt_mat, B: prmt_mat, opts):
+def prmt_lus(A: prmt_mat, B: prmt_mat, opts):
     res  = prmt_mat(A.blasfeo_dmat.m, B.blasfeo_dmat.n)
     fact = prmt_mat(A.blasfeo_dmat.m, B.blasfeo_dmat.m)
-    if opts is 'ch':
-        raise NotImplementedError
-    elif opts is 'lu':
-        # create prmt_mat for factor
-        fact = prmt_mat(A.blasfeo_dmat.m, A.blasfeo_dmat.n)
-        import pdb; pdb.set_trace()
-        prmt_copy(A, fact)
-        # create permutation vector
-        ipiv = cast(create_string_buffer(A.blasfeo_dmat.m*A.blasfeo_dmat.m), POINTER(c_int))
-        # factorize
-        prmt_getrf(fact, ipiv)
-        # create permuted rhs
-        pB = prmt_mat(B.blasfeo_dmat.m, B.blasfeo_dmat.n)
-        prmt_copy(B, pB)
-        prmt_rowpe(B.blasfeo_dmat.m, ipiv, pB)
-        # solve
-        prmt_trsm_llnu(A, pB)
-        prmt_trsm_lunn(A, pB)
-        return pB
-
-    elif opts is 'qr':
-        raise NotImplementedError
-    elif opts is 'lq':
-        raise NotImplementedError
-    else:
-        return 
+    # create prmt_mat for factor
+    fact = prmt_mat(A.blasfeo_dmat.m, A.blasfeo_dmat.n)
+    prmt_copy(A, fact)
+    # create permutation vector
+    ipiv = cast(create_string_buffer(A.blasfeo_dmat.m*A.blasfeo_dmat.m), POINTER(c_int))
+    # factorize
+    prmt_getrf(fact, ipiv)
+    # create permuted rhs
+    pB = prmt_mat(B.blasfeo_dmat.m, B.blasfeo_dmat.n)
+    prmt_copy(B, pB)
+    prmt_rowpe(B.blasfeo_dmat.m, ipiv, pB)
+    # solve
+    prmt_trsm_llnu(A, pB)
+    prmt_trsm_lunn(A, pB)
+    return pB
 
 # intermediate-level linear algebra
 def prmt_gemm_nn(A: prmt_mat, B: prmt_mat, C: prmt_mat, D: prmt_mat):

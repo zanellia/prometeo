@@ -99,7 +99,7 @@ def c_prmt_drowpe(m, ipiv, A):
 
 def c_prmt_getrf(A, ipiv):
     bA = A.blasfeo_dmat
-    bw.blasfeo_dgetrf_rowpivot(bA.m, bA.m, byref(bA), 0, 0, byref(bA), 0, 0, ipiv)
+    bw.blasfeo_dgetrf_rp(bA.m, bA.m, byref(bA), 0, 0, byref(bA), 0, 0, ipiv)
     return
 
 def c_prmt_trsm_llnu(A, B):

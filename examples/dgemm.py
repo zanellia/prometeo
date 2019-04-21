@@ -58,28 +58,17 @@ def main() -> None:
     prmt_print(C)
     function1(A, B, C)
     function1(pmat_list[0], B, C)
-    # C = A|B
-    # C = A * B + C
-    # C = C + A * B
-    # C = A\B
-    # C = A\(B, 'lu')
-
-    # C = A + prmt_ls(A, B, 'lu')
-
-    # C = A + B + C
 
     prmt_fill(A, 0.0)
     for i in range(10):
         A[i][i] = 1.0
     prmt_print(A)
-    C = prmt_ls(A, B, 'lu')
+    prmt_lus(A, B, C)
     prmt_print(C)
+    D: prmt_mat = prmt_mat(n, n)
+    D = A*C
+    prmt_print(D)
 
-    # C = prmt_ls(A, B, 'lu')
-    # prmt_print(C)
-
-    # C = (A + B*prmt_ls(A, B, 'lu'))*(B + C)
-
-if __name__ == "__main__":
+# if __name__ == "__main__":
     # execute only if run as a script
-    main()
+    # main()
