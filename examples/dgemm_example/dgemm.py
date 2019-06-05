@@ -1,5 +1,6 @@
-from prometeo.linalg import *
-from prometeo.auxl import *
+# UNCOMMENT THESE LINES TO EXECUTE 
+# from prometeo.linalg import *
+# from prometeo.auxl import *
 
 class p_class:
     attr_1: int = 1
@@ -49,7 +50,6 @@ def main() -> None:
     pmat_list: List[prmt_mat] = prmt_list(prmt_mat, 10)
     pmat_list[0] = A
 
-    # prmt_print(C)
     C = A * B
     prmt_print(C)
     C = A + B
@@ -63,12 +63,13 @@ def main() -> None:
     for i in range(10):
         A[i][i] = 1.0
     prmt_print(A)
-    prmt_lus(A, B, C)
-    prmt_print(C)
-    D: prmt_mat = prmt_mat(n, n)
-    D = A*C
-    prmt_print(D)
+    # prmt_lus(A, B, C)
+    # prmt_print(C)
+    # D: prmt_mat = prmt_mat(n, n)
+    # D = A*C
+    # prmt_print(D)
 
+# UNCOMMENT THESE LINES TO EXECUTE 
 # if __name__ == "__main__":
     # execute only if run as a script
     # main()
