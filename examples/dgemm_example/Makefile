@@ -1,9 +1,10 @@
 CC = gcc
 CFLAGS += -g -fPIC
 
+INSTALL_DIR = /opt/prometeo
 SRCS += dgemm.c 
-CFLAGS+=-I/opt/prometeo/include -I/opt/blasfeo/include
-LIBPATH+=-L/opt/prometeo/lib -L/opt/blasfeo/lib 
+CFLAGS+=-I$(INSTALL_DIR)/include -I/opt/blasfeo/include
+LIBPATH+=-L$(INSTALL_DIR)/lib -L/opt/blasfeo/lib 
 
 all: $(SRCS) 
 	$(CC) $(LIBPATH) -o dgemm $(CFLAGS)  $(SRCS)  -lcprmt -lblasfeo -lm

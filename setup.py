@@ -9,4 +9,9 @@ setup(name='prometeo',
    author='Andrea Zanelli',
    license='LGPL',
    packages = find_packages(),
+   install_requires=[
+      'astpretty',
+      'numpy',
+      'scipy',
+   ],
    zip_safe=False)
