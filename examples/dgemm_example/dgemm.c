@@ -79,4 +79,10 @@ void main() {
     ___c_prmt___print(C);
     function1(A, B, C);
     function1(pmat_list[0], B, C);
+    ___c_prmt___fill(A, 0.0);
+    for(int i = 0; i < 10; i++) {
+        ___c_prmt___prmt_mat_set_el(A, i, i, 1.0);
+    }
+
+    ___c_prmt___print(A);
 }

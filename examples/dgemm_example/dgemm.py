@@ -1,6 +1,6 @@
 # UNCOMMENT THESE LINES TO EXECUTE 
-# from prometeo.linalg import *
-# from prometeo.auxl import *
+from prometeo.linalg import *
+from prometeo.auxl import *
 
 class p_class:
     attr_1: int = 1
@@ -70,6 +70,6 @@ def main() -> None:
     # prmt_print(D)
 
 # UNCOMMENT THESE LINES TO EXECUTE 
-# if __name__ == "__main__":
+if __name__ == "__main__":
     # execute only if run as a script
-    # main()
+    main()
