@@ -296,22 +296,22 @@ class SourceGenerator(ExplicitNodeVisitor):
                 # build argument mangling
                 f_name_len = len(item.name)
                 pre_mangl = '_Z%s' %f_name_len 
-                if item.args.__dict__['args'][0].__dict__['arg'] is not 'self':
+                if item.args.args[0].arg is not 'self':
                     raise Exception("First argument in method {} \
-                        must be 'self'. You have '{}'".format(item.name, item.args.__dict__['args'][0].__dict__['arg']))
+                        must be 'self'. You have '{}'".format(item.name, item.args.args[0].arg))
                 else: 
                     # store self argument
-                    self_arg = item.args.__dict__['args'][0]
+                    self_arg = item.args.args[0]
                     # pop self from argument list
-                    item.args.__dict__['args'].pop(0)
+                    item.args.args.pop(0)
 
                 post_mangl = self.build_arg_mangling(item.args)
                 
                 #self.statement(item, self.get_returns(item), ' %s%s%s%s' % (pre_mangl, item.name, post_mangl, name), '_impl(', name, ' *self, ')
                 if hasattr(self.get_returns(item), "id"):
-                    ret_type = self.get_returns(item).__dict__["id"]
+                    ret_type = self.get_returns(item).id
                 else:
-                    ret_type = self.get_returns(item).__dict__["value"]
+                    ret_type = self.get_returns(item).value
                     import pdb; pdb.set_trace()
 
                 if ret_type is None: 
@@ -324,7 +324,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 self.visit_arguments(item.args, 'hdr')
                 self.write(');\n', dest = 'hdr')
                 # insert back self argument 
-                item.args.__dict__['args'].insert(0, self_arg)
+                item.args.args.insert(0, self_arg)
         
     def write_class_method_prototypes(self, *params, name):
         """ self.write is a closure for performance (to reduce the number
@@ -337,20 +337,20 @@ class SourceGenerator(ExplicitNodeVisitor):
                 # build argument mangling
                 f_name_len = len(item.name)
                 pre_mangl = '_Z%s' %f_name_len 
-                if item.args.__dict__['args'][0].__dict__['arg'] is not 'self':
+                if item.args.args[0].arg is not 'self':
                     raise Exception("First argument in method {} \
-                        must be 'self'. You have '{}'".format(item.name, item.args.__dict__['args'][0].__dict__['arg']))
+                        must be 'self'. You have '{}'".format(item.name, item.args.args[0].arg))
                 else: 
                     # store self argument
-                    self_arg = item.args.__dict__['args'][0]
+                    self_arg = item.args.args[0]
                     # pop self from argument list
-                    item.args.__dict__['args'].pop(0)
+                    item.args.args.pop(0)
 
                 post_mangl = self.build_arg_mangling(item.args)
                 if hasattr(self.get_returns(item), "id"):
-                    ret_type = self.get_returns(item).__dict__["id"]
+                    ret_type = self.get_returns(item).id
                 else:
-                    ret_type = self.get_returns(item).__dict__["value"]
+                    ret_type = self.get_returns(item).value
 
                 if ret_type is None: 
                     ret_type = 'None'
@@ -362,7 +362,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 self.visit_arguments(item.args, 'hdr')
                 self.write(');\n', dest = 'hdr')
                 # insert back self argument 
-                item.args.__dict__['args'].insert(0, self_arg)
+                item.args.args.insert(0, self_arg)
     
     def write_class_init(self, *params, name):
         """ self.write is a closure for performance (to reduce the number
@@ -389,14 +389,14 @@ class SourceGenerator(ExplicitNodeVisitor):
                 # build argument mangling
                 f_name_len = len(item.name)
                 pre_mangl = '_Z%s' %f_name_len 
-                if item.args.__dict__['args'][0].__dict__['arg'] is not 'self':
+                if item.args.args[0].arg is not 'self':
                     raise Exception("First argument in method {} \
-                        must be 'self'. You have '{}'".format(item.name, item.args.__dict__['args'][0].__dict__['arg']))
+                        must be 'self'. You have '{}'".format(item.name, item.args.args[0].arg))
                 else: 
                     # store self argument
-                    self_arg = item.args.__dict__['args'][0]
+                    self_arg = item.args.args[0]
                     # pop self from argument list
-                    item.args.__dict__['args'].pop(0)
+                    item.args.args.pop(0)
 
                 post_mangl = self.build_arg_mangling(item.args)
                 
@@ -405,7 +405,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 # build argument mangling
                 arg_mangl = self.build_arg_mangling(item.args)
                 # insert back self argument 
-                item.args.__dict__['args'].insert(0, self_arg)
+                item.args.args.insert(0, self_arg)
 
         self.write('\n}\n', dest = 'src')
         self.indentation -=1
@@ -422,21 +422,21 @@ class SourceGenerator(ExplicitNodeVisitor):
                 # build argument mangling
                 f_name_len = len(item.name)
                 pre_mangl = '_Z%s' %f_name_len 
-                if item.args.__dict__['args'][0].__dict__['arg'] is not 'self':
+                if item.args.args[0].arg is not 'self':
                     raise Exception("First argument in method {} \
-                        must be 'self'. You have '{}'".format(item.name, item.args.__dict__['args'][0].__dict__['arg']))
+                        must be 'self'. You have '{}'".format(item.name, item.args.args[0].arg))
                 else: 
                     # store self argument
-                    self_arg = item.args.__dict__['args'][0]
+                    self_arg = item.args.args[0]
                     # pop self from argument list
-                    item.args.__dict__['args'].pop(0)
+                    item.args.args.pop(0)
 
                 post_mangl = self.build_arg_mangling(item.args)
 
                 if hasattr(self.get_returns(item), "id"):
-                    ret_type = self.get_returns(item).__dict__["id"]
+                    ret_type = self.get_returns(item).id
                 else:
-                    ret_type = self.get_returns(item).__dict__["value"]
+                    ret_type = self.get_returns(item).value
 
                 if ret_type is None: 
                     ret_type = 'None'
@@ -456,7 +456,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 if not self.indentation:
                     self.newline(extra=2)
                 # insert back self argument 
-                item.args.__dict__['args'].insert(0, self_arg)
+                item.args.args.insert(0, self_arg)
 
     def else_body(self, elsewhat):
         if elsewhat:
@@ -520,7 +520,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         def loop_args_mangl(args):
             arg_mangl = ''
             for arg in args:
-                arg_mangl = arg_mangl + self.typed_record[arg.__dict__['id']]
+                arg_mangl = arg_mangl + self.typed_record[arg.id]
             return arg_mangl
 
         arg_mangl = loop_args_mangl(args)
@@ -544,48 +544,48 @@ class SourceGenerator(ExplicitNodeVisitor):
     # Statements
     def visit_Assign(self, node):
         if 'targets' in node.__dict__:
-            if type(node.__dict__["targets"][0]) == ast.Subscript: 
-                if 'value' in node.__dict__["targets"][0].__dict__["value"].__dict__:
-                    target = node.__dict__["targets"][0].__dict__["value"].__dict__["value"].__dict__["id"]
+            if type(node.targets[0]) == ast.Subscript: 
+                if 'value' in node.targets[0].value.__dict__:
+                    target = node.targets[0].value.value.id
                     if target in self.typed_record: 
                         # map subscript for prmt_mats to blasfeo el assign
                         if self.typed_record[target] == 'prmt_mat':
-                            target = node.__dict__["targets"][0]
-                            sub_type = type(target.__dict__["value"].__dict__["slice"].__dict__["value"])
+                            target = node.targets[0]
+                            sub_type = type(target.value.slice.value)
                             if sub_type == ast.Num:
-                                first_index = node.__dict__["targets"][0].__dict__["value"].__dict__["slice"].__dict__["value"].__dict__["n"]
+                                first_index = node.targets[0].value.slice.value.n
                             elif sub_type == ast.Name:
-                                first_index = node.__dict__["targets"][0].__dict__["value"].__dict__["slice"].__dict__["value"].__dict__["id"]
+                                first_index = node.targets[0].value.slice.value.id
                             else:
                                 raise Exception("Subscripting with value of type {} not implemented".format(sub_type))
 
-                            sub_type = type(target.__dict__["slice"].__dict__["value"])
+                            sub_type = type(target.slice.value)
                             if sub_type == ast.Num: 
-                                second_index = node.__dict__["targets"][0].__dict__["slice"].__dict__["value"].__dict__["n"]
+                                second_index = node.targets[0].slice.value.n
                             elif sub_type == ast.Name: 
-                                second_index = node.__dict__["targets"][0].__dict__["slice"].__dict__["value"].__dict__["id"]
+                                second_index = node.targets[0].slice.value.id
                             else:
                                 raise Exception("Subscripting with value of type {} not implemented".format(sub_type))
 
                             # check if subscripted expression is used in the value
-                            if type(node.__dict__["value"]) == ast.Subscript:
+                            if type(node.value) == ast.Subscript:
                                 # if value is a prmt_mat
-                                value = node.__dict__["value"].__dict__["value"].__dict__["value"].__dict__["id"]
+                                value = node.value.value.value.id
                                 if value in self.typed_record:
                                     if self.typed_record[value] == 'prmt_mat':
-                                        sub_type = type(node.__dict__["value"].__dict__["slice"].__dict__["value"])
+                                        sub_type = type(node.value.slice.value)
                                         if sub_type == ast.Num:
-                                            second_index_value = node.__dict__["value"].__dict__["slice"].__dict__["value"].__dict__["n"]
+                                            second_index_value = node.value.slice.value.n
                                         elif sub_type == ast.Name:
-                                            second_index_value = node.__dict__["value"].__dict__["slice"].__dict__["value"].__dict__["id"]
+                                            second_index_value = node.value.slice.value.id
                                         else:
                                             raise Exception("Subscripting with value of type {} not implemented".format(sub_type))
 
-                                        sub_type = type(node.__dict__["value"].__dict__["value"].__dict__["slice"].__dict__["value"])
+                                        sub_type = type(node.value.value.slice.value)
                                         if sub_type == ast.Num: 
-                                            first_index_value = node.__dict__["value"].__dict__["value"].__dict__["slice"].__dict__["value"].__dict__["n"]
+                                            first_index_value = node.value.value.slice.value.n
                                         elif sub_type == ast.Name: 
-                                            first_index_value = node.__dict__["value"].__dict__["value"].__dict__["slice"].__dict__["value"].__dict__["id"]
+                                            first_index_value = node.value.value.slice.value.id
                                         else:
                                             raise Exception("Subscripting with value of type {} not implemented".format(sub_type))
 
@@ -593,49 +593,49 @@ class SourceGenerator(ExplicitNodeVisitor):
                                         # self.statement([], 'prmt_mat_set_el(', target, ', ', first_index, ', ', second_index, ', ', value_expr, ');')
                                         self.statement([], '___c_prmt___prmt_mat_set_el(', value, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value_expr), ');')
                             else:
-                                target = node.__dict__["targets"][0].__dict__["value"].__dict__["value"].__dict__["id"]
-                                value = node.__dict__["value"].__dict__["n"]
+                                target = node.targets[0].value.value.id
+                                value = node.value.n
                                 self.statement([], '___c_prmt___prmt_mat_set_el(', target, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value), ');')
                             return
 
-            elif 'id' in node.__dict__["targets"][0].__dict__: 
+            elif 'id' in node.targets[0].__dict__: 
                 # check for Assigns targeting prmt_mats
-                target = node.__dict__["targets"][0].__dict__["id"]
+                target = node.targets[0].id
                 if target in self.typed_record: 
                     if self.typed_record[target] == 'prmt_mat':
-                        if type(node.__dict__["value"]) == ast.BinOp:
-                            right_op = node.__dict__["value"].__dict__["right"].__dict__["id"]
-                            left_op = node.__dict__["value"].__dict__["left"].__dict__["id"]
+                        if type(node.value) == ast.BinOp:
+                            right_op = node.value.right.id
+                            left_op = node.value.left.id
                             if right_op in self.typed_record and left_op in self.typed_record:
                                 if self.typed_record[right_op] == 'prmt_mat' and self.typed_record[left_op] == 'prmt_mat':
                                     # dgemm
-                                    if type(node.__dict__["value"].__dict__["op"]) == ast.Mult:
+                                    if type(node.value.op) == ast.Mult:
                                         # set target to zero
                                         self.statement([], '___c_prmt___fill(', target, ', 0.0);')
                                         # call dgemm
                                         self.statement([], '___c_prmt___dgemm(', left_op, ', ', right_op, ', ', target, ', ', target, ');')
                                         return
                                     # dgead
-                                    if type(node.__dict__["value"].__dict__["op"]) == ast.Add:
+                                    if type(node.value.op) == ast.Add:
                                         # set target to zero
                                         self.statement([], '___c_prmt___copy(', right_op, ', ', target, ');')
                                         # call dgead
                                         self.statement([], '___c_prmt___dgead(1.0, ', left_op, ', ', target, ');')
                                         return
                                     # dgead (Sub)
-                                    if type(node.__dict__["value"].__dict__["op"]) == ast.Sub:
+                                    if type(node.value.op) == ast.Sub:
                                         # set target to zero
                                         self.statement([], '___c_prmt___copy(', left_op, ', ', target, ');')
                                         # call dgead
                                         self.statement([], '___c_prmt___dgead(-1.0, ', right_op, ', ', target, ');')
                                         return
 
-            elif 'attr' in node.__dict__["targets"][0].__dict__: 
+            elif 'attr' in node.targets[0].__dict__: 
                 # Assign targeting a user-defined class (C struct)
-                struct_name = node.__dict__["targets"][0].__dict__["value"].__dict__["id"]
+                struct_name = node.targets[0].value.id
                 if struct_name in self.typed_record:
-                    attr_value = node.__dict__["value"].__dict__["n"]
-                    attr_name = node.__dict__["targets"][0].__dict__["attr"] 
+                    attr_value = node.value.n
+                    attr_name = node.targets[0].attr 
                     self.statement([], struct_name, '->', attr_name, ' = ', str(attr_value), ';')
                 else:
                     raise Exception("Unknown variable {}".format(struct_name))
@@ -665,31 +665,31 @@ class SourceGenerator(ExplicitNodeVisitor):
         # check if a List is being declared
         if "value" in node.__dict__:
             if "value" in node.annotation.__dict__:
-                if "id" in node.annotation.__dict__["value"].__dict__:
-                    if node.annotation.__dict__["value"].__dict__["id"] is 'List':
-                        if node.value.__dict__["func"].__dict__["id"] is not 'prmt_list': 
+                if "id" in node.annotation.value.__dict__:
+                    if node.annotation.value.id is 'List':
+                        if node.value.func.id is not 'prmt_list': 
                             raise Exception("Cannot create Lists without using prmt_list constructor.")
                         else:
-                            ann = node.annotation.__dict__["slice"].__dict__["value"].__dict__["id"]
+                            ann = node.annotation.slice.value.id
                             if  ann in prmt_temp_types:
                                 ann = prmt_temp_types[ann]
-                            array_size = str(node.value.__dict__["args"][1].__dict__["n"])
+                            array_size = str(node.value.args[1].n)
                             self.statement([], ann, ' * ', node.target, '[', array_size, '];')
                             return
 
         # check if the annotation contains directly a type or something fancier
         if "id" in node.annotation.__dict__:
-            ann = node.annotation.__dict__["id"]
+            ann = node.annotation.id
             # add variable to typed record
-            self.typed_record[node.target.__dict__["id"]] = node.annotation.__dict__["id"]
+            self.typed_record[node.target.id] = node.annotation.id
             print(self.typed_record)
             if  ann in prmt_temp_types:
-                node.annotation.__dict__["id"] = prmt_temp_types[ann]
+                node.annotation.id = prmt_temp_types[ann]
                 self.statement(node, node.annotation, ' ', node.target)
             # check if annotation corresponds to user-defined class name
             elif  ann in usr_temp_types:
-                class_name = node.annotation.__dict__["id"]
-                node.annotation.__dict__["id"] = usr_temp_types[ann]
+                class_name = node.annotation.id
+                node.annotation.id = usr_temp_types[ann]
                 self.statement([], 'struct ', class_name, ' ', node.target, '___;')
                 self.statement(node, node.annotation, ' ', node.target, '= &', node.target, '___;')
                 self.statement([], class_name, '_init(', node.target, '); //')
@@ -699,13 +699,13 @@ class SourceGenerator(ExplicitNodeVisitor):
 
         # List[<type>]
         elif "slice" in node.annotation.__dict__:
-            ann = 'ptr_' + node.annotation.__dict__["slice"].__dict__["value"].__dict__["id"]
+            ann = 'ptr_' + node.annotation.slice.value.id
             # add variable to typed record
-            self.typed_record[node.target.__dict__["id"]] = ann
+            self.typed_record[node.target.id] = ann
             print(self.typed_record)
             if  ann in prmt_temp_types:
                 c_ann = prmt_temp_types[ann]
-                self.statement(node, c_ann, ' ', node.target.__dict__["id"])
+                self.statement(node, c_ann, ' ', node.target.id)
             else:
                 # self.write(node, node.annotation, ' ', node.target)
                 raise Exception("Could not resolve type '{}'. Exiting.".format(ann))
@@ -737,15 +737,15 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.comma_list(node.names)
 
     def visit_Expr(self, node):
-        if type(node.__dict__["value"]) is ast.Call:
-            if "value" in node.__dict__["value"].__dict__["func"].__dict__:
-                var_name = node.__dict__["value"].__dict__["func"].__dict__["value"].__dict__["id"]
+        if type(node.value) is ast.Call:
+            if "value" in node.value.func.__dict__:
+                var_name = node.value.func.value.id
                 # check if we are calling a method on a prmt_mat object
                 if var_name in self.typed_record: 
                     if self.typed_record[var_name] == 'prmt_mat':
-                        fun_name = node.__dict__["value"].__dict__["func"].__dict__["attr"] 
+                        fun_name = node.value.func.attr 
                         # add prefix to function call
-                        node.__dict__["value"].__dict__["func"].__dict__["attr"] = '___c_prmt___prmt_mat_' + fun_name 
+                        node.value.func.attr = '___c_prmt___prmt_mat_' + fun_name 
         set_precedence(node, node.value)
 
         self.statement(node)
@@ -756,7 +756,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.decorators(node, 1 if self.indentation else 2)
         # self.write()
         returns = self.get_returns(node)
-        return_type_py = returns.__dict__["value"]
+        return_type_py = returns.value
 
         if node.name == 'main':
             self.write('void *___c_prmt_8_heap; \n', dest = 'src')
@@ -967,7 +967,7 @@ class SourceGenerator(ExplicitNodeVisitor):
     # Expressions
 
     def visit_Attribute(self, node):
-        if  self.typed_record[node.value.__dict__['id']] in usr_temp_types: 
+        if  self.typed_record[node.value.id] in usr_temp_types: 
             self.write(node.value, '->', node.attr, dest = 'src')
         else:
             raise Exception("Accessing attribute of object {} of unknown type".format(node.value))
@@ -992,21 +992,21 @@ class SourceGenerator(ExplicitNodeVisitor):
         p = Precedence.Comma if numargs > 1 else Precedence.call_one_arg
         set_precedence(p, *args)
 
-        if type(node.__dict__["func"]) == ast.Name: 
-            if  node.__dict__["func"].__dict__["id"] in prmt_temp_functions:
-                func_name = node.__dict__["func"].__dict__["id"]
-                node.__dict__["func"].__dict__["id"] = prmt_temp_functions[func_name]
-        elif type(node.__dict__["func"]) == ast.Attribute: 
+        if type(node.func) == ast.Name: 
+            if  node.func.id in prmt_temp_functions:
+                func_name = node.func.id
+                node.func.id = prmt_temp_functions[func_name]
+        elif type(node.func) == ast.Attribute: 
             # calling a method of a user-defined class
-            func_name = node.__dict__["func"].__dict__["attr"]
+            func_name = node.func.attr
             f_name_len = len(func_name)
             pre_mangl = '_Z%s' %f_name_len 
             post_mangl = self.build_arg_mangling_mod(args)
-            node.__dict__["func"].__dict__["attr"] = pre_mangl + func_name + post_mangl
+            node.func.attr = pre_mangl + func_name + post_mangl
 
         self.visit(node.func)
-        if type(node.__dict__["func"]) == ast.Attribute: 
-            code = '(' +  node.__dict__["func"].__dict__["value"].__dict__["id"] + ', '
+        if type(node.func) == ast.Attribute: 
+            code = '(' +  node.func.value.id + ', '
             write(code, dest = 'src')
         else:
             write('(', dest = 'src')
