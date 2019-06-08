@@ -1,40 +1,22 @@
 from ctypes import *
 from .prmt_vec_blasfeo_wrapper import *
+from .prmt_mat_blasfeo_wrapper import *
+from .prmt_mat import *
 from .blasfeo_wrapper import *
 
 class prmt_vec:
 
     blasfeo_dvec = None
 
-    def __init__(self, m: int, n: int):
-        self.blasfeo_dmat = c_prmt_create_blasfeo_dmat(m, n)  
+    def __init__(self, m: int):
+        self.blasfeo_dvec = c_prmt_create_blasfeo_dvec(m)  
     
     def __getitem__(self, index):
-        if self._i is not None:
-            self._j = index
-            el = self.my_get_item()
-            return el
-
-        self._i = index
-        return self
+        return prmt_vec_get(self, index)
 
     def __setitem__(self, index, value):
-        self._j = index
-        self.my_set_item(value)
+        prmt_vec_set(self, value, index)
         return
-   
-
-    def my_set_item(self, value):
-        prmt_set(self, value, self._i, self._j)
-        self._i = None
-        self._j = None
-        return
-
-    def my_get_item(self):
-        el = prmt_get(self, self._i, self._j)
-        self._i = None
-        self._j = None
-        return el 
     
     def fill(self, value):
         for i in range(self.blasfeo_dvec.m):
@@ -42,9 +24,9 @@ class prmt_vec:
         return
 
     def copy(self, to_be_copied):
-        for i in range(self.blasfeo_dmat.m):
-                value = to_be_copied[i]
-                self[i] = value
+        for i in range(self.blasfeo_dvec.m):
+            value = to_be_copied[i]
+            self[i] = value
         return
 
 # auxiliary functions
@@ -55,7 +37,7 @@ def prmt_vec_set(v: prmt_vec, value, i):
     c_prmt_set_blasfeo_dvec_el(value, v.blasfeo_dvec, i)  
 
 def prmt_vec_get(v: prmt_vec, i):
-    el = c_prmt_get_blasfeo_dmat_el(v.blasfeo_dvec, i)  
+    el = c_prmt_get_blasfeo_dvec_el(v.blasfeo_dvec, i)  
     return el 
 
 def prmt_vec_print(v: prmt_vec):

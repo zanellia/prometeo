@@ -4,7 +4,7 @@ from ctypes import *
 def c_prmt_set_blasfeo_dvec(v, data: POINTER(c_double)):
          
     m = v.m
-    bw.blasfeo_pack_dvec(m, data, m, byref(v), 0)
+    bw.blasfeo_pack_dvec(m, data, byref(v), 0)
 
 def c_prmt_set_blasfeo_dvec_el(value, v, ai):
          
@@ -22,7 +22,7 @@ def c_prmt_set_prmt_blasfeo_dvec(data, v, ai):
 
 def c_prmt_create_blasfeo_dvec(m: int):
          
-    size_strmat = bw.blasfeo_memsize_dvec(m)
+    size_strvec = bw.blasfeo_memsize_dvec(m)
     memory_strvec = c_void_p() 
     bw.v_zeros_align(byref(memory_strvec), size_strvec)
 
@@ -35,8 +35,8 @@ def c_prmt_create_blasfeo_dvec(m: int):
 
     bw.blasfeo_allocate_dvec(m, byref(sv))
     bw.blasfeo_create_dvec(m, byref(sv), ptr_memory_strvec)
-    bw.blasfeo_pack_dvec(m, data, m, byref(sv), 0)
-    return sA
+    bw.blasfeo_pack_dvec(m, data, byref(sv), 0)
+    return sv
 
 
 # auxiliary functions

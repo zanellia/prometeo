@@ -13,6 +13,11 @@ class blasfeo_dmat(Structure):
 	            ("use_dA", c_int),
 	            ("memsize", c_int)]
 
+class blasfeo_dvec(Structure):
+    _fields_ = [    ("m", c_int),
+	            ("pm", c_int),
+	            ("pa", POINTER(c_double)),
+	            ("memsize", c_int)]
 
 bw.blasfeo_dgemm_nn.argtypes = [c_int, c_int, c_int, c_double, 
     POINTER(blasfeo_dmat), c_int, c_int, POINTER(blasfeo_dmat), c_int, c_int, 
@@ -54,7 +59,11 @@ bw.blasfeo_dtrsm_lunn.argtypes = [c_int, c_int, c_double, POINTER(blasfeo_dmat),
 #                      beta: c_double, sC: POINTER(blasfeo_dmat), 
 #                      ci: c_int, cj: c_int, sD: POINTER(blasfeo_dmat), 
 #                      di: c_int, dj: c_int):
-    
+
 #     bw.blasfeo_dgemm_nt(m, n, k, alpha, byref(sA), ai, aj, byref(sB), bi, bj, beta, 
 #                         byref(sC), ci, cj, byref(sD), di, dj)
 
+# blasfeo_dvec
+
+bw.blasfeo_dvecin1.argtypes = [c_double, POINTER(blasfeo_dvec), c_int]
+bw.blasfeo_dvecex1.restype = c_double 
