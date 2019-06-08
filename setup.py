@@ -14,8 +14,4 @@ setup(name='prometeo',
       'numpy',
       'scipy',
    ],
-   package_data={'': [
-       'cprmt/prmt_mat_blasfeo_wrapper.h',
-       'cprmt/prmt_heap.h',
-       ]},
    zip_safe=False)
