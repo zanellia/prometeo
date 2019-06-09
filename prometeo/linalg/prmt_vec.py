@@ -3,8 +3,12 @@ from .prmt_vec_blasfeo_wrapper import *
 from .prmt_mat_blasfeo_wrapper import *
 from .prmt_mat import *
 from .blasfeo_wrapper import *
+from abc import ABC
 
-class prmt_vec:
+class prmt_vec_(ABC):
+    pass
+
+class prmt_vec(prmt_vec_):
 
     blasfeo_dvec = None
 

@@ -113,7 +113,18 @@ def c_prmt_trsm_lunn(A, B):
     bA = A.blasfeo_dmat
     bB = B.blasfeo_dmat
     
-    bw.blasfeo_dtrsm_lunn(bB.m, bB.n, 1.0, byref(bA), 0, 0, byref(bB), 0, 0, byref(bB), 0, 0)
+    bw.blasfeo_dtrsm_lunn(bB.m, bB.n, 1.0, byref(bA), 0, 0, byref(bB), \
+            0, 0, byref(bB), 0, 0)
+    return
+
+def c_prmt_dgemv_n(A, b, c, d):
+    bA = A.blasfeo_dmat
+    bb = b.blasfeo_dvec
+    bc = c.blasfeo_dvec
+    bd = d.blasfeo_dvec
+
+    bw.blasfeo_dgemv_n(bA.m, bA.n, 1.0, byref(bA), 0, 0, byref(bb), 0, \
+            1.0, byref(bc), 0, byref(bd), 0)
     return
 
 # auxiliary functions

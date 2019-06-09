@@ -1,9 +1,14 @@
 from ctypes import *
 from .prmt_mat_blasfeo_wrapper import *
-from .prmt_vec_blasfeo_wrapper import *
+from .prmt_vec import *
 from .blasfeo_wrapper import *
+from multipledispatch import dispatch
+from abc import ABC
 
-class prmt_mat:
+class prmt_mat_(ABC):
+    pass
+
+class prmt_mat(prmt_mat_):
 
     blasfeo_dmat = None
     _i = None
@@ -46,7 +51,14 @@ class prmt_mat:
     # 3) low-level (BLASFEO wrapper)
 
     # high-level linear algebra
+    @dispatch(prmt_mat_)
     def __mul__(self, other):
+        if self.blasfeo_dmat.n != other.blasfeo_dmat.m:
+            raise Exception('__mul__: mismatching dimensions:' 
+                ' ({}, {}) x ({}, {})'.format(self.blasfeo_dmat.m, \
+                self.blasfeo_dmat.n, other.blasfeo_dmat.m, \
+                other.blasfeo_dmat.n))
+
         res = prmt_mat(self.blasfeo_dmat.m, other.blasfeo_dmat.n)
         prmt_fill(res, 0.0)
         zero_mat = prmt_mat(self.blasfeo_dmat.m, other.blasfeo_dmat.n)
@@ -54,13 +66,40 @@ class prmt_mat:
         prmt_gemm_nn(self, other, zero_mat, res)
         return res
 
+    @dispatch(prmt_vec_)
+    def __mul__(self, other):
+        if self.blasfeo_dmat.n != other.blasfeo_dvec.m:
+            raise Exception('__mul__: mismatching dimensions:' 
+                ' ({}, {}) x ({},)'.format(self.blasfeo_dmat.m, \
+                self.blasfeo_dmat.n, other.blasfeo_dvec.m))
+
+        res = prmt_vec(self.blasfeo_dmat.m)
+        res.fill(0.0)
+        zero_vec = prmt_vec(self.blasfeo_dmat.m)
+        zero_vec.fill(0.0)
+        prmt_gemv_n(self, other, zero_vec, res)
+        return res
+
+    @dispatch(prmt_mat_)
     def __add__(self, other):
+        if self.blasfeo_dmat.m != other.blasfeo_dmat.m \
+                or self.blasfeo_dmat.n != other.blasfeo_dmat.n:
+            raise Exception('__add__: mismatching dimensions:' 
+                ' ({}, {}) + ({}, {})'.format(self.blasfeo_dmat.m, \
+                self.blasfeo_dmat.n, other.blasfeo_dmat.m, \
+                other.blasfeo_dmat.n))
         res = prmt_mat(self.blasfeo_dmat.m, self.blasfeo_dmat.n)
         prmt_copy(other, res)
         prmt_gead(1.0, self, res)
         return res 
 
     def __sub__(self, other):
+        if self.blasfeo_dmat.m != other.blasfeo_dmat.m \
+                or self.blasfeo_dmat.n != other.blasfeo_dmat.n:
+            raise Exception('__sub__: mismatching dimensions:' 
+                ' ({}, {}) + ({}, {})'.format(self.blasfeo_dmat.m, \
+                self.blasfeo_dmat.n, other.blasfeo_dmat.m, \
+                other.blasfeo_dmat.n))
         res = prmt_mat(self.blasfeo_dmat.m, self.blasfeo_dmat.n)
         prmt_copy(self, res)
         prmt_gead(-1.0, other, res)
@@ -133,6 +172,10 @@ def prmt_trsm_lunn(A: prmt_mat, B: prmt_mat):
 def prmt_getrf(fact: prmt_mat, ipiv):
     c_prmt_getrf(fact, ipiv);
     return 
+
+def prmt_gemv_n(A: prmt_mat, b: prmt_vec, c: prmt_vec, d: prmt_vec):
+    c_prmt_dgemv_n(A, b, c, d)
+    return
 
 # auxiliary functions
 def prmt_set_data(M: prmt_mat, data: POINTER(c_double)):
