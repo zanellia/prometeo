@@ -22,11 +22,11 @@ void ___c_prmt___assign_and_advance_blasfeo_dvec(int m, struct blasfeo_dvec **bv
 // void ___c_prmt___dgead(double alpha, struct pvec *A, struct pvec *B); 
 
 // auxiliary
-void ___c_prmt___fill_vec(struct pvec *a, double fill_value);
-void ___c_prmt___prmt_set_el_vec(struct pvec *a, int i, double value);
-double ___c_prmt___prmt_get_el_vec(struct pvec *a, int i);
-void ___c_prmt___copy_vec(struct pvec *a, struct pvec *b);
-void ___c_prmt___print_vec(struct pvec *a);
+void ___c_prmt___pvec_fill(struct pvec *a, double fill_value);
+void ___c_prmt___pvec_set_el(struct pvec *a, int i, double value);
+double ___c_prmt___pvec_get_el(struct pvec *a, int i);
+void ___c_prmt___pvec_copy(struct pvec *a, struct pvec *b);
+void ___c_prmt___pvec_print(struct pvec *a);
 
 #endif // PROMETEO_PRMT_VEC_BLASFEO_WRAPPER_H_
 

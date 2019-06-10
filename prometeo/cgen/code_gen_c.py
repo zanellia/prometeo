@@ -29,12 +29,14 @@ from collections import namedtuple
 prmt_temp_functions = {\
         "pmat": "___c_prmt___create_pmat", \
         "pvec": "___c_prmt___create_pvec", \
-        "prmt_print": "___c_prmt___print", \
-        "pvec_print": "___c_prmt___vec_print", \
-        "prmt_dgemm": "___c_prmt___dgemm", \
-        "prmt_dgead": "___c_prmt___dgead", \
-        "prmt_fill": "___c_prmt___fill", \
-        "prmt_copy": "___c_prmt___copy", \
+        "dgemm": "___c_prmt___dgemm", \
+        "dgead": "___c_prmt___dgead", \
+        "pmat_fill": "___c_prmt___pmat_fill", \
+        "pmat_copy": "___c_prmt___pmat_copy", \
+        "pmat_print": "___c_prmt___pmat_print", \
+        "pvec_fill": "___c_prmt___pvec_fill", \
+        "pvec_copy": "___c_prmt___pvec_copy", \
+        "pvec_print": "___c_prmt___pvec_print", \
         "prmt_lus" : "___c_prmt___lus"}
 
 prmt_temp_types = {\
@@ -76,7 +78,9 @@ def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False
                                 pretty_string,
                                 )
     
+    generator.result.source.append('#include "stdlib.h"\n')
     generator.result.source.append('#include "pmat_blasfeo_wrapper.h"\n')
+    generator.result.source.append('#include "pvec_blasfeo_wrapper.h"\n')
     generator.result.source.append('#include "prmt_heap.h"\n')
     generator.result.source.append('#include "%s.h"\n' %(module_name))
 
@@ -566,11 +570,13 @@ class SourceGenerator(ExplicitNodeVisitor):
     def visit_Assign(self, node):
         if 'targets' in node.__dict__:
             if type(node.targets[0]) == ast.Subscript: 
+                # check for double subscripting (pmat)
                 if 'value' in node.targets[0].value.__dict__:
                     target = node.targets[0].value.value.id
                     if target in self.typed_record: 
                         # map subscript for pmats to blasfeo el assign
-                        if self.typed_record[target] == 'pmat':
+                        if self.typed_record[target] in ('pmat'):
+                            print(self.typed_record[target])
                             target = node.targets[0]
                             sub_type = type(target.value.slice.value)
                             if sub_type == ast.Num:
@@ -611,45 +617,132 @@ class SourceGenerator(ExplicitNodeVisitor):
                                             raise Exception("Subscripting with value of type {} not implemented".format(sub_type))
 
                                         value_expr = '___c_prmt___pmat_get_el(' + value + ', {}, {})'.format(first_index_value, second_index_value) 
-                                        # self.statement([], 'pmat_set_el(', target, ', ', first_index, ', ', second_index, ', ', value_expr, ');')
-                                        self.statement([], '___c_prmt___pmat_set_el(', value, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value_expr), ');')
+                                        self.statement([], '___c_prmt___pmat_set_el(', target.value.value.id, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value_expr), ');')
                             else:
                                 target = node.targets[0].value.value.id
                                 value = node.value.n
                                 self.statement([], '___c_prmt___pmat_set_el(', target, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value), ');')
                             return
 
+                # check for single subscripting (pvec)
+                elif 'id' in node.targets[0].value.__dict__:
+                    target = node.targets[0].value.id
+                    if target in self.typed_record: 
+                        # map subscript for pvec to blasfeo el assign
+                        if self.typed_record[target] in ('pvec'):
+                            target = node.targets[0]
+                            sub_type = type(target.slice.value)
+                            if sub_type == ast.Num:
+                                index = node.targets[0].slice.value.n
+                            elif sub_type == ast.Name:
+                                index = node.targets[0].slice.value.id
+                            else:
+                                raise Exception("Subscripting with value of type {} not implemented".format(sub_type))
+
+                            # check if subscripted expression is used in the value
+                            if type(node.value) == ast.Subscript:
+                                # check for double subscripting
+                                if 'value' in node.value.value.__dict__:
+                                    value = node.value.value.value.id
+                                    if value in self.typed_record:
+                                        # if value is a pmat
+                                        if self.typed_record[value] == 'pmat':
+                                            sub_type = type(node.value.slice.value)
+                                            if sub_type == ast.Num:
+                                                second_index_value = node.value.slice.value.n
+                                            elif sub_type == ast.Name:
+                                                second_index_value = node.value.slice.value.id
+                                            else:
+                                                raise Exception("Subscripting with value of type {} not implemented".format(sub_type))
+
+                                            sub_type = type(node.value.value.slice.value)
+                                            if sub_type == ast.Num: 
+                                                first_index_value = node.value.value.slice.value.n
+                                            elif sub_type == ast.Name: 
+                                                first_index_value = node.value.value.slice.value.id
+                                            else:
+                                                raise Exception("Subscripting with value of type {} not implemented".format(sub_type))
+
+                                            value_expr = '___c_prmt___pmat_get_el(' + value + ', {}, {})'.format(first_index_value, second_index_value) 
+                                            # self.statement([], 'pmat_set_el(', target, ', ', first_index, ', ', second_index, ', ', value_expr, ');')
+                                            self.statement([], '___c_prmt___pvec_set_el(', target.value.id, ', {}'.format(index), ', {}'.format(value_expr), ');')
+                                # single subscripting
+                                else:
+                                    value = node.value.value.id
+                                    # if value is a pvec
+                                    if self.typed_record[value] == 'pvec':
+                                        sub_type = type(node.value.slice.value)
+                                        if sub_type == ast.Num: 
+                                            index_value = node.value.slice.value.n
+                                        elif sub_type == ast.Name: 
+                                            index_value = node.value.slice.value.id
+                                        else:
+                                            raise Exception("Subscripting with value of type {} not implemented".format(sub_type))
+
+                                        value_expr = '___c_prmt___pvec_get_el(' + value + ', {})'.format(index_value) 
+                                        # self.statement([], 'pmat_set_el(', target, ', ', first_index, ', ', second_index, ', ', value_expr, ');')
+                                        self.statement([], '___c_prmt___pvec_set_el(', target.value.id, ', {}'.format(index), ', {}'.format(value_expr), ');')
+                            else:
+                                target = node.targets[0].value.id
+                                value = node.value.n
+                                self.statement([], '___c_prmt___pvec_set_el(', target, ', {}'.format(index), ', {}'.format(value), ');')
+                            return
+
             elif 'id' in node.targets[0].__dict__: 
+
                 # check for Assigns targeting pmats
                 target = node.targets[0].id
+                print(target)
                 if target in self.typed_record: 
                     if self.typed_record[target] == 'pmat':
                         if type(node.value) == ast.BinOp:
                             right_op = node.value.right.id
                             left_op = node.value.left.id
                             if right_op in self.typed_record and left_op in self.typed_record:
-                                if self.typed_record[right_op] == 'pmat' and self.typed_record[left_op] == 'pmat':
+                                if self.typed_record[left_op] == 'pmat' and self.typed_record[right_op] == 'pmat':
                                     # dgemm
                                     if type(node.value.op) == ast.Mult:
                                         # set target to zero
-                                        self.statement([], '___c_prmt___fill(', target, ', 0.0);')
+                                        self.statement([], '___c_prmt___pmat_fill(', target, ', 0.0);')
                                         # call dgemm
                                         self.statement([], '___c_prmt___dgemm(', left_op, ', ', right_op, ', ', target, ', ', target, ');')
                                         return
                                     # dgead
                                     if type(node.value.op) == ast.Add:
                                         # set target to zero
-                                        self.statement([], '___c_prmt___copy(', right_op, ', ', target, ');')
+                                        self.statement([], '___c_prmt___pmat_copy(', right_op, ', ', target, ');')
                                         # call dgead
                                         self.statement([], '___c_prmt___dgead(1.0, ', left_op, ', ', target, ');')
                                         return
                                     # dgead (Sub)
                                     if type(node.value.op) == ast.Sub:
                                         # set target to zero
-                                        self.statement([], '___c_prmt___copy(', left_op, ', ', target, ');')
+                                        self.statement([], '___c_prmt___pmat_copy(', left_op, ', ', target, ');')
                                         # call dgead
                                         self.statement([], '___c_prmt___dgead(-1.0, ', right_op, ', ', target, ');')
                                         return
+                                    else:
+                                        raise Exception('Unsupported operator call:{} {} {}'\
+                                            .format(self.typed_record[left_op], node.value.op, self.typed_record[right_op]))
+
+                    elif self.typed_record[target] == 'pvec':
+                        if type(node.value) == ast.BinOp:
+                            right_op = node.value.right.id
+                            left_op = node.value.left.id
+                            if right_op in self.typed_record and left_op in self.typed_record:
+                                if self.typed_record[left_op] == 'pmat' and self.typed_record[right_op] == 'pvec':
+                                    # dgemv
+                                    if type(node.value.op) == ast.Mult:
+                                        # set target to zero
+                                        self.statement([], '___c_prmt___pvec_fill(', target, ', 0.0);')
+                                        # call dgemm
+                                        self.statement([], '___c_prmt___dgemv(', left_op, ', ', right_op, ', ', target, ', ', target, ');')
+                                        return
+                                    # dgead
+                                    else:
+                                        raise Exception('Unsupported operator call:{} {} {}'\
+                                            .format(self.typed_record[left_op], node.value.op, self.typed_record[right_op]))
+                                        
 
             elif 'attr' in node.targets[0].__dict__: 
                 # Assign targeting a user-defined class (C struct)
@@ -697,7 +790,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                             else:
                                 raise Exception ('Usage of non existing type {}'.format(ann))
                             array_size = str(node.value.args[1].n)
-                            self.statement([], ann, ' * ', node.target, '[', array_size, '];')
+                            self.statement([], ann, ' ', node.target, '[', array_size, '];')
                             return
 
         # check if the annotation contains directly a type or something fancier

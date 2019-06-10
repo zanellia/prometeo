@@ -26,11 +26,11 @@ void ___c_prmt___dgead(double alpha, struct pmat *A, struct pmat *B);
 void ___c_prmt___dgemv(struct pmat *A, struct pvec *b, struct pvec *c, struct pvec *d);
 
 // auxiliary
-void ___c_prmt___fill(struct pmat *A, double fill_value);
-void ___c_prmt___prmt_set_el(struct pmat *A, int i, int j, double value);
-double ___c_prmt___prmt_get_el(struct pmat *A, int i, int j);
-void ___c_prmt___copy(struct pmat *A, struct pmat *B);
-void ___c_prmt___print(struct pmat *A);
+void ___c_prmt___pmat_fill(struct pmat *A, double fill_value);
+void ___c_prmt___pmat_set_el(struct pmat *A, int i, int j, double value);
+double ___c_prmt___pmat_get_el(struct pmat *A, int i, int j);
+void ___c_prmt___pmat_copy(struct pmat *A, struct pmat *B);
+void ___c_prmt___pmat_print(struct pmat *A);
 
 #endif // PROMETEO_PRMT_MAT_BLASFEO_WRAPPER_H_
 

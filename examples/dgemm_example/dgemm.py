@@ -8,12 +8,12 @@ class p_class:
 
     def method_2(self, A: pmat, B: pmat, C: pmat) -> None:
         C = A * B
-        prmt_print(C)
+        pmat_print(C)
         return
 
 def function1(A: pmat, B: pmat, C: pmat) -> None:
     C = A * B
-    prmt_print(C)
+    pmat_print(C)
     return
 
 def main() -> None:
@@ -38,10 +38,12 @@ def main() -> None:
     for i in range(2):
         A[0][i] = A[0][i]
 
-    prmt_fill(A, 1.0)
+    # pmat_fill(A, 1.0)
 
     B: pmat = pmat(n, n)
-    prmt_fill(B, 2.0)
+    for i in range(2):
+        B[0][i] = A[0][i]
+    # pmat_fill(B, 2.0)
 
     C: pmat = pmat(n, n)
 
@@ -51,38 +53,41 @@ def main() -> None:
     pmat_list[0] = A
 
     C = A * B
-    prmt_print(C)
+    pmat_print(C)
     C = A + B
-    prmt_print(C)
+    pmat_print(C)
     C = A - B
-    prmt_print(C)
+    pmat_print(C)
     function1(A, B, C)
     function1(pmat_list[0], B, C)
 
-    prmt_fill(A, 0.0)
+    pmat_fill(A, 0.0)
     for i in range(10):
         A[i][i] = 1.0
 
-    prmt_print(A)
+    pmat_print(A)
 
-    # still to be implemented in code-generator
     a : pvec = pvec(10)
-    # a.fill(0.0)
-    a[1] = 2.0
-    el = a[1]
+    a[1] = 3.0
+    b : pvec = pvec(3)
+    b[0] = a[1]
+    b[1] = A[0][2]
+    # el : double = a[1]
     pvec_print(a)
+    pvec_print(b)
 
     c : pvec = pvec(10)
-    c = A*a
+    c = A * a
     pvec_print(c)
 
+    # still to be implemented in code-generator
     # prmt_lus(A, B, C)
-    # prmt_print(C)
+    # pmat_print(C)
     # D: pmat = pmat(n, n)
     # D = A*C
-    # prmt_print(D)
+    # pmat_print(D)
 
 # UNCOMMENT THESE LINES TO EXECUTE 
-if __name__ == "__main__":
+# if __name__ == "__main__":
     # execute only if run as a script
-    main()
+    # main()

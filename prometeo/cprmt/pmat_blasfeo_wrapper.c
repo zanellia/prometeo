@@ -132,7 +132,7 @@ void ___c_prmt___dgemv(struct pmat *A, struct pvec *b, struct pvec *c, struct pv
            0, bd, 0);
 }
 // auxiliary
-void ___c_prmt___fill(struct pmat *A, double fill_value) {
+void ___c_prmt___pmat_fill(struct pmat *A, double fill_value) {
     int m = A->bmat->m;
     int n = A->bmat->n;
 
@@ -151,7 +151,7 @@ double ___c_prmt___pmat_get_el(struct pmat *A, int i, int j) {
     blasfeo_dgeex1(A->bmat, i, j);
 }
 
-void ___c_prmt___copy(struct pmat *A, struct pmat *B) {
+void ___c_prmt___pmat_copy(struct pmat *A, struct pmat *B) {
     int m = A->bmat->m;
     int n = A->bmat->n;
     double value;
@@ -163,7 +163,7 @@ void ___c_prmt___copy(struct pmat *A, struct pmat *B) {
         }
 }
 
-void ___c_prmt___print(struct pmat *A) {
+void ___c_prmt___pmat_print(struct pmat *A) {
     int m = A->bmat->m;
     int n = A->bmat->n;
 
