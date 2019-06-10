@@ -28,6 +28,7 @@ from collections import namedtuple
 
 prmt_temp_functions = {\
         "prmt_mat": "___c_prmt___create_prmt_mat", \
+        "prmt_vec": "___c_prmt___create_prmt_vec", \
         "prmt_print": "___c_prmt___print", \
         "prmt_dgemm": "___c_prmt___dgemm", \
         "prmt_dgead": "___c_prmt___dgead", \
@@ -35,7 +36,9 @@ prmt_temp_functions = {\
         "prmt_copy": "___c_prmt___copy", \
         "prmt_lus" : "___c_prmt___lus"}
 
-prmt_temp_types = {"prmt_mat": "struct prmt_mat *", \
+prmt_temp_types = {\
+        "prmt_mat": "struct prmt_mat *", \
+        "prmt_vec": "struct prmt_vec *", \
         "None": "void", \
         "NoneType": "void", \
         "ptr_int": "int *", \
@@ -702,12 +705,9 @@ class SourceGenerator(ExplicitNodeVisitor):
             # add variable to typed record
             self.typed_record[node.target.id] = node.annotation.id
             print(self.typed_record)
-            if  ann in prmt_temp_types:
+            if ann in prmt_temp_types:
                 node.annotation.id = prmt_temp_types[ann]
                 self.statement(node, node.annotation, ' ', node.target)
-            else:
-                raise Exception ('Usage of non existing type {}'.format(ann))
-
             # check if annotation corresponds to user-defined class name
             elif ann in usr_temp_types:
                 class_name = node.annotation.id
@@ -716,7 +716,9 @@ class SourceGenerator(ExplicitNodeVisitor):
                 self.statement(node, node.annotation, ' ', node.target, '= &', node.target, '___;')
                 self.statement([], class_name, '_init(', node.target, '); //')
             else:
-                self.statement(node, node.annotation, ' ', node.target)
+                raise Exception ('Usage of non existing type {}'.format(ann))
+            # else:
+            #     self.statement(node, node.annotation, ' ', node.target)
                 # raise Exception("Could not resolve type '{}'. Exiting.".format(ann))
 
         # List[<type>]
@@ -1018,8 +1020,6 @@ class SourceGenerator(ExplicitNodeVisitor):
             if  node.func.id in prmt_temp_functions:
                 func_name = node.func.id
                 node.func.id = prmt_temp_functions[func_name]
-            else:
-                raise Exception ('Usage of non existing type {}'.format(ret_type))
         elif type(node.func) == ast.Attribute: 
             # calling a method of a user-defined class
             func_name = node.func.attr
