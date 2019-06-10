@@ -68,13 +68,13 @@ def main() -> None:
     # still to be implemented in code-generator
     a : prmt_vec = prmt_vec(10)
     # a.fill(0.0)
-    # a[1] = 2.0
-    # el = a[1]
-    # prmt_vec_print(a)
+    a[1] = 2.0
+    el = a[1]
+    prmt_vec_print(a)
 
-    # c : prmt_vec = prmt_vec(10)
-    # c = A*a
-    # prmt_vec_print(c)
+    c : prmt_vec = prmt_vec(10)
+    c = A*a
+    prmt_vec_print(c)
 
     # prmt_lus(A, B, C)
     # prmt_print(C)

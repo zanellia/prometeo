@@ -18,7 +18,7 @@ def c_prmt_get_blasfeo_dvec_el(v, ai):
 def c_prmt_set_prmt_blasfeo_dvec(data, v, ai):
          
     m = v.m
-    bw.blasfeo_pack_dvec(m, data, m, byref(v), 0)
+    bw.blasfeo_pack_dvec(m, data, byref(v), 0)
 
 def c_prmt_create_blasfeo_dvec(m: int):
          
@@ -36,6 +36,8 @@ def c_prmt_create_blasfeo_dvec(m: int):
     bw.blasfeo_allocate_dvec(m, byref(sv))
     bw.blasfeo_create_dvec(m, byref(sv), ptr_memory_strvec)
     bw.blasfeo_pack_dvec(m, data, byref(sv), 0)
+    # initialize to 0.0
+    bw.blasfeo_dvecse(m, 0.0, byref(sv), 0);
     return sv
 
 

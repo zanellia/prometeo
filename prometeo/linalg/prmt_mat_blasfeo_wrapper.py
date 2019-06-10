@@ -42,6 +42,8 @@ def c_prmt_create_blasfeo_dmat(m: int, n: int):
     bw.blasfeo_allocate_dmat(m, n, byref(sA))
     bw.blasfeo_create_dmat(m, n, byref(sA), ptr_memory_strmat)
     bw.blasfeo_pack_dmat(m, n, data, n, byref(sA), 0, 0)
+    # initialize to 0.0
+    bw.blasfeo_dgese(m, n, 0.0, byref(sA), 0, 0);
     return sA
 
 # TODO(andrea): move body of these functions directly 
