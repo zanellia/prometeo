@@ -324,13 +324,14 @@ class SourceGenerator(ExplicitNodeVisitor):
                     ret_type = self.get_returns(item).id
                 else:
                     ret_type = self.get_returns(item).value
-                    import pdb; pdb.set_trace()
 
                 if ret_type is None: 
                     ret_type = 'None'
 
                 if  ret_type in prmt_temp_types:
                     ret_type = prmt_temp_types[ret_type]
+                else:
+                    raise Exception ('Usage of non existing type {}'.format(ret_type))
 
                 self.write('%s (*%s%s%s' % (ret_type, pre_mangl, item.name, post_mangl) , ')', '(%s *self, ' %name, dest = 'hdr')
                 self.visit_arguments(item.args, 'hdr')
@@ -369,6 +370,8 @@ class SourceGenerator(ExplicitNodeVisitor):
 
                 if  ret_type in prmt_temp_types:
                     ret_type = prmt_temp_types[ret_type]
+                else:
+                    raise Exception ('Usage of non existing type {}'.format(ret_type))
 
                 self.write('%s (%s%s%s%s' % (ret_type, pre_mangl, item.name, post_mangl, name) , '_impl)', '(%s *self, ' %name, dest = 'hdr')
                 self.visit_arguments(item.args, 'hdr')
@@ -455,6 +458,8 @@ class SourceGenerator(ExplicitNodeVisitor):
 
                 if  ret_type in prmt_temp_types:
                     ret_type = prmt_temp_types[ret_type]
+                else:
+                    raise Exception ('Usage of non existing type {}'.format(ret_type))
 
                 self.statement(item, ret_type, ' %s%s%s%s' % (pre_mangl, \
                         item.name, post_mangl, name), '_impl(', name, ' *self, ')
@@ -685,6 +690,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                             ann = node.annotation.slice.value.id
                             if  ann in prmt_temp_types:
                                 ann = prmt_temp_types[ann]
+                            else:
+                                raise Exception ('Usage of non existing type {}'.format(ann))
                             array_size = str(node.value.args[1].n)
                             self.statement([], ann, ' * ', node.target, '[', array_size, '];')
                             return
@@ -698,8 +705,11 @@ class SourceGenerator(ExplicitNodeVisitor):
             if  ann in prmt_temp_types:
                 node.annotation.id = prmt_temp_types[ann]
                 self.statement(node, node.annotation, ' ', node.target)
+            else:
+                raise Exception ('Usage of non existing type {}'.format(ann))
+
             # check if annotation corresponds to user-defined class name
-            elif  ann in usr_temp_types:
+            elif ann in usr_temp_types:
                 class_name = node.annotation.id
                 node.annotation.id = usr_temp_types[ann]
                 self.statement([], 'struct ', class_name, ' ', node.target, '___;')
@@ -719,8 +729,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                 c_ann = prmt_temp_types[ann]
                 self.statement(node, c_ann, ' ', node.target.id)
             else:
-                # self.write(node, node.annotation, ' ', node.target)
-                raise Exception("Could not resolve type '{}'. Exiting.".format(ann))
+                raise Exception ('Usage of non existing type {}'.format(ret_type))
+
         # switch to avoid double ';'
         if type(node.value) != ast.Call:
             if node.value is not None:
@@ -1008,6 +1018,8 @@ class SourceGenerator(ExplicitNodeVisitor):
             if  node.func.id in prmt_temp_functions:
                 func_name = node.func.id
                 node.func.id = prmt_temp_functions[func_name]
+            else:
+                raise Exception ('Usage of non existing type {}'.format(ret_type))
         elif type(node.func) == ast.Attribute: 
             # calling a method of a user-defined class
             func_name = node.func.attr
