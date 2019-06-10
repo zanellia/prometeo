@@ -27,10 +27,10 @@ from .source_repr import pretty_source
 from collections import namedtuple
 
 prmt_temp_functions = {\
-        "prmt_mat": "___c_prmt___create_prmt_mat", \
-        "prmt_vec": "___c_prmt___create_prmt_vec", \
+        "pmat": "___c_prmt___create_pmat", \
+        "pvec": "___c_prmt___create_pvec", \
         "prmt_print": "___c_prmt___print", \
-        "prmt_vec_print": "___c_prmt___vec_print", \
+        "pvec_print": "___c_prmt___vec_print", \
         "prmt_dgemm": "___c_prmt___dgemm", \
         "prmt_dgead": "___c_prmt___dgead", \
         "prmt_fill": "___c_prmt___fill", \
@@ -38,12 +38,12 @@ prmt_temp_functions = {\
         "prmt_lus" : "___c_prmt___lus"}
 
 prmt_temp_types = {\
-        "prmt_mat": "struct prmt_mat *", \
-        "prmt_vec": "struct prmt_vec *", \
+        "pmat": "struct pmat *", \
+        "pvec": "struct pvec *", \
         "None": "void", \
         "NoneType": "void", \
         "ptr_int": "int *", \
-        "ptr_prmt_mat": "struct prmt_mat **", \
+        "ptr_pmat": "struct pmat **", \
         "int": "int", "double": "double"}
 
 usr_temp_types = {}
@@ -76,7 +76,7 @@ def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False
                                 pretty_string,
                                 )
     
-    generator.result.source.append('#include "prmt_mat_blasfeo_wrapper.h"\n')
+    generator.result.source.append('#include "pmat_blasfeo_wrapper.h"\n')
     generator.result.source.append('#include "prmt_heap.h"\n')
     generator.result.source.append('#include "%s.h"\n' %(module_name))
 
@@ -569,8 +569,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                 if 'value' in node.targets[0].value.__dict__:
                     target = node.targets[0].value.value.id
                     if target in self.typed_record: 
-                        # map subscript for prmt_mats to blasfeo el assign
-                        if self.typed_record[target] == 'prmt_mat':
+                        # map subscript for pmats to blasfeo el assign
+                        if self.typed_record[target] == 'pmat':
                             target = node.targets[0]
                             sub_type = type(target.value.slice.value)
                             if sub_type == ast.Num:
@@ -590,10 +590,10 @@ class SourceGenerator(ExplicitNodeVisitor):
 
                             # check if subscripted expression is used in the value
                             if type(node.value) == ast.Subscript:
-                                # if value is a prmt_mat
+                                # if value is a pmat
                                 value = node.value.value.value.id
                                 if value in self.typed_record:
-                                    if self.typed_record[value] == 'prmt_mat':
+                                    if self.typed_record[value] == 'pmat':
                                         sub_type = type(node.value.slice.value)
                                         if sub_type == ast.Num:
                                             second_index_value = node.value.slice.value.n
@@ -610,25 +610,25 @@ class SourceGenerator(ExplicitNodeVisitor):
                                         else:
                                             raise Exception("Subscripting with value of type {} not implemented".format(sub_type))
 
-                                        value_expr = '___c_prmt___prmt_mat_get_el(' + value + ', {}, {})'.format(first_index_value, second_index_value) 
-                                        # self.statement([], 'prmt_mat_set_el(', target, ', ', first_index, ', ', second_index, ', ', value_expr, ');')
-                                        self.statement([], '___c_prmt___prmt_mat_set_el(', value, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value_expr), ');')
+                                        value_expr = '___c_prmt___pmat_get_el(' + value + ', {}, {})'.format(first_index_value, second_index_value) 
+                                        # self.statement([], 'pmat_set_el(', target, ', ', first_index, ', ', second_index, ', ', value_expr, ');')
+                                        self.statement([], '___c_prmt___pmat_set_el(', value, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value_expr), ');')
                             else:
                                 target = node.targets[0].value.value.id
                                 value = node.value.n
-                                self.statement([], '___c_prmt___prmt_mat_set_el(', target, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value), ');')
+                                self.statement([], '___c_prmt___pmat_set_el(', target, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value), ');')
                             return
 
             elif 'id' in node.targets[0].__dict__: 
-                # check for Assigns targeting prmt_mats
+                # check for Assigns targeting pmats
                 target = node.targets[0].id
                 if target in self.typed_record: 
-                    if self.typed_record[target] == 'prmt_mat':
+                    if self.typed_record[target] == 'pmat':
                         if type(node.value) == ast.BinOp:
                             right_op = node.value.right.id
                             left_op = node.value.left.id
                             if right_op in self.typed_record and left_op in self.typed_record:
-                                if self.typed_record[right_op] == 'prmt_mat' and self.typed_record[left_op] == 'prmt_mat':
+                                if self.typed_record[right_op] == 'pmat' and self.typed_record[left_op] == 'pmat':
                                     # dgemm
                                     if type(node.value.op) == ast.Mult:
                                         # set target to zero
@@ -765,12 +765,12 @@ class SourceGenerator(ExplicitNodeVisitor):
         if type(node.value) is ast.Call:
             if "value" in node.value.func.__dict__:
                 var_name = node.value.func.value.id
-                # check if we are calling a method on a prmt_mat object
+                # check if we are calling a method on a pmat object
                 if var_name in self.typed_record: 
-                    if self.typed_record[var_name] == 'prmt_mat':
+                    if self.typed_record[var_name] == 'pmat':
                         fun_name = node.value.func.attr 
                         # add prefix to function call
-                        node.value.func.attr = '___c_prmt___prmt_mat_' + fun_name 
+                        node.value.func.attr = '___c_prmt___pmat_' + fun_name 
         set_precedence(node, node.value)
 
         self.statement(node)
