@@ -2,8 +2,8 @@ CC = gcc
 CFLAGS += -g -fPIC
 PREFIX = /opt
 
-SRCS += prmt_mat_blasfeo_wrapper.c
-SRCS += prmt_vec_blasfeo_wrapper.c
+SRCS += pmat_blasfeo_wrapper.c
+SRCS += pvec_blasfeo_wrapper.c
 CFLAGS+=-I../../external/blasfeo/include/
 
 all: $(SRCS) 
