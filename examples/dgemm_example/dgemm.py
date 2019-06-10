@@ -1,17 +1,17 @@
 # UNCOMMENT THESE LINES TO EXECUTE 
-# from prometeo.linalg import *
-# from prometeo.auxl import *
+from prometeo.linalg import *
+from prometeo.auxl import *
 
 class p_class:
     attr_1: int = 1
     attr_2: float = 3.0
 
-    def method_2(self, A: prmt_mat, B: prmt_mat, C: prmt_mat) -> None:
+    def method_2(self, A: pmat, B: pmat, C: pmat) -> None:
         C = A * B
         prmt_print(C)
         return
 
-def function1(A: prmt_mat, B: prmt_mat, C: prmt_mat) -> None:
+def function1(A: pmat, B: pmat, C: pmat) -> None:
     C = A * B
     prmt_print(C)
     return
@@ -32,7 +32,7 @@ def main() -> None:
         j = j - 1
 
     n: int = 10
-    A: prmt_mat = prmt_mat(n, n)
+    A: pmat = pmat(n, n)
     A[0][2] = 2.0
 
     for i in range(2):
@@ -40,14 +40,14 @@ def main() -> None:
 
     prmt_fill(A, 1.0)
 
-    B: prmt_mat = prmt_mat(n, n)
+    B: pmat = pmat(n, n)
     prmt_fill(B, 2.0)
 
-    C: prmt_mat = prmt_mat(n, n)
+    C: pmat = pmat(n, n)
 
     test_class.method_2(A, B, C)
 
-    pmat_list: List[prmt_mat] = prmt_list(prmt_mat, 10)
+    pmat_list: List[pmat] = prmt_list(pmat, 10)
     pmat_list[0] = A
 
     C = A * B
@@ -66,23 +66,23 @@ def main() -> None:
     prmt_print(A)
 
     # still to be implemented in code-generator
-    a : prmt_vec = prmt_vec(10)
+    a : pvec = pvec(10)
     # a.fill(0.0)
     a[1] = 2.0
     el = a[1]
-    prmt_vec_print(a)
+    pvec_print(a)
 
-    c : prmt_vec = prmt_vec(10)
+    c : pvec = pvec(10)
     c = A*a
-    prmt_vec_print(c)
+    pvec_print(c)
 
     # prmt_lus(A, B, C)
     # prmt_print(C)
-    # D: prmt_mat = prmt_mat(n, n)
+    # D: pmat = pmat(n, n)
     # D = A*C
     # prmt_print(D)
 
 # UNCOMMENT THESE LINES TO EXECUTE 
-# if __name__ == "__main__":
+if __name__ == "__main__":
     # execute only if run as a script
-    # main()
+    main()

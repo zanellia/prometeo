@@ -1,14 +1,14 @@
 from ctypes import *
-from .prmt_vec_blasfeo_wrapper import *
-from .prmt_mat_blasfeo_wrapper import *
-from .prmt_mat import *
+from .pvec_blasfeo_wrapper import *
+from .pmat_blasfeo_wrapper import *
+from .pmat import *
 from .blasfeo_wrapper import *
 from abc import ABC
 
-class prmt_vec_(ABC):
+class pvec_(ABC):
     pass
 
-class prmt_vec(prmt_vec_):
+class pvec(pvec_):
 
     blasfeo_dvec = None
 
@@ -16,10 +16,10 @@ class prmt_vec(prmt_vec_):
         self.blasfeo_dvec = c_prmt_create_blasfeo_dvec(m)  
     
     def __getitem__(self, index):
-        return prmt_vec_get(self, index)
+        return pvec_get(self, index)
 
     def __setitem__(self, index, value):
-        prmt_vec_set(self, value, index)
+        pvec_set(self, value, index)
         return
     
     def fill(self, value):
@@ -34,17 +34,17 @@ class prmt_vec(prmt_vec_):
         return
 
 # auxiliary functions
-def prmt_vec_set_data(v: prmt_vec, data: POINTER(c_double)):
+def pvec_set_data(v: pvec, data: POINTER(c_double)):
     c_prmt_set_blasfeo_dvec(v.blasfeo_dvec, data)  
 
-def prmt_vec_set(v: prmt_vec, value, i):
+def pvec_set(v: pvec, value, i):
     c_prmt_set_blasfeo_dvec_el(value, v.blasfeo_dvec, i)  
 
-def prmt_vec_get(v: prmt_vec, i):
+def pvec_get(v: pvec, i):
     el = c_prmt_get_blasfeo_dvec_el(v.blasfeo_dvec, i)  
     return el 
 
-def prmt_vec_print(v: prmt_vec):
+def pvec_print(v: pvec):
     c_prmt_print_blasfeo_dvec(v)
 
 
