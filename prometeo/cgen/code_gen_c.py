@@ -30,6 +30,7 @@ prmt_temp_functions = {\
         "prmt_mat": "___c_prmt___create_prmt_mat", \
         "prmt_vec": "___c_prmt___create_prmt_vec", \
         "prmt_print": "___c_prmt___print", \
+        "prmt_vec_print": "___c_prmt___vec_print", \
         "prmt_dgemm": "___c_prmt___dgemm", \
         "prmt_dgead": "___c_prmt___dgead", \
         "prmt_fill": "___c_prmt___fill", \
