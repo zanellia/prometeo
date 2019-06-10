@@ -33,13 +33,13 @@ class pmat(pmat_):
    
 
     def my_set_item(self, value):
-        prmt_set(self, value, self._i, self._j)
+        pmat_set(self, value, self._i, self._j)
         self._i = None
         self._j = None
         return
 
     def my_get_item(self):
-        el = prmt_get(self, self._i, self._j)
+        el = pmat_get(self, self._i, self._j)
         self._i = None
         self._j = None
         return el 
@@ -60,9 +60,9 @@ class pmat(pmat_):
                 other.blasfeo_dmat.n))
 
         res = pmat(self.blasfeo_dmat.m, other.blasfeo_dmat.n)
-        prmt_fill(res, 0.0)
+        pmat_fill(res, 0.0)
         zero_mat = pmat(self.blasfeo_dmat.m, other.blasfeo_dmat.n)
-        prmt_fill(zero_mat, 0.0)
+        pmat_fill(zero_mat, 0.0)
         prmt_gemm_nn(self, other, zero_mat, res)
         return res
 
@@ -89,7 +89,7 @@ class pmat(pmat_):
                 self.blasfeo_dmat.n, other.blasfeo_dmat.m, \
                 other.blasfeo_dmat.n))
         res = pmat(self.blasfeo_dmat.m, self.blasfeo_dmat.n)
-        prmt_copy(other, res)
+        pmat_copy(other, res)
         prmt_gead(1.0, self, res)
         return res 
 
@@ -101,17 +101,17 @@ class pmat(pmat_):
                 self.blasfeo_dmat.n, other.blasfeo_dmat.m, \
                 other.blasfeo_dmat.n))
         res = pmat(self.blasfeo_dmat.m, self.blasfeo_dmat.n)
-        prmt_copy(self, res)
+        pmat_copy(self, res)
         prmt_gead(-1.0, other, res)
         return res 
 
-def prmt_fill(A: pmat, value):
+def pmat_fill(A: pmat, value):
     for i in range(A.blasfeo_dmat.m):
         for j in range(A.blasfeo_dmat.n):
             A[i][j] = value
     return
 
-def prmt_copy(A: pmat, B: pmat):
+def pmat_copy(A: pmat, B: pmat):
     for i in range(A.blasfeo_dmat.m):
         for j in range(A.blasfeo_dmat.n):
             B[i][j] = A[i][j]
@@ -122,14 +122,14 @@ def prmt_lus(A: pmat, B: pmat, opts):
     fact = pmat(A.blasfeo_dmat.m, B.blasfeo_dmat.m)
     # create pmat for factor
     fact = pmat(A.blasfeo_dmat.m, A.blasfeo_dmat.n)
-    prmt_copy(A, fact)
+    pmat_copy(A, fact)
     # create permutation vector
     ipiv = cast(create_string_buffer(A.blasfeo_dmat.m*A.blasfeo_dmat.m), POINTER(c_int))
     # factorize
     prmt_getrf(fact, ipiv)
     # create permuted rhs
     pB = pmat(B.blasfeo_dmat.m, B.blasfeo_dmat.n)
-    prmt_copy(B, pB)
+    pmat_copy(B, pB)
     prmt_rowpe(B.blasfeo_dmat.m, ipiv, pB)
     # solve
     prmt_trsm_llnu(A, pB)
@@ -182,15 +182,15 @@ def prmt_set_data(M: pmat, data: POINTER(c_double)):
     c_prmt_set_blasfeo_dmat(M.blasfeo_dmat, data)  
     return
 
-def prmt_set(M: pmat, value, i, j):
+def pmat_set(M: pmat, value, i, j):
     c_prmt_set_blasfeo_dmat_el(value, M.blasfeo_dmat, i, j)  
     return
 
-def prmt_get(M: pmat, i, j):
+def pmat_get(M: pmat, i, j):
     el = c_prmt_get_blasfeo_dmat_el(M.blasfeo_dmat, i, j)  
     return el 
 
-def prmt_print(M: pmat):
+def pmat_print(M: pmat):
     c_prmt_print_blasfeo_dmat(M)
     return  
 
