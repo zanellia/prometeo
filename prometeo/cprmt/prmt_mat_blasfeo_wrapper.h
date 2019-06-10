@@ -8,6 +8,8 @@
 #include <blasfeo_d_aux.h>
 #include <blasfeo_d_kernel.h>
 #include <blasfeo_d_blas.h>
+#include "prmt_mat_blasfeo_wrapper.h"
+#include "prmt_vec_blasfeo_wrapper.h"
 
 // (dummy) prmt_mat wrapper to blasfeo_dmat
 struct prmt_mat {
@@ -20,6 +22,8 @@ void ___c_prmt___assign_and_advance_blasfeo_dmat(int m, int n, struct blasfeo_dm
 // BLAS API
 void ___c_prmt___dgemm(struct prmt_mat *A, struct prmt_mat *B, struct prmt_mat *C, struct prmt_mat *D);
 void ___c_prmt___dgead(double alpha, struct prmt_mat *A, struct prmt_mat *B); 
+
+void ___c_prmt___dgemv(struct prmt_mat *A, struct prmt_vec *b, struct prmt_vec *c, struct prmt_vec *d);
 
 // auxiliary
 void ___c_prmt___fill(struct prmt_mat *A, double fill_value);

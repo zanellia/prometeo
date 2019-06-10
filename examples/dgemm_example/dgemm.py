@@ -1,6 +1,6 @@
 # UNCOMMENT THESE LINES TO EXECUTE 
-from prometeo.linalg import *
-from prometeo.auxl import *
+# from prometeo.linalg import *
+# from prometeo.auxl import *
 
 class p_class:
     attr_1: int = 1
@@ -62,18 +62,19 @@ def main() -> None:
     prmt_fill(A, 0.0)
     for i in range(10):
         A[i][i] = 1.0
+
     prmt_print(A)
 
     # still to be implemented in code-generator
     a : prmt_vec = prmt_vec(10)
-    a.fill(0.0)
-    a[1] = 2.0
-    el = a[1]
-    prmt_vec_print(a)
+    # a.fill(0.0)
+    # a[1] = 2.0
+    # el = a[1]
+    # prmt_vec_print(a)
 
-    c : prmt_vec = prmt_vec(10)
-    c = A*a
-    prmt_vec_print(c)
+    # c : prmt_vec = prmt_vec(10)
+    # c = A*a
+    # prmt_vec_print(c)
 
     # prmt_lus(A, B, C)
     # prmt_print(C)
@@ -82,6 +83,6 @@ def main() -> None:
     # prmt_print(D)
 
 # UNCOMMENT THESE LINES TO EXECUTE 
-if __name__ == "__main__":
+# if __name__ == "__main__":
     # execute only if run as a script
-    main()
+    # main()

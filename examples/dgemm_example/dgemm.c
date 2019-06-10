@@ -85,4 +85,5 @@ void main() {
     }
 
     ___c_prmt___print(A);
+    prmt_vec a = prmt_vec(10);
 }

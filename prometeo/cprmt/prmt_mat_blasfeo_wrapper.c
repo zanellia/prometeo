@@ -1,4 +1,5 @@
 #include "prmt_mat_blasfeo_wrapper.h"
+#include "prmt_vec_blasfeo_wrapper.h"
 #include "prmt_heap.h"
 #include <assert.h>
 #include <blasfeo_common.h>
@@ -112,6 +113,24 @@ void ___c_prmt___dgead(double alpha, struct prmt_mat *A, struct prmt_mat *B) {
     blasfeo_dgead(mA, nA, alpha, bA, 0, 0, bB, 0, 0);
 }
 
+void ___c_prmt___dgemv(struct prmt_mat *A, struct prmt_vec *b, struct prmt_vec *c, struct prmt_vec *d) {
+    int mA = A->bmat->m; 
+    int nA = A->bmat->n; 
+    int mb = b->bvec->m; 
+    struct blasfeo_dmat *bA = A->bmat;
+    struct blasfeo_dvec *bb = b->bvec;
+    struct blasfeo_dvec *bc = c->bvec;
+    struct blasfeo_dvec *bd = d->bvec;
+
+    // printf("In dgemm\n");
+    // blasfeo_print_dmat(mA, nA, A->bmat, 0, 0);
+    // blasfeo_print_dmat(mA, nA, B->bmat, 0, 0);
+    // blasfeo_print_dmat(mA, nA, C->bmat, 0, 0);
+    // blasfeo_print_dmat(mA, nA, D->bmat, 0, 0);
+
+    blasfeo_dgemv_n(mA, nA, 1.0, bA, 0, 0, bb, 0, 1.0, bc,
+           0, bd, 0);
+}
 // auxiliary
 void ___c_prmt___fill(struct prmt_mat *A, double fill_value) {
     int m = A->bmat->m;
