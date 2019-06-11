@@ -72,7 +72,10 @@ def main() -> None:
     b : pvec = pvec(3)
     b[0] = a[1]
     b[1] = A[0][2]
-    # el : double = a[1]
+    # need to fix these
+    # el : double
+    # el = a[1]
+    # el = A[1][1]
     pvec_print(a)
     pvec_print(b)
 
@@ -88,6 +91,6 @@ def main() -> None:
     # pmat_print(D)
 
 # UNCOMMENT THESE LINES TO EXECUTE 
-# if __name__ == "__main__":
+if __name__ == "__main__":
     # execute only if run as a script
-    # main()
+    main()
