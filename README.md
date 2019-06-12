@@ -7,6 +7,87 @@ A simple example. The Python code
 ```python
 from prometeo.linalg import *
 from prometeo.auxl import *
+def main() -> None:
+
+    n: int = 10
+    A: pmat = pmat(n, n)
+
+    B: pmat = pmat(n, n)
+    for i in range(2):
+        B[0][i] = A[0][i]
+
+    C: pmat = pmat(n, n)
+
+    C = A * B
+    pmat_print(C)
+
+if __name__ == "__main__":
+    main()
+```
+can be run by the standard Python interpreter (version >3.6 required) and it 
+will perform the described linear algebra operations. At the same time, the code
+can be parsed by prometeo and its abstract syntax tree (AST) analyzed in order
+to generate the following high-performance C code:
+```c
+#include "stdlib.h"
+#include "pmat_blasfeo_wrapper.h"
+#include "pvec_blasfeo_wrapper.h"
+#include "prmt_heap.h"
+#include "dgemm.h"
+
+
+void *___c_prmt_8_heap; 
+void *___c_prmt_64_heap; 
+void main() {
+    ___c_prmt_8_heap = malloc(1000); 
+    char *mem_ptr = (char *)___c_prmt_8_heap; 
+    align_char_to(8, &mem_ptr);
+    ___c_prmt_8_heap = mem_ptr;
+    ___c_prmt_64_heap = malloc(100000); 
+    mem_ptr = (char *)___c_prmt_64_heap; 
+    align_char_to(64, &mem_ptr);
+    ___c_prmt_64_heap = mem_ptr;
+
+    int n = 10;
+    struct pmat * A = ___c_prmt___create_pmat(n, n);
+    ___c_prmt___pmat_set_el(A, 0, 2, 2.0);
+    for(int i = 0; i < 2; i++) {
+        ___c_prmt___pmat_set_el(A, 0, i, ___c_prmt___pmat_get_el(A, 0, i));
+    }
+
+    struct pmat * B = ___c_prmt___create_pmat(n, n);
+    for(int i = 0; i < 2; i++) {
+        ___c_prmt___pmat_set_el(B, 0, i, ___c_prmt___pmat_get_el(A, 0, i));
+    }
+
+    struct pmat * C = ___c_prmt___create_pmat(n, n);
+    ___c_prmt___pmat_fill(C, 0.0);
+    ___c_prmt___dgemm(A, B, C, C);
+    ___c_prmt___pmat_print(C);
+}
+```
+which relies on the high-performance linear algebra package BLASFEO. The generated code can be
+readily compiled
+```make
+CC = gcc
+CFLAGS += -g -fPIC
+
+SRCS += dgemm.c 
+CFLAGS+=-I/opt/prometeo/include -I/opt/blasfeo/include
+LIBPATH+=-L/opt/prometeo/lib -L/opt/blasfeo/lib 
+
+all: $(SRCS) 
+	$(CC) $(LIBPATH) -o dgemm $(CFLAGS)  $(SRCS)  -lcprmt -lblasfeo -lm
+
+clean:
+	rm -f *.o
+```
+and run in order to carry out the same operations.
+
+A more advanced example:
+```python
+from prometeo.linalg import *
+from prometeo.auxl import *
 
 class p_class:
     attr_1: int = 1
@@ -87,10 +168,8 @@ def main() -> None:
 if __name__ == "__main__":
     main()
 ```
-can be run by the standard Python interpreter (version >3.6 required) and it 
-will perform the described linear algebra operations. At the same time, the code
-can be parsed by prometeo and its abstract syntax tree (AST) analyzed in order
-to generate the following high-performance C code:
+Similarly, the code above can be run by the standard Python interpreter and prometeo can 
+generate the following high-performance C code:
 ```c
 #include "stdlib.h"
 #include "pmat_blasfeo_wrapper.h"
