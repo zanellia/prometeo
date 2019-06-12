@@ -7,14 +7,18 @@ A simple example. The Python code
 ```python
 from prometeo.linalg import *
 from prometeo.auxl import *
+
 def main() -> None:
 
     n: int = 10
     A: pmat = pmat(n, n)
+    for i in range(10):
+        for j in range(10):
+            A[i][j] = 1.0
 
     B: pmat = pmat(n, n)
-    for i in range(2):
-        B[0][i] = A[0][i]
+    for i in range(10):
+        B[0][i] = 2.0
 
     C: pmat = pmat(n, n)
 
@@ -33,7 +37,8 @@ to generate the following high-performance C code:
 #include "pmat_blasfeo_wrapper.h"
 #include "pvec_blasfeo_wrapper.h"
 #include "prmt_heap.h"
-#include "dgemm.h"
+#include "simple_example.h"
+
 
 
 void *___c_prmt_8_heap; 
@@ -50,14 +55,16 @@ void main() {
 
     int n = 10;
     struct pmat * A = ___c_prmt___create_pmat(n, n);
-    ___c_prmt___pmat_set_el(A, 0, 2, 2.0);
-    for(int i = 0; i < 2; i++) {
-        ___c_prmt___pmat_set_el(A, 0, i, ___c_prmt___pmat_get_el(A, 0, i));
+    for(int i = 0; i < 10; i++) {
+        for(int j = 0; j < 10; j++) {
+            ___c_prmt___pmat_set_el(A, i, j, 1.0);
+    }
+
     }
 
     struct pmat * B = ___c_prmt___create_pmat(n, n);
-    for(int i = 0; i < 2; i++) {
-        ___c_prmt___pmat_set_el(B, 0, i, ___c_prmt___pmat_get_el(A, 0, i));
+    for(int i = 0; i < 10; i++) {
+        ___c_prmt___pmat_set_el(B, 0, i, 2.0);
     }
 
     struct pmat * C = ___c_prmt___create_pmat(n, n);
@@ -72,17 +79,17 @@ readily compiled
 CC = gcc
 CFLAGS += -g -fPIC
 
-SRCS += dgemm.c 
+SRCS += simple_example.c 
 CFLAGS+=-I/opt/prometeo/include -I/opt/blasfeo/include
 LIBPATH+=-L/opt/prometeo/lib -L/opt/blasfeo/lib 
 
 all: $(SRCS) 
-	$(CC) $(LIBPATH) -o dgemm $(CFLAGS)  $(SRCS)  -lcprmt -lblasfeo -lm
+	$(CC) $(LIBPATH) -o simple_example $(CFLAGS)  $(SRCS)  -lcprmt -lblasfeo -lm
 
 clean:
 	rm -f *.o
 ```
-and run in order to carry out the same operations.
+and run with `./simple_example` in order to carry out the same operations.
 
 A more advanced example:
 ```python
