@@ -26,7 +26,7 @@ def iter_all_ast(node):
 
 
 # filename = 'new_test'
-filename = 'dgemm'
+filename = 'simple_example'
 py_filename = filename + '.py'
 c_filename = filename + '.c'
 tree = ast.parse(''.join(open(py_filename)))
