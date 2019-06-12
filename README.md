@@ -3,7 +3,9 @@ domain specific language (DSL) based on a subset of the Python language that all
 one to conveniently write scientific computing programs in a high-level language and generate
 high-performance self-contained C code that can be easily deployed on embedded devices.
 
-A simple example. The Python code
+# a simple example. 
+
+The Python code
 ```python
 from prometeo.linalg import *
 from prometeo.auxl import *
@@ -84,7 +86,7 @@ clean:
 ```
 and run in order to carry out the same operations.
 
-A more advanced example:
+# a more advanced example:
 ```python
 from prometeo.linalg import *
 from prometeo.auxl import *
