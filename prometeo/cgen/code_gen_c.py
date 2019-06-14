@@ -79,9 +79,9 @@ def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False
                                 )
     
     generator.result.source.append('#include "stdlib.h"\n')
-    generator.result.source.append('#include "pmat_blasfeo_wrapper.h"\n')
-    generator.result.source.append('#include "pvec_blasfeo_wrapper.h"\n')
-    generator.result.source.append('#include "prmt_heap.h"\n')
+    # generator.result.source.append('#include "pmat_blasfeo_wrapper.h"\n')
+    # generator.result.source.append('#include "pvec_blasfeo_wrapper.h"\n')
+    # generator.result.source.append('#include "prmt_heap.h"\n')
     generator.result.source.append('#include "%s.h"\n' %(module_name))
 
     generator.visit(node)
@@ -563,8 +563,8 @@ class SourceGenerator(ExplicitNodeVisitor):
     def comma_list(self, items, trailing=False):
         set_precedence(Precedence.Comma, *items)
         for idx, item in enumerate(items):
-            self.write(', ' if idx else '', item)
-        self.write(',' if trailing else '')
+            self.write(', ' if idx else '', item, dest = 'src')
+        self.write(',' if trailing else '', dest = 'src')
 
     # Statements
     def visit_Assign(self, node):
@@ -842,17 +842,22 @@ class SourceGenerator(ExplicitNodeVisitor):
 
 
     def visit_ImportFrom(self, node):
-        self.statement(node, 'from ', node.level * '.',
-                       node.module or '', ' import ')
-        self.comma_list(node.names)
-        # Goofy stuff for Python 2.7 _pyio module
-        if node.module == '__future__' and 'unicode_literals' in (
-                x.name for x in node.names):
-            self.using_unicode_literals = True
+        include = node.module
+        include = include.replace('.','/')
+        if node.level is not 0: 
+            raise Exception('Imports with level > 0 are not supported. Exiting.')
+        if len(node.names) is not 1:
+            raise Exception('Imports with multiple names are not supported (yet). Exiting.')
+
+        if node.names[0].name is not '*':
+            raise Exception('Can only transpile imports of the form: `from <...> import *`. Exiting.') 
+        self.statement(node, '#include "', 
+                       include or '', '.h"')
 
     def visit_Import(self, node):
-        self.statement(node, 'import ')
-        self.comma_list(node.names)
+        raise Exception('Unsupported import statement. Use instead from `<...> import *` Exiting.') 
+        # self.statement(node, 'import ')
+        # self.comma_list(node.names)
 
     def visit_Expr(self, node):
         if type(node.value) is ast.Call:
@@ -1404,7 +1409,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.conditional_write(': ', node.annotation, dest = 'src')
 
     def visit_alias(self, node):
-        self.write(node.name)
+        self.write(node.name, dest = 'src')
         self.conditional_write(' as ', node.asname, dest = 'src')
 
     def visit_comprehension(self, node):

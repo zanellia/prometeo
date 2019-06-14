@@ -1,6 +1,4 @@
-# UNCOMMENT THESE LINES TO EXECUTE 
-# from prometeo.linalg import *
-# from prometeo.auxl import *
+from prometeo import *
 
 def main() -> None:
 
@@ -19,5 +17,3 @@ def main() -> None:
     C = A * B
     pmat_print(C)
 
-# if __name__ == "__main__":
-    # main()

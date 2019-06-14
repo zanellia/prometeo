@@ -1,6 +1,5 @@
 # UNCOMMENT THESE LINES TO EXECUTE 
-from prometeo.linalg import *
-from prometeo.auxl import *
+from prometeo import *
 
 class p_class:
     attr_1: int = 1

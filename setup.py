@@ -10,11 +10,12 @@ setup(name='prometeo',
    author='Andrea Zanelli',
    license='LGPL',
    packages = find_packages(),
-   entry_points={'console_scripts': ['pmt=pmt.__main__:console_entry']},
+   entry_points={'console_scripts': ['pmt=prometeo.__main__:console_entry']},
    install_requires=[
       'astpretty',
       'numpy',
       'scipy',
+      'multipledispatch',
       'mypy'
    ],
    zip_safe=False)
