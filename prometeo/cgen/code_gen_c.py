@@ -893,14 +893,14 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.write(') {\n', dest = 'src')
         if node.name == 'main':
             self.write('    ___c_prmt_8_heap = malloc(%s); \n' %(self.heap8_size), dest = 'src')
-            self.write('    char *mem_ptr = (char *)___c_prmt_8_heap; \n', dest = 'src')
-            self.write('    align_char_to(8, &mem_ptr);\n', dest = 'src')
-            self.write('    ___c_prmt_8_heap = mem_ptr;\n', dest = 'src')
+            self.write('    char *pmem_ptr = (char *)___c_prmt_8_heap; \n', dest = 'src')
+            self.write('    align_char_to(8, &pmem_ptr);\n', dest = 'src')
+            self.write('    ___c_prmt_8_heap = pmem_ptr;\n', dest = 'src')
             
             self.write('    ___c_prmt_64_heap = malloc(%s); \n' %(self.heap64_size), dest = 'src')
-            self.write('    mem_ptr = (char *)___c_prmt_64_heap; \n', dest = 'src')
-            self.write('    align_char_to(64, &mem_ptr);\n', dest = 'src')
-            self.write('    ___c_prmt_64_heap = mem_ptr;\n', dest = 'src')
+            self.write('    pmem_ptr = (char *)___c_prmt_64_heap; \n', dest = 'src')
+            self.write('    align_char_to(64, &pmem_ptr);\n', dest = 'src')
+            self.write('    ___c_prmt_64_heap = pmem_ptr;\n', dest = 'src')
 
         # self.write(':')
         self.body(node.body)

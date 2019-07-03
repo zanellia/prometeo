@@ -33,13 +33,13 @@ void *___c_prmt_8_heap;
 void *___c_prmt_64_heap; 
 void main() {
     ___c_prmt_8_heap = malloc(1000); 
-    char *mem_ptr = (char *)___c_prmt_8_heap; 
-    align_char_to(8, &mem_ptr);
-    ___c_prmt_8_heap = mem_ptr;
+    char *pmem_ptr = (char *)___c_prmt_8_heap; 
+    align_char_to(8, &pmem_ptr);
+    ___c_prmt_8_heap = pmem_ptr;
     ___c_prmt_64_heap = malloc(100000); 
-    mem_ptr = (char *)___c_prmt_64_heap; 
-    align_char_to(64, &mem_ptr);
-    ___c_prmt_64_heap = mem_ptr;
+    pmem_ptr = (char *)___c_prmt_64_heap; 
+    align_char_to(64, &pmem_ptr);
+    ___c_prmt_64_heap = pmem_ptr;
 
     int n_list[10];
     n_list[0] = 1;

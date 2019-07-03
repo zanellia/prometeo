@@ -37,9 +37,9 @@ void c_pmt_assign_and_advance_blasfeo_dvec(int m, struct blasfeo_dvec **bvec) {
     ___c_prmt_8_heap += sizeof(struct blasfeo_dvec);
 
     // assign current address of global heap to memory in blasfeo dvec
-    char *mem_ptr = (char *)___c_prmt_64_heap; 
-    align_char_to(64, &mem_ptr);
-    ___c_prmt_64_heap = mem_ptr;
+    char *pmem_ptr = (char *)___c_prmt_64_heap; 
+    align_char_to(64, &pmem_ptr);
+    ___c_prmt_64_heap = pmem_ptr;
     assert((size_t) ___c_prmt_64_heap % 64 == 0 && "dvec not 64-byte aligned!");
     blasfeo_create_dvec(m, *bvec, ___c_prmt_64_heap);
 
