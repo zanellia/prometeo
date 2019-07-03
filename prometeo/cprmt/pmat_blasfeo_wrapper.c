@@ -14,7 +14,7 @@ int align_char_to(int num, char **c_ptr)
     return offset;
 }
 
-struct pmat * ___c_prmt___create_pmat(int m, int n) {	
+struct pmat * c_pmt_create_pmat(int m, int n) {	
     // assign current address of global heap to pmat pointer
     struct pmat *pmat = (struct pmat *) ___c_prmt_8_heap;
     void *pmat_address = ___c_prmt_8_heap;
@@ -24,12 +24,12 @@ struct pmat * ___c_prmt___create_pmat(int m, int n) {
     
     
     // create (zeroed) blasfeo_dmat and advance global heap
-    ___c_prmt___assign_and_advance_blasfeo_dmat(m, n, &(pmat->bmat));
+    c_pmt_assign_and_advance_blasfeo_dmat(m, n, &(pmat->bmat));
 
 	return (struct pmat *)(pmat_address);
 }
 
-void ___c_prmt___assign_and_advance_blasfeo_dmat(int m, int n, struct blasfeo_dmat **bmat) {
+void c_pmt_assign_and_advance_blasfeo_dmat(int m, int n, struct blasfeo_dmat **bmat) {
     // assign current address of global heap to blasfeo dmat pointer
     assert((size_t) ___c_prmt_8_heap % 8 == 0 && "pointer not 8-byte aligned!");
     *bmat = (struct blasfeo_dmat *) ___c_prmt_8_heap;
@@ -62,7 +62,7 @@ void ___c_prmt___assign_and_advance_blasfeo_dmat(int m, int n, struct blasfeo_dm
 
 // BLAS API
 
-void ___c_prmt___dgemm(struct pmat *A, struct pmat *B, struct pmat *C, struct pmat *D) {
+void c_pmt_dgemm(struct pmat *A, struct pmat *B, struct pmat *C, struct pmat *D) {
     int mA = A->bmat->m; 
     int nA = A->bmat->n; 
     int nB = B->bmat->n; 
@@ -80,7 +80,7 @@ void ___c_prmt___dgemm(struct pmat *A, struct pmat *B, struct pmat *C, struct pm
     blasfeo_dgemm_nn(mA, nA, nB, 1.0, bA, 0, 0, bB, 0, 0, 1, bC, 0, 0, bD, 0, 0);
 }
 
-// void ___c_prmt___lus(struct pmat *A, struct pmat *B, struct pmat *C) {
+// void c_pmt_lus(struct pmat *A, struct pmat *B, struct pmat *C) {
 //     int mA = A->bmat->m; 
 //     int nA = A->bmat->n; 
 //     int nB = B->bmat->n; 
@@ -104,7 +104,7 @@ void ___c_prmt___dgemm(struct pmat *A, struct pmat *B, struct pmat *C, struct pm
 //     blasfeo_dtrsv_unn(nK, dG_dK_ss, 0, 0, rG, 0, rG, 0);
 // }
 
-void ___c_prmt___dgead(double alpha, struct pmat *A, struct pmat *B) {
+void c_pmt_dgead(double alpha, struct pmat *A, struct pmat *B) {
     int mA = A->bmat->m; 
     int nA = A->bmat->n; 
     struct blasfeo_dmat *bA = A->bmat;
@@ -113,7 +113,7 @@ void ___c_prmt___dgead(double alpha, struct pmat *A, struct pmat *B) {
     blasfeo_dgead(mA, nA, alpha, bA, 0, 0, bB, 0, 0);
 }
 
-void ___c_prmt___dgemv(struct pmat *A, struct pvec *b, struct pvec *c, struct pvec *d) {
+void c_pmt_dgemv(struct pmat *A, struct pvec *b, struct pvec *c, struct pvec *d) {
     int mA = A->bmat->m; 
     int nA = A->bmat->n; 
     int mb = b->bvec->m; 
@@ -132,7 +132,7 @@ void ___c_prmt___dgemv(struct pmat *A, struct pvec *b, struct pvec *c, struct pv
            0, bd, 0);
 }
 // auxiliary
-void ___c_prmt___pmat_fill(struct pmat *A, double fill_value) {
+void c_pmt_pmat_fill(struct pmat *A, double fill_value) {
     int m = A->bmat->m;
     int n = A->bmat->n;
 
@@ -141,17 +141,17 @@ void ___c_prmt___pmat_fill(struct pmat *A, double fill_value) {
             blasfeo_dgein1(fill_value, A->bmat, i, j);
 }
 
-void ___c_prmt___pmat_set_el(struct pmat *A, int i, int j, double fill_value) {
+void c_pmt_pmat_set_el(struct pmat *A, int i, int j, double fill_value) {
 
     blasfeo_dgein1(fill_value, A->bmat, i, j);
 }
 
-double ___c_prmt___pmat_get_el(struct pmat *A, int i, int j) {
+double c_pmt_pmat_get_el(struct pmat *A, int i, int j) {
 
     blasfeo_dgeex1(A->bmat, i, j);
 }
 
-void ___c_prmt___pmat_copy(struct pmat *A, struct pmat *B) {
+void c_pmt_pmat_copy(struct pmat *A, struct pmat *B) {
     int m = A->bmat->m;
     int n = A->bmat->n;
     double value;
@@ -163,7 +163,7 @@ void ___c_prmt___pmat_copy(struct pmat *A, struct pmat *B) {
         }
 }
 
-void ___c_prmt___pmat_print(struct pmat *A) {
+void c_pmt_pmat_print(struct pmat *A) {
     int m = A->bmat->m;
     int n = A->bmat->n;
 

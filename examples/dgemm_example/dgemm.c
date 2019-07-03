@@ -13,18 +13,18 @@ void p_class_init(struct p_class *object){
 
 
 void _Z8method_2pmatpmatpmatp_class_impl(p_class *self, struct pmat * A, struct pmat * B, struct pmat * C) {
-    ___c_prmt___pmat_fill(C, 0.0);
-    ___c_prmt___dgemm(A, B, C, C);
-    ___c_prmt___pmat_print(C);
+    c_pmt_pmat_fill(C, 0.0);
+    c_pmt_dgemm(A, B, C, C);
+    c_pmt_pmat_print(C);
     return ;
 }
 
 
 void function1(struct pmat * A, struct pmat * B, struct pmat * C) {
 
-    ___c_prmt___pmat_fill(C, 0.0);
-    ___c_prmt___dgemm(A, B, C, C);
-    ___c_prmt___pmat_print(C);
+    c_pmt_pmat_fill(C, 0.0);
+    c_pmt_dgemm(A, B, C, C);
+    c_pmt_pmat_print(C);
     return ;
 }
 
@@ -57,47 +57,47 @@ void main() {
     }
 
     int n = 10;
-    struct pmat * A = ___c_prmt___create_pmat(n, n);
-    ___c_prmt___pmat_set_el(A, 0, 2, 2.0);
+    struct pmat * A = c_pmt_create_pmat(n, n);
+    c_pmt_pmat_set_el(A, 0, 2, 2.0);
     for(int i = 0; i < 2; i++) {
-        ___c_prmt___pmat_set_el(A, 0, i, ___c_prmt___pmat_get_el(A, 0, i));
+        c_pmt_pmat_set_el(A, 0, i, c_pmt_pmat_get_el(A, 0, i));
     }
 
-    struct pmat * B = ___c_prmt___create_pmat(n, n);
+    struct pmat * B = c_pmt_create_pmat(n, n);
     for(int i = 0; i < 2; i++) {
-        ___c_prmt___pmat_set_el(B, 0, i, ___c_prmt___pmat_get_el(A, 0, i));
+        c_pmt_pmat_set_el(B, 0, i, c_pmt_pmat_get_el(A, 0, i));
     }
 
-    struct pmat * C = ___c_prmt___create_pmat(n, n);
+    struct pmat * C = c_pmt_create_pmat(n, n);
     test_class->_Z8method_2pmatpmatpmat(test_class, A, B, C);
     struct pmat * pmat_list[10];
     pmat_list[0] = A;
-    ___c_prmt___pmat_fill(C, 0.0);
-    ___c_prmt___dgemm(A, B, C, C);
-    ___c_prmt___pmat_print(C);
-    ___c_prmt___pmat_copy(B, C);
-    ___c_prmt___dgead(1.0, A, C);
-    ___c_prmt___pmat_print(C);
-    ___c_prmt___pmat_copy(A, C);
-    ___c_prmt___dgead(-1.0, B, C);
-    ___c_prmt___pmat_print(C);
+    c_pmt_pmat_fill(C, 0.0);
+    c_pmt_dgemm(A, B, C, C);
+    c_pmt_pmat_print(C);
+    c_pmt_pmat_copy(B, C);
+    c_pmt_dgead(1.0, A, C);
+    c_pmt_pmat_print(C);
+    c_pmt_pmat_copy(A, C);
+    c_pmt_dgead(-1.0, B, C);
+    c_pmt_pmat_print(C);
     function1(A, B, C);
     function1(pmat_list[0], B, C);
-    ___c_prmt___pmat_fill(A, 0.0);
+    c_pmt_pmat_fill(A, 0.0);
     for(int i = 0; i < 10; i++) {
-        ___c_prmt___pmat_set_el(A, i, i, 1.0);
+        c_pmt_pmat_set_el(A, i, i, 1.0);
     }
 
-    ___c_prmt___pmat_print(A);
-    struct pvec * a = ___c_prmt___create_pvec(10);
-    ___c_prmt___pvec_set_el(a, 1, 3.0);
-    struct pvec * b = ___c_prmt___create_pvec(3);
-    ___c_prmt___pvec_set_el(b, 0, ___c_prmt___pvec_get_el(a, 1));
-    ___c_prmt___pvec_set_el(b, 1, ___c_prmt___pmat_get_el(A, 0, 2));
-    ___c_prmt___pvec_print(a);
-    ___c_prmt___pvec_print(b);
-    struct pvec * c = ___c_prmt___create_pvec(10);
-    ___c_prmt___pvec_fill(c, 0.0);
-    ___c_prmt___dgemv(A, a, c, c);
-    ___c_prmt___pvec_print(c);
+    c_pmt_pmat_print(A);
+    struct pvec * a = c_pmt_create_pvec(10);
+    c_pmt_pvec_set_el(a, 1, 3.0);
+    struct pvec * b = c_pmt_create_pvec(3);
+    c_pmt_pvec_set_el(b, 0, c_pmt_pvec_get_el(a, 1));
+    c_pmt_pvec_set_el(b, 1, c_pmt_pmat_get_el(A, 0, 2));
+    c_pmt_pvec_print(a);
+    c_pmt_pvec_print(b);
+    struct pvec * c = c_pmt_create_pvec(10);
+    c_pmt_pvec_fill(c, 0.0);
+    c_pmt_dgemv(A, a, c, c);
+    c_pmt_pvec_print(c);
 }

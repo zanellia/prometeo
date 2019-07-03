@@ -16,21 +16,21 @@ struct pmat {
     struct blasfeo_dmat *bmat;
 };
 
-struct pmat * ___c_prmt___create_pmat(int m, int n);	
-void ___c_prmt___assign_and_advance_blasfeo_dmat(int m, int n, struct blasfeo_dmat **bmat);
+struct pmat * c_pmt_create_pmat(int m, int n);	
+void c_pmt_assign_and_advance_blasfeo_dmat(int m, int n, struct blasfeo_dmat **bmat);
 
 // BLAS API
-void ___c_prmt___dgemm(struct pmat *A, struct pmat *B, struct pmat *C, struct pmat *D);
-void ___c_prmt___dgead(double alpha, struct pmat *A, struct pmat *B); 
+void c_pmt_dgemm(struct pmat *A, struct pmat *B, struct pmat *C, struct pmat *D);
+void c_pmt_dgead(double alpha, struct pmat *A, struct pmat *B); 
 
-void ___c_prmt___dgemv(struct pmat *A, struct pvec *b, struct pvec *c, struct pvec *d);
+void c_pmt_dgemv(struct pmat *A, struct pvec *b, struct pvec *c, struct pvec *d);
 
 // auxiliary
-void ___c_prmt___pmat_fill(struct pmat *A, double fill_value);
-void ___c_prmt___pmat_set_el(struct pmat *A, int i, int j, double value);
-double ___c_prmt___pmat_get_el(struct pmat *A, int i, int j);
-void ___c_prmt___pmat_copy(struct pmat *A, struct pmat *B);
-void ___c_prmt___pmat_print(struct pmat *A);
+void c_pmt_pmat_fill(struct pmat *A, double fill_value);
+void c_pmt_pmat_set_el(struct pmat *A, int i, int j, double value);
+double c_pmt_pmat_get_el(struct pmat *A, int i, int j);
+void c_pmt_pmat_copy(struct pmat *A, struct pmat *B);
+void c_pmt_pmat_print(struct pmat *A);
 
 #endif // PROMETEO_PRMT_MAT_BLASFEO_WRAPPER_H_
 

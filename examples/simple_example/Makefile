@@ -11,4 +11,3 @@ all: $(SRCS)
 
 clean:
 	rm -f *.o
-

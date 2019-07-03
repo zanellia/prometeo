@@ -27,17 +27,17 @@ from .source_repr import pretty_source
 from collections import namedtuple
 
 prmt_temp_functions = {\
-        "pmat": "___c_prmt___create_pmat", \
-        "pvec": "___c_prmt___create_pvec", \
-        "dgemm": "___c_prmt___dgemm", \
-        "dgead": "___c_prmt___dgead", \
-        "pmat_fill": "___c_prmt___pmat_fill", \
-        "pmat_copy": "___c_prmt___pmat_copy", \
-        "pmat_print": "___c_prmt___pmat_print", \
-        "pvec_fill": "___c_prmt___pvec_fill", \
-        "pvec_copy": "___c_prmt___pvec_copy", \
-        "pvec_print": "___c_prmt___pvec_print", \
-        "prmt_lus" : "___c_prmt___lus"}
+        "pmat": "c_pmt_create_pmat", \
+        "pvec": "c_pmt_create_pvec", \
+        "dgemm": "c_pmt_dgemm", \
+        "dgead": "c_pmt_dgead", \
+        "pmat_fill": "c_pmt_pmat_fill", \
+        "pmat_copy": "c_pmt_pmat_copy", \
+        "pmat_print": "c_pmt_pmat_print", \
+        "pvec_fill": "c_pmt_pvec_fill", \
+        "pvec_copy": "c_pmt_pvec_copy", \
+        "pvec_print": "c_pmt_pvec_print", \
+        "prmt_lus" : "c_pmt_lus"}
 
 prmt_temp_types = {\
         "pmat": "struct pmat *", \
@@ -616,12 +616,12 @@ class SourceGenerator(ExplicitNodeVisitor):
                                         else:
                                             raise Exception("Subscripting with value of type {} not implemented".format(sub_type))
 
-                                        value_expr = '___c_prmt___pmat_get_el(' + value + ', {}, {})'.format(first_index_value, second_index_value) 
-                                        self.statement([], '___c_prmt___pmat_set_el(', target.value.value.id, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value_expr), ');')
+                                        value_expr = 'c_pmt_pmat_get_el(' + value + ', {}, {})'.format(first_index_value, second_index_value) 
+                                        self.statement([], 'c_pmt_pmat_set_el(', target.value.value.id, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value_expr), ');')
                             else:
                                 target = node.targets[0].value.value.id
                                 value = node.value.n
-                                self.statement([], '___c_prmt___pmat_set_el(', target, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value), ');')
+                                self.statement([], 'c_pmt_pmat_set_el(', target, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value), ');')
                             return
 
                 # check for single subscripting (pvec)
@@ -663,9 +663,9 @@ class SourceGenerator(ExplicitNodeVisitor):
                                             else:
                                                 raise Exception("Subscripting with value of type {} not implemented".format(sub_type))
 
-                                            value_expr = '___c_prmt___pmat_get_el(' + value + ', {}, {})'.format(first_index_value, second_index_value) 
+                                            value_expr = 'c_pmt_pmat_get_el(' + value + ', {}, {})'.format(first_index_value, second_index_value) 
                                             # self.statement([], 'pmat_set_el(', target, ', ', first_index, ', ', second_index, ', ', value_expr, ');')
-                                            self.statement([], '___c_prmt___pvec_set_el(', target.value.id, ', {}'.format(index), ', {}'.format(value_expr), ');')
+                                            self.statement([], 'c_pmt_pvec_set_el(', target.value.id, ', {}'.format(index), ', {}'.format(value_expr), ');')
                                 # single subscripting
                                 else:
                                     value = node.value.value.id
@@ -679,13 +679,13 @@ class SourceGenerator(ExplicitNodeVisitor):
                                         else:
                                             raise Exception("Subscripting with value of type {} not implemented".format(sub_type))
 
-                                        value_expr = '___c_prmt___pvec_get_el(' + value + ', {})'.format(index_value) 
+                                        value_expr = 'c_pmt_pvec_get_el(' + value + ', {})'.format(index_value) 
                                         # self.statement([], 'pmat_set_el(', target, ', ', first_index, ', ', second_index, ', ', value_expr, ');')
-                                        self.statement([], '___c_prmt___pvec_set_el(', target.value.id, ', {}'.format(index), ', {}'.format(value_expr), ');')
+                                        self.statement([], 'c_pmt_pvec_set_el(', target.value.id, ', {}'.format(index), ', {}'.format(value_expr), ');')
                             else:
                                 target = node.targets[0].value.id
                                 value = node.value.n
-                                self.statement([], '___c_prmt___pvec_set_el(', target, ', {}'.format(index), ', {}'.format(value), ');')
+                                self.statement([], 'c_pmt_pvec_set_el(', target, ', {}'.format(index), ', {}'.format(value), ');')
                             return
 
             elif 'id' in node.targets[0].__dict__: 
@@ -703,23 +703,23 @@ class SourceGenerator(ExplicitNodeVisitor):
                                     # dgemm
                                     if type(node.value.op) == ast.Mult:
                                         # set target to zero
-                                        self.statement([], '___c_prmt___pmat_fill(', target, ', 0.0);')
+                                        self.statement([], 'c_pmt_pmat_fill(', target, ', 0.0);')
                                         # call dgemm
-                                        self.statement([], '___c_prmt___dgemm(', left_op, ', ', right_op, ', ', target, ', ', target, ');')
+                                        self.statement([], 'c_pmt_dgemm(', left_op, ', ', right_op, ', ', target, ', ', target, ');')
                                         return
                                     # dgead
                                     if type(node.value.op) == ast.Add:
                                         # set target to zero
-                                        self.statement([], '___c_prmt___pmat_copy(', right_op, ', ', target, ');')
+                                        self.statement([], 'c_pmt_pmat_copy(', right_op, ', ', target, ');')
                                         # call dgead
-                                        self.statement([], '___c_prmt___dgead(1.0, ', left_op, ', ', target, ');')
+                                        self.statement([], 'c_pmt_dgead(1.0, ', left_op, ', ', target, ');')
                                         return
                                     # dgead (Sub)
                                     if type(node.value.op) == ast.Sub:
                                         # set target to zero
-                                        self.statement([], '___c_prmt___pmat_copy(', left_op, ', ', target, ');')
+                                        self.statement([], 'c_pmt_pmat_copy(', left_op, ', ', target, ');')
                                         # call dgead
-                                        self.statement([], '___c_prmt___dgead(-1.0, ', right_op, ', ', target, ');')
+                                        self.statement([], 'c_pmt_dgead(-1.0, ', right_op, ', ', target, ');')
                                         return
                                     else:
                                         raise Exception('Unsupported operator call:{} {} {}'\
@@ -734,9 +734,9 @@ class SourceGenerator(ExplicitNodeVisitor):
                                     # dgemv
                                     if type(node.value.op) == ast.Mult:
                                         # set target to zero
-                                        self.statement([], '___c_prmt___pvec_fill(', target, ', 0.0);')
+                                        self.statement([], 'c_pmt_pvec_fill(', target, ', 0.0);')
                                         # call dgemm
-                                        self.statement([], '___c_prmt___dgemv(', left_op, ', ', right_op, ', ', target, ', ', target, ');')
+                                        self.statement([], 'c_pmt_dgemv(', left_op, ', ', right_op, ', ', target, ', ', target, ');')
                                         return
                                     # dgead
                                     else:
@@ -868,7 +868,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                     if self.typed_record[var_name] == 'pmat':
                         fun_name = node.value.func.attr 
                         # add prefix to function call
-                        node.value.func.attr = '___c_prmt___pmat_' + fun_name 
+                        node.value.func.attr = 'c_pmt_pmat_' + fun_name 
         set_precedence(node, node.value)
 
         self.statement(node)
