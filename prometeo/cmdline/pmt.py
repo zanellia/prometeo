@@ -41,8 +41,8 @@ def pmt_main(script_path, stdout, stderr, args = None):
         exec(code, globals(), globals())
     else:
         pmt_path = os.path.dirname(prometeo.__file__)
-        cmd = 'export MYPYPATH=' + pmt_path + ' & mypy ' + filename
-        os.system(cmd)
+        # cmd = 'export MYPYPATH=' + pmt_path + ' & mypy ' + filename
+        # os.system(cmd)
         filename_ = filename.split('.')[0]
         tree = ast.parse(''.join(open(filename)))
         # astpretty.pprint(tree)

@@ -91,6 +91,6 @@ def main() -> None:
     # pmat_print(D)
 
 # UNCOMMENT THESE LINES TO EXECUTE 
-if __name__ == "__main__":
+# if __name__ == "__main__":
     # execute only if run as a script
-    main()
+    # main()

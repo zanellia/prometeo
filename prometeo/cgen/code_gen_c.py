@@ -83,6 +83,7 @@ def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False
     # generator.result.source.append('#include "pvec_blasfeo_wrapper.h"\n')
     # generator.result.source.append('#include "prmt_heap.h"\n')
     generator.result.source.append('#include "%s.h"\n' %(module_name))
+    generator.result.header.append('#include "prometeo.h"\n')
 
     generator.visit(node)
     
