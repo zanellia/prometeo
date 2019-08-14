@@ -21,6 +21,15 @@ all: $(SRCS)
 clean:
 	rm -f *.o
 '''
+def str2bool(v):
+    if isinstance(v, bool):
+       return v
+    if v.lower() in ('True', 'true', 1):
+        return True
+    elif v.lower() in ('False', 'false', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
 
 def pmt_main(script_path, stdout, stderr, args = None): 
 
@@ -28,8 +37,8 @@ def pmt_main(script_path, stdout, stderr, args = None):
     parser.add_argument("program_name", \
             help="name of the prometeo script to be executed")
 
-    parser.add_argument("--cgen", default=False, \
-            type=bool, help="generate, compile and execute C code?")
+    parser.add_argument("--cgen", type=str2bool, default="False", \
+            help="generate, compile and execute C code?")
 
     args = parser.parse_args()
     filename = args.program_name
