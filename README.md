@@ -3,6 +3,12 @@ domain specific language (DSL) based on a subset of the Python language that all
 one to conveniently write scientific computing programs in a high-level language and generate
 high-performance self-contained C code that can be easily deployed on embedded devices.
 
+### installation
+In order to install prometeo, simply install the Python package running `pip install .`. Additionally,
+in order to be able to successfully generate and run C code, you will have to compile and install the 
+shared library associated with the C back end running `make shared & make install_shared` from 
+`<prometeo_root>/prometeo/cprmt`.
+
 ### a simple example
 
 The Python code
