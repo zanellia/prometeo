@@ -1,1 +1,1 @@
-This folder contains examples using prometeo. After installing prometeo, you should be able to run pmt dgemm.py to execute the script using its Python backend. In order to generate, compile and execute C code using prometeo's C backend, run pmt dgemm.pt --cgen True.
+This folder contains examples using prometeo. After installing prometeo, you should be able to run `pmt dgemm.py` to execute the script using its Python backend. In order to generate, compile and execute C code using prometeo's C backend, run `pmt dgemm.pt --cgen True`.
