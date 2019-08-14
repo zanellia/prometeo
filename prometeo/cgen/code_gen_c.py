@@ -875,8 +875,8 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.statement(node)
         self.generic_visit(node)
 
-    def visit_FunctionDef(self, node, async=False):
-        prefix = 'async ' if async else ''
+    def visit_FunctionDef(self, node, is_async=False):
+        prefix = 'is_async ' if is_async else ''
         self.decorators(node, 1 if self.indentation else 2)
         # self.write()
         returns = self.get_returns(node)
@@ -912,7 +912,7 @@ class SourceGenerator(ExplicitNodeVisitor):
 
     # introduced in Python 3.5
     def visit_AsyncFunctionDef(self, node):
-        self.visit_FunctionDef(node, async=True)
+        self.visit_FunctionDef(node, is_async=True)
 
     def visit_ClassDef(self, node):
         have_args = []
@@ -959,9 +959,9 @@ class SourceGenerator(ExplicitNodeVisitor):
                 break
         self.write('\n}', dest = 'src')
 
-    def visit_For(self, node, async=False):
+    def visit_For(self, node, is_async=False):
         set_precedence(node, node.target)
-        prefix = 'async ' if async else ''
+        prefix = 'is_async ' if is_async else ''
        
         self.statement(node, 'for(int ',
                        node.target, ' = 0; ', node.target, 
@@ -973,7 +973,7 @@ class SourceGenerator(ExplicitNodeVisitor):
 
     # introduced in Python 3.5
     def visit_AsyncFor(self, node):
-        self.visit_For(node, async=True)
+        self.visit_For(node, is_async=True)
 
     def visit_While(self, node):
         set_precedence(node, node.test)
@@ -982,8 +982,8 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.write('\n    }\n', dest = 'src')
 
 
-    def visit_With(self, node, async=False):
-        prefix = 'async ' if async else ''
+    def visit_With(self, node, is_async=False):
+        prefix = 'is_async ' if is_async else ''
         self.statement(node, '%swith ' % prefix)
         if hasattr(node, "context_expr"):  # Python < 3.3
             self.visit_withitem(node)
@@ -994,7 +994,7 @@ class SourceGenerator(ExplicitNodeVisitor):
 
     # new for Python 3.5
     def visit_AsyncWith(self, node):
-        self.visit_With(node, async=True)
+        self.visit_With(node, is_async=True)
 
     # new for Python 3.3
     def visit_withitem(self, node):
@@ -1416,7 +1416,7 @@ class SourceGenerator(ExplicitNodeVisitor):
     def visit_comprehension(self, node):
         set_precedence(node, node.iter, *node.ifs)
         set_precedence(Precedence.comprehension_target, node.target)
-        stmt = ' async for ' if self.get_is_async(node) else ' for '
+        stmt = ' is_async for ' if self.get_is_is_async(node) else ' for '
         self.write(stmt, node.target, ' in ', node.iter)
         for if_ in node.ifs:
             self.write(' if ', if_)

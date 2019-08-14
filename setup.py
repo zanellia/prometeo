@@ -4,7 +4,7 @@ import prometeo
 
 setup(name='prometeo',
    version='0.1',
-   python_requires='>=3.6, <3.7',
+   python_requires='>=3.6, <3.8',
    description='a prototyping and modelling tool for embedded optimization',
    url='http://github.com/zanellia/prometeo',
    author='Andrea Zanelli',
