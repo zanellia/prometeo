@@ -80,29 +80,28 @@ void c_pmt_dgemm(struct pmat *A, struct pmat *B, struct pmat *C, struct pmat *D)
     blasfeo_dgemm_nn(mA, nA, nB, 1.0, bA, 0, 0, bB, 0, 0, 1, bC, 0, 0, bD, 0, 0);
 }
 
-// void c_pmt_lus(struct pmat *A, struct pmat *B, struct pmat *C) {
-//     int mA = A->bmat->m; 
-//     int nA = A->bmat->n; 
-//     int nB = B->bmat->n; 
-//     struct blasfeo_dmat *bA = A->bmat;
-//     struct blasfeo_dmat *bB = B->bmat;
-//     struct blasfeo_dmat *bC = C->bmat;
+void c_pmt_getrf(struct pmat *A, struct pmat *LU, int *ipiv) {
+    int mA = A->bmat->m; 
+    struct blasfeo_dmat *bA = A->bmat;
+    struct blasfeo_dmat *bLU = LU->bmat;
 
-//     // printf("In dgemm\n");
-//     // blasfeo_print_dmat(mA, nA, A->bmat, 0, 0);
-//     // blasfeo_print_dmat(mA, nA, B->bmat, 0, 0);
-//     // blasfeo_print_dmat(mA, nA, C->bmat, 0, 0);
-//     // blasfeo_print_dmat(mA, nA, D->bmat, 0, 0);
+    // factorization
+    blasfeo_dgetrf_rp(mA, mA, A, 0, 0, LU, 0, 0, ipiv);
+}
 
-//     // allocate memory for pivots
-//     // factorization
-//     blasfeo_dgetrf_rp(m, n, dG_dK_ss, 0, 0, dG_dK_ss, 0, 0, ipiv);
-//     // permute the r.h.s
-//     blasfeo_dvecpe(nK, ipiv_ss, rG, 0);
-//     // triangular solves 
-//     blasfeo_dtrsv_lnu(nK, dG_dK_ss, 0, 0, rG, 0, rG, 0);
-//     blasfeo_dtrsv_unn(nK, dG_dK_ss, 0, 0, rG, 0, rG, 0);
-// }
+void c_pmt_getrs(struct pmat *A, struct pvec *rhs, struct pmat *LU, int *ipiv, struct pvec *out) {
+    int mA = A->bmat->m; 
+    struct blasfeo_dmat *bA = A->bmat;
+    struct blasfeo_dmat *bLU = LU->bmat;
+    struct blasfeo_dmat *brhs = rhs->bvec;
+    struct blasfeo_dmat *bout = out->bvec;
+
+    // permute the r.h.s
+    blasfeo_dvecpe(mA, ipiv, brhs, 0);
+    // triangular solves 
+    blasfeo_dtrsv_lnu(mA, bLU, 0, 0, brhs, 0, bout, 0);
+    blasfeo_dtrsv_unn(mA, bLU, 0, 0, brhs, 0, bout, 0);
+}
 
 void c_pmt_dgead(double alpha, struct pmat *A, struct pmat *B) {
     int mA = A->bmat->m; 
