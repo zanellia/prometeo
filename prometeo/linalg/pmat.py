@@ -117,35 +117,8 @@ def pmat_copy(A: pmat, B: pmat):
             B[i][j] = A[i][j]
     return
 
-def pmt_lus(A: pmat, B: pmat, opts):
+def pmt_getrs(A: pmat, B: pmat, fact: pmat, ipiv):
     res  = pmat(A.blasfeo_dmat.m, B.blasfeo_dmat.n)
-    fact = pmat(A.blasfeo_dmat.m, B.blasfeo_dmat.m)
-    # create pmat for factor
-    fact = pmat(A.blasfeo_dmat.m, A.blasfeo_dmat.n)
-    pmat_copy(A, fact)
-    # create permutation vector
-    ipiv = cast(create_string_buffer(A.blasfeo_dmat.m*A.blasfeo_dmat.m), POINTER(c_int))
-    # factorize
-    pmt_getrf(fact, ipiv)
-    # create permuted rhs
-    pB = pmat(B.blasfeo_dmat.m, B.blasfeo_dmat.n)
-    pmat_copy(B, pB)
-    pmt_rowpe(B.blasfeo_dmat.m, ipiv, pB)
-    # solve
-    pmt_trsm_llnu(A, pB)
-    pmt_trsm_lunn(A, pB)
-    return pB
-
-def pmt_lus(A: pmat, B: pmat, opts):
-    res  = pmat(A.blasfeo_dmat.m, B.blasfeo_dmat.n)
-    fact = pmat(A.blasfeo_dmat.m, B.blasfeo_dmat.m)
-    # create pmat for factor
-    fact = pmat(A.blasfeo_dmat.m, A.blasfeo_dmat.n)
-    pmat_copy(A, fact)
-    # create permutation vector
-    ipiv = cast(create_string_buffer(A.blasfeo_dmat.m*A.blasfeo_dmat.m), POINTER(c_int))
-    # factorize
-    pmt_getrf(fact, ipiv)
     # create permuted rhs
     pB = pmat(B.blasfeo_dmat.m, B.blasfeo_dmat.n)
     pmat_copy(B, pB)
@@ -188,9 +161,15 @@ def pmt_trsm_lunn(A: pmat, B: pmat):
     c_pmt_trsm_lunn(A, B)
     return
 
-def pmt_getrf(fact: pmat, ipiv):
-    c_pmt_getrf(fact, ipiv);
-    return 
+def pmt_getrf(A: pmat):
+    # create pmat for factor
+    fact = pmat(A.blasfeo_dmat.m, A.blasfeo_dmat.n)
+    pmat_copy(A, fact)
+    # create permutation vector
+    ipiv = cast(create_string_buffer(A.blasfeo_dmat.m*A.blasfeo_dmat.m), POINTER(c_int))
+    # factorize
+    c_pmt_getrf(fact, ipiv)
+    return fact, ipiv 
 
 def pmt_gemv_n(A: pmat, b: pvec, c: pvec, d: pvec):
     c_pmt_dgemv_n(A, b, c, d)

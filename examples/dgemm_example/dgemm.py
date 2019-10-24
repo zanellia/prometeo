@@ -84,11 +84,13 @@ def main() -> None:
     pvec_print(c)
 
     # still to be implemented in code-generator
-    # prmt_lus(A, B, C)
+    fact, ipiv = pmt_getrf(A)
+    res = pmt_getrs(A, B, fact, ipiv)
+    pmat_print(res)
+    # pmt_lus(A, B, C)
     # pmat_print(C)
     # D: pmat = pmat(n, n)
     # D = A*C
-    # pmat_print(D)
 
 # UNCOMMENT THESE LINES TO EXECUTE 
 # if __name__ == "__main__":
