@@ -13,7 +13,7 @@ class pvec(pvec_):
     blasfeo_dvec = None
 
     def __init__(self, m: int):
-        self.blasfeo_dvec = c_prmt_create_blasfeo_dvec(m)  
+        self.blasfeo_dvec = c_pmt_create_blasfeo_dvec(m)  
     
     def __getitem__(self, index):
         return pvec_get(self, index)
@@ -35,16 +35,16 @@ class pvec(pvec_):
 
 # auxiliary functions
 def pvec_set_data(v: pvec, data: POINTER(c_double)):
-    c_prmt_set_blasfeo_dvec(v.blasfeo_dvec, data)  
+    c_pmt_set_blasfeo_dvec(v.blasfeo_dvec, data)  
 
 def pvec_set(v: pvec, value, i):
-    c_prmt_set_blasfeo_dvec_el(value, v.blasfeo_dvec, i)  
+    c_pmt_set_blasfeo_dvec_el(value, v.blasfeo_dvec, i)  
 
 def pvec_get(v: pvec, i):
-    el = c_prmt_get_blasfeo_dvec_el(v.blasfeo_dvec, i)  
+    el = c_pmt_get_blasfeo_dvec_el(v.blasfeo_dvec, i)  
     return el 
 
 def pvec_print(v: pvec):
-    c_prmt_print_blasfeo_dvec(v)
+    c_pmt_print_blasfeo_dvec(v)
 
 

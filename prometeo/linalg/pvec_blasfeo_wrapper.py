@@ -1,26 +1,26 @@
 from .blasfeo_wrapper import *
 from ctypes import *
 
-def c_prmt_set_blasfeo_dvec(v, data: POINTER(c_double)):
+def c_pmt_set_blasfeo_dvec(v, data: POINTER(c_double)):
          
     m = v.m
     bw.blasfeo_pack_dvec(m, data, byref(v), 0)
 
-def c_prmt_set_blasfeo_dvec_el(value, v, ai):
+def c_pmt_set_blasfeo_dvec_el(value, v, ai):
          
     bw.blasfeo_dvecin1(value, byref(v), ai);
 
-def c_prmt_get_blasfeo_dvec_el(v, ai):
+def c_pmt_get_blasfeo_dvec_el(v, ai):
          
     el = bw.blasfeo_dvecex1(byref(v), ai)
     return el 
 
-def c_prmt_set_prmt_blasfeo_dvec(data, v, ai):
+def c_pmt_set_pmt_blasfeo_dvec(data, v, ai):
          
     m = v.m
     bw.blasfeo_pack_dvec(m, data, byref(v), 0)
 
-def c_prmt_create_blasfeo_dvec(m: int):
+def c_pmt_create_blasfeo_dvec(m: int):
          
     size_strvec = bw.blasfeo_memsize_dvec(m)
     memory_strvec = c_void_p() 
@@ -42,5 +42,5 @@ def c_prmt_create_blasfeo_dvec(m: int):
 
 
 # auxiliary functions
-def c_prmt_print_blasfeo_dvec(v):
+def c_pmt_print_blasfeo_dvec(v):
     bw.blasfeo_print_dvec(v.blasfeo_dvec.m, byref(v.blasfeo_dvec), 0)
