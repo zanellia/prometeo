@@ -1,10 +1,11 @@
 import ast
 import astpretty
-import typing
+# import typing
 import sys
 import argparse
 import prometeo
 import os
+from strip_hints import strip_file_to_string
 
 makefile_template = '''
 CC = gcc
@@ -46,8 +47,10 @@ def pmt_main(script_path, stdout, stderr, args = None):
 
     if cgen is False:
         post = '''main()'''
-        code = open(filename).read() + post
-        exec(code, globals(), globals())
+        # code = open(filename).read() + post
+        # exec(code, globals(), globals())
+        code_no_hints = strip_file_to_string(filename) + post
+        exec(code_no_hints, globals(), globals())
     else:
         pmt_path = os.path.dirname(prometeo.__file__)
         # cmd = 'export MYPYPATH=' + pmt_path + ' & mypy ' + filename
@@ -77,4 +80,4 @@ def pmt_main(script_path, stdout, stderr, args = None):
 
         os.system('make')
         cmd = './' + filename_
-        os.system(cmd)
+        # os.system(cmd)

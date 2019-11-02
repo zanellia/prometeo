@@ -4,15 +4,17 @@ from prometeo import *
 class p_class:
     attr_1: int = 1
     attr_2: float = 3.0
+    attr_3: pmat[10,10] = pmat(10, 10) 
 
-    def method_2(self, A: pmat, B: pmat, C: pmat) -> None:
+    def method_2(self, A: pmat[2,2], B: pmat[2,2], C: pmat[2,2]) -> None:
         C = A * B
         pmat_print(C)
         return
 
-def function1(A: pmat, B: pmat, C: pmat) -> None:
+def function1(A: pmat[2,2], B: pmat[2,2], C: pmat[2,2]) -> None:
     C = A * B
     pmat_print(C)
+    attr_3: pmat[10,10] = pmat(10, 10)
     return
 
 def main() -> None:
@@ -20,8 +22,8 @@ def main() -> None:
     n_list: List[int] = prmt_list(int, 10) 
     n_list[0] = 1
 
-    test_class: p_class = p_class()
-    test_class.attr_1 = 2
+    # test_class: p_class = p_class()
+    # test_class.attr_1 = 2
 
     j: int = 0
     for i in range(10):
@@ -31,22 +33,22 @@ def main() -> None:
         j = j - 1
 
     n: int = 10
-    A: pmat = pmat(n, n)
+    A: pmat[2,2] = pmat(n, n)
     A[0][2] = 2.0
 
     for i in range(2):
         A[0][i] = A[0][i]
 
-    # pmat_fill(A, 1.0)
+    pmat_fill(A, 1.0)
 
-    B: pmat = pmat(n, n)
+    B: pmat[n,n] = pmat(n, n)
     for i in range(2):
         B[0][i] = A[0][i]
     # pmat_fill(B, 2.0)
 
-    C: pmat = pmat(n, n)
+    C: pmat[n,n] = pmat(n, n)
 
-    test_class.method_2(A, B, C)
+    # test_class.method_2(A, B, C)
 
     pmat_list: List[pmat] = prmt_list(pmat, 10)
     pmat_list[0] = A
@@ -58,8 +60,8 @@ def main() -> None:
     C = A - B
     pmat_print(C)
 
-    function1(A, B, C)
-    function1(pmat_list[0], B, C)
+    # function1(A, B, C)
+    # function1(pmat_list[0], B, C)
 
     pmat_fill(A, 0.0)
     for i in range(10):
@@ -84,9 +86,10 @@ def main() -> None:
     pvec_print(c)
 
     # still to be implemented in code-generator
-    fact, ipiv = pmt_getrf(A)
-    res = pmt_getrs(A, B, fact, ipiv)
-    pmat_print(res)
+    # fact, ipiv = pmt_getrf(A)
+    # res = pmt_getrs(A, B, fact, ipiv)
+
+    # pmat_print(res)
     # pmt_lus(A, B, C)
     # pmat_print(C)
     # D: pmat = pmat(n, n)

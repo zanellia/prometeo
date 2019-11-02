@@ -46,7 +46,7 @@ prmt_temp_types = {\
         "NoneType": "void", \
         "ptr_int": "int *", \
         "ptr_pmat": "struct pmat **", \
-        "int": "int", "double": "double"}
+        "int": "int", "float": "double"}
 
 usr_temp_types = {}
 
@@ -217,6 +217,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.heap64_size = ___c_prmt_64_heap_size 
 
         self.typed_record = {}
+        self.dim_record = {}
         
         def write(*params, dest):
             """ self.write is a closure for performance (to reduce the number
@@ -310,7 +311,17 @@ class SourceGenerator(ExplicitNodeVisitor):
                 need_parens = isinstance(item.target, ast.Name) and not item.simple
                 begin = '(' if need_parens else ''
                 end = ')' if need_parens else ''
-                self.write('%s' %item.annotation.id, ' ', '%s' %item.target.id, ';\n', dest = 'hdr')
+                annotation = item.annotation
+                # annotation = ast.parse(item.annotation.s).body[0]
+                # if 'value' in annotation.value.__dict__:
+                if 'value' in annotation.__dict__:
+                    # type_py = annotation.value.value.id
+                    type_py = annotation.value.id
+                else:
+                    # type_py = annotation.value.id
+                    type_py = annotation.id
+                type_c = prmt_temp_types[type_py]
+                self.write('%s' %type_c, ' ', '%s' %item.target.id, ';\n', dest = 'hdr')
                 # self.conditional_write(' = ', item.value, ';')
             elif isinstance(item, ast.FunctionDef):
                 
@@ -506,8 +517,14 @@ class SourceGenerator(ExplicitNodeVisitor):
             set_precedence(Precedence.Comma, defaults)
             padding = [None] * (len(args) - len(defaults))
             for arg, default in zip(args, padding + defaults):
-                # fish c type from typed record
-                arg_type_py = arg.annotation.id
+                # fish C type from typed record
+                if arg.annotation.value.id == 'pmat':
+                    dim1 = arg.annotation.slice.value.elts[0].n
+                    dim2 = arg.annotation.slice.value.elts[1].n
+                    arg_type_py = arg.annotation.value.id
+                    self.dim_record[arg.arg] = [dim1, dim2]
+                else:
+                    arg_type_py = arg.annotation.id
 
                 arg_type_c = prmt_temp_types[arg_type_py]
                 self.write(write_comma, arg_type_c,' ',arg.arg, dest = dest_in)
@@ -534,7 +551,15 @@ class SourceGenerator(ExplicitNodeVisitor):
             padding = [None] * (len(args) - len(defaults))
             arg_mangl = ''
             for arg, default in zip(args, padding + defaults):
-                arg_mangl = arg_mangl + arg.annotation.id
+                annotation = arg.annotation.s
+                # annotation = ast.parse(arg.annotation.s).body[0]
+                # if 'value' in annotation.value.__dict__:
+                if 'value' in annotation.__dict__:
+                    # arg_mangl = arg_mangl + annotation.value.value.id
+                    arg_mangl = arg_mangl + annotation.value.id
+                else:
+                    # arg_mangl = arg_mangl + annotation.value.id
+                    arg_mangl = arg_mangl + annotation.id
             return arg_mangl
 
         arg_mangl = loop_args_mangl(node.args, node.defaults)
@@ -797,6 +822,10 @@ class SourceGenerator(ExplicitNodeVisitor):
         # check if the annotation contains directly a type or something fancier
         if "id" in node.annotation.__dict__:
             ann = node.annotation.id
+            # if ann == 'pmat':
+            #     dim1 = node.__dict__['value'].__dict__['args'][0].__dict__['id']
+            #     dim2 = node.__dict__['value'].__dict__['args'][1].__dict__['id']
+            #     ann = ann + '_' + dim1 + '_' + dim2
             # add variable to typed record
             self.typed_record[node.target.id] = node.annotation.id
             print(self.typed_record)
@@ -818,7 +847,17 @@ class SourceGenerator(ExplicitNodeVisitor):
 
         # List[<type>]
         elif "slice" in node.annotation.__dict__:
-            ann = 'ptr_' + node.annotation.slice.value.id
+            if node.annotation.value.id == 'pmat':
+                if 'id' in node.annotation.slice.value.elts[0].__dict__: 
+                    dim1 = node.annotation.slice.value.elts[0].id
+                    dim2 = node.annotation.slice.value.elts[1].id
+                else:
+                    dim1 = node.annotation.slice.value.elts[0].n
+                    dim2 = node.annotation.slice.value.elts[1].n
+                ann = node.annotation.value.id
+                self.dim_record[node.target.id] = [dim1, dim2]
+            else:
+                ann = 'ptr_' + node.annotation.slice.value.id
             # add variable to typed record
             self.typed_record[node.target.id] = ann
             print(self.typed_record)
