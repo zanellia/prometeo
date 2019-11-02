@@ -79,5 +79,6 @@ def pmt_main(script_path, stdout, stderr, args = None):
         dest_file.close()
 
         os.system('make')
+        # import pdb; pdb.set_trace()
         cmd = './' + filename_
-        # os.system(cmd)
+        os.system(cmd)

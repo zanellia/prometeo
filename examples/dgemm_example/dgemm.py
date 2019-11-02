@@ -22,8 +22,8 @@ def main() -> None:
     n_list: List[int] = prmt_list(int, 10) 
     n_list[0] = 1
 
-    # test_class: p_class = p_class()
-    # test_class.attr_1 = 2
+    test_class: p_class = p_class()
+    test_class.attr_1 = 2
 
     j: int = 0
     for i in range(10):
@@ -44,11 +44,11 @@ def main() -> None:
     B: pmat[n,n] = pmat(n, n)
     for i in range(2):
         B[0][i] = A[0][i]
-    # pmat_fill(B, 2.0)
+    pmat_fill(B, 2.0)
 
     C: pmat[n,n] = pmat(n, n)
 
-    # test_class.method_2(A, B, C)
+    test_class.method_2(A, B, C)
 
     pmat_list: List[pmat] = prmt_list(pmat, 10)
     pmat_list[0] = A
@@ -60,8 +60,8 @@ def main() -> None:
     C = A - B
     pmat_print(C)
 
-    # function1(A, B, C)
-    # function1(pmat_list[0], B, C)
+    function1(A, B, C)
+    function1(pmat_list[0], B, C)
 
     pmat_fill(A, 0.0)
     for i in range(10):
@@ -69,7 +69,7 @@ def main() -> None:
 
     pmat_print(A)
 
-    a : pvec = pvec(10)
+    a : pvec[10] = pvec(10)
     a[1] = 3.0
     b : pvec = pvec(3)
     b[0] = a[1]

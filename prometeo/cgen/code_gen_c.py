@@ -551,7 +551,7 @@ class SourceGenerator(ExplicitNodeVisitor):
             padding = [None] * (len(args) - len(defaults))
             arg_mangl = ''
             for arg, default in zip(args, padding + defaults):
-                annotation = arg.annotation.s
+                annotation = arg.annotation
                 # annotation = ast.parse(arg.annotation.s).body[0]
                 # if 'value' in annotation.value.__dict__:
                 if 'value' in annotation.__dict__:
@@ -856,11 +856,22 @@ class SourceGenerator(ExplicitNodeVisitor):
                     dim2 = node.annotation.slice.value.elts[1].n
                 ann = node.annotation.value.id
                 self.dim_record[node.target.id] = [dim1, dim2]
+            elif node.annotation.value.id == 'pvec':
+                if 'id' in node.annotation.slice.value.__dict__: 
+                    dim1 = node.annotation.slice.value.id
+                else:
+                    dim1 = node.annotation.slice.value.n
+                ann = node.annotation.value.id
+                self.dim_record[node.target.id] = [dim1]
             else:
-                ann = 'ptr_' + node.annotation.slice.value.id
+                if 'id' in node.annotation.slice.value.__dict__: 
+                    ann = 'ptr_' + node.annotation.slice.value.id
+                else:
+                    ann = 'ptr_' + str(node.annotation.slice.value.n)
             # add variable to typed record
             self.typed_record[node.target.id] = ann
-            print(self.typed_record)
+            print('typed_record = \n', self.typed_record, '\n\n')
+            print('dim_record = \n', self.dim_record, '\n\n')
             if  ann in prmt_temp_types:
                 c_ann = prmt_temp_types[ann]
                 self.statement(node, c_ann, ' ', node.target.id)
