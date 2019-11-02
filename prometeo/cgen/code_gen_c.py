@@ -129,6 +129,10 @@ def precedence_setter(AST=ast.AST, get_op_precedence=get_op_precedence,
 
 set_precedence = precedence_setter()
 
+def descope(current_scope, pop):
+  if current_scope.endswith(pop):
+    return current_scope[:-len(pop)]
+  return current_scope
 
 class Delimit(object):
     """A context manager that can add enclosing
@@ -216,8 +220,9 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.heap8_size  = ___c_prmt_8_heap_size 
         self.heap64_size = ___c_prmt_64_heap_size 
 
-        self.typed_record = {}
-        self.dim_record = {}
+        self.typed_record = {'global': dict()}
+        self.scope = 'global'
+        self.dim_record = {'global': dict()}
         
         def write(*params, dest):
             """ self.write is a closure for performance (to reduce the number
@@ -522,7 +527,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                     dim1 = arg.annotation.slice.value.elts[0].n
                     dim2 = arg.annotation.slice.value.elts[1].n
                     arg_type_py = arg.annotation.value.id
-                    self.dim_record[arg.arg] = [dim1, dim2]
+                    self.dim_record[self.scope][arg.arg] = [dim1, dim2]
                 else:
                     arg_type_py = arg.annotation.id
 
@@ -530,7 +535,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 self.write(write_comma, arg_type_c,' ',arg.arg, dest = dest_in)
 
                 # add variable to typed record
-                self.typed_record[arg.arg] = arg_type_py
+                self.typed_record[self.scope][arg.arg] = arg_type_py
                 self.conditional_write('=', default, dest = 'src')
 
         loop_args(node.args, node.defaults)
@@ -571,7 +576,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         def loop_args_mangl(args):
             arg_mangl = ''
             for arg in args:
-                arg_mangl = arg_mangl + self.typed_record[arg.id]
+                arg_mangl = arg_mangl + self.typed_record[self.scope][arg.id]
             return arg_mangl
 
         arg_mangl = loop_args_mangl(args)
@@ -599,10 +604,10 @@ class SourceGenerator(ExplicitNodeVisitor):
                 # check for double subscripting (pmat)
                 if 'value' in node.targets[0].value.__dict__:
                     target = node.targets[0].value.value.id
-                    if target in self.typed_record: 
+                    if target in self.typed_record[self.scope]: 
                         # map subscript for pmats to blasfeo el assign
-                        if self.typed_record[target] in ('pmat'):
-                            print(self.typed_record[target])
+                        if self.typed_record[self.scope][target] in ('pmat'):
+                            print(self.typed_record[self.scope][target])
                             target = node.targets[0]
                             sub_type = type(target.value.slice.value)
                             if sub_type == ast.Num:
@@ -624,8 +629,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                             if type(node.value) == ast.Subscript:
                                 # if value is a pmat
                                 value = node.value.value.value.id
-                                if value in self.typed_record:
-                                    if self.typed_record[value] == 'pmat':
+                                if value in self.typed_record[self.scope]:
+                                    if self.typed_record[self.scope][value] == 'pmat':
                                         sub_type = type(node.value.slice.value)
                                         if sub_type == ast.Num:
                                             second_index_value = node.value.slice.value.n
@@ -653,9 +658,9 @@ class SourceGenerator(ExplicitNodeVisitor):
                 # check for single subscripting (pvec)
                 elif 'id' in node.targets[0].value.__dict__:
                     target = node.targets[0].value.id
-                    if target in self.typed_record: 
+                    if target in self.typed_record[self.scope]: 
                         # map subscript for pvec to blasfeo el assign
-                        if self.typed_record[target] in ('pvec'):
+                        if self.typed_record[self.scope][target] in ('pvec'):
                             target = node.targets[0]
                             sub_type = type(target.slice.value)
                             if sub_type == ast.Num:
@@ -670,9 +675,9 @@ class SourceGenerator(ExplicitNodeVisitor):
                                 # check for double subscripting
                                 if 'value' in node.value.value.__dict__:
                                     value = node.value.value.value.id
-                                    if value in self.typed_record:
+                                    if value in self.typed_record[self.scope]:
                                         # if value is a pmat
-                                        if self.typed_record[value] == 'pmat':
+                                        if self.typed_record[self.scope][value] == 'pmat':
                                             sub_type = type(node.value.slice.value)
                                             if sub_type == ast.Num:
                                                 second_index_value = node.value.slice.value.n
@@ -696,7 +701,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                                 else:
                                     value = node.value.value.id
                                     # if value is a pvec
-                                    if self.typed_record[value] == 'pvec':
+                                    if self.typed_record[self.scope][value] == 'pvec':
                                         sub_type = type(node.value.slice.value)
                                         if sub_type == ast.Num: 
                                             index_value = node.value.slice.value.n
@@ -719,13 +724,13 @@ class SourceGenerator(ExplicitNodeVisitor):
                 # check for Assigns targeting pmats
                 target = node.targets[0].id
                 print(target)
-                if target in self.typed_record: 
-                    if self.typed_record[target] == 'pmat':
+                if target in self.typed_record[self.scope]: 
+                    if self.typed_record[self.scope][target] == 'pmat':
                         if type(node.value) == ast.BinOp:
                             right_op = node.value.right.id
                             left_op = node.value.left.id
-                            if right_op in self.typed_record and left_op in self.typed_record:
-                                if self.typed_record[left_op] == 'pmat' and self.typed_record[right_op] == 'pmat':
+                            if right_op in self.typed_record[self.scope] and left_op in self.typed_record[self.scope]:
+                                if self.typed_record[self.scope][left_op] == 'pmat' and self.typed_record[self.scope][right_op] == 'pmat':
                                     # dgemm
                                     if type(node.value.op) == ast.Mult:
                                         # set target to zero
@@ -749,14 +754,14 @@ class SourceGenerator(ExplicitNodeVisitor):
                                         return
                                     else:
                                         raise Exception('Unsupported operator call:{} {} {}'\
-                                            .format(self.typed_record[left_op], node.value.op, self.typed_record[right_op]))
+                                            .format(self.typed_record[self.scope][left_op], node.value.op, self.typed_record[self.scope][right_op]))
 
-                    elif self.typed_record[target] == 'pvec':
+                    elif self.typed_record[self.scope][target] == 'pvec':
                         if type(node.value) == ast.BinOp:
                             right_op = node.value.right.id
                             left_op = node.value.left.id
-                            if right_op in self.typed_record and left_op in self.typed_record:
-                                if self.typed_record[left_op] == 'pmat' and self.typed_record[right_op] == 'pvec':
+                            if right_op in self.typed_record[self.scope] and left_op in self.typed_record[self.scope]:
+                                if self.typed_record[self.scope][left_op] == 'pmat' and self.typed_record[self.scope][right_op] == 'pvec':
                                     # dgemv
                                     if type(node.value.op) == ast.Mult:
                                         # set target to zero
@@ -767,13 +772,13 @@ class SourceGenerator(ExplicitNodeVisitor):
                                     # dgead
                                     else:
                                         raise Exception('Unsupported operator call:{} {} {}'\
-                                            .format(self.typed_record[left_op], node.value.op, self.typed_record[right_op]))
+                                            .format(self.typed_record[self.scope][left_op], node.value.op, self.typed_record[self.scope][right_op]))
                                         
 
             elif 'attr' in node.targets[0].__dict__: 
                 # Assign targeting a user-defined class (C struct)
                 struct_name = node.targets[0].value.id
-                if struct_name in self.typed_record:
+                if struct_name in self.typed_record[self.scope]:
                     attr_value = node.value.n
                     attr_name = node.targets[0].attr 
                     self.statement([], struct_name, '->', attr_name, ' = ', str(attr_value), ';')
@@ -811,6 +816,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                             raise Exception("Cannot create Lists without using prmt_list constructor.")
                         else:
                             ann = node.annotation.slice.value.id
+                            self.typed_record[self.scope][node.target.id] = ann
                             if  ann in prmt_temp_types:
                                 ann = prmt_temp_types[ann]
                             else:
@@ -827,8 +833,8 @@ class SourceGenerator(ExplicitNodeVisitor):
             #     dim2 = node.__dict__['value'].__dict__['args'][1].__dict__['id']
             #     ann = ann + '_' + dim1 + '_' + dim2
             # add variable to typed record
-            self.typed_record[node.target.id] = node.annotation.id
-            print(self.typed_record)
+            self.typed_record[self.scope][node.target.id] = node.annotation.id
+            print(self.typed_record[self.scope])
             if ann in prmt_temp_types:
                 node.annotation.id = prmt_temp_types[ann]
                 self.statement(node, node.annotation, ' ', node.target)
@@ -855,21 +861,22 @@ class SourceGenerator(ExplicitNodeVisitor):
                     dim1 = node.annotation.slice.value.elts[0].n
                     dim2 = node.annotation.slice.value.elts[1].n
                 ann = node.annotation.value.id
-                self.dim_record[node.target.id] = [dim1, dim2]
+                self.dim_record[self.scope][node.target.id] = [dim1, dim2]
             elif node.annotation.value.id == 'pvec':
                 if 'id' in node.annotation.slice.value.__dict__: 
                     dim1 = node.annotation.slice.value.id
                 else:
                     dim1 = node.annotation.slice.value.n
                 ann = node.annotation.value.id
-                self.dim_record[node.target.id] = [dim1]
+                self.dim_record[self.scope][node.target.id] = [dim1]
             else:
+                import pdb; pdb.set_trace()
                 if 'id' in node.annotation.slice.value.__dict__: 
                     ann = 'ptr_' + node.annotation.slice.value.id
                 else:
                     ann = 'ptr_' + str(node.annotation.slice.value.n)
             # add variable to typed record
-            self.typed_record[node.target.id] = ann
+            self.typed_record[self.scope][node.target.id] = ann
             print('typed_record = \n', self.typed_record, '\n\n')
             print('dim_record = \n', self.dim_record, '\n\n')
             if  ann in prmt_temp_types:
@@ -915,8 +922,8 @@ class SourceGenerator(ExplicitNodeVisitor):
             if "value" in node.value.func.__dict__:
                 var_name = node.value.func.value.id
                 # check if we are calling a method on a pmat object
-                if var_name in self.typed_record: 
-                    if self.typed_record[var_name] == 'pmat':
+                if var_name in self.typed_record[self.scope]: 
+                    if self.typed_record[self.scope][var_name] == 'pmat':
                         fun_name = node.value.func.attr 
                         # add prefix to function call
                         node.value.func.attr = 'c_pmt_pmat_' + fun_name 
@@ -926,6 +933,9 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.generic_visit(node)
 
     def visit_FunctionDef(self, node, is_async=False):
+        self.scope = self.scope + '@' + node.name
+        self.typed_record[self.scope] = dict()
+        self.dim_record[self.scope] = dict()
         prefix = 'is_async ' if is_async else ''
         self.decorators(node, 1 if self.indentation else 2)
         # self.write()
@@ -959,12 +969,16 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.write('}', dest='src')
         if not self.indentation:
             self.newline(extra=2)
+        self.scope = descope(self.scope, '@' + node.name)
 
     # introduced in Python 3.5
     def visit_AsyncFunctionDef(self, node):
         self.visit_FunctionDef(node, is_async=True)
 
     def visit_ClassDef(self, node):
+        self.scope = self.scope + '@' + node.name
+        self.typed_record[self.scope] = dict()
+        self.dim_record[self.scope] = dict()
         have_args = []
 
         def paren_or_comma():
@@ -990,8 +1004,8 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.write(have_args and ')' or '', dest = 'src')
         self.write('{\n', dest = 'hdr')
         self.body_class(node.body, node.name)
-        #if not self.indentation:
-        #    self.newline(extra=-6)
+        self.scope = descope(self.scope, '@' + node.name)
+
 
     def visit_If(self, node):
         set_precedence(node, node.test)
@@ -1141,7 +1155,7 @@ class SourceGenerator(ExplicitNodeVisitor):
     # Expressions
 
     def visit_Attribute(self, node):
-        if  self.typed_record[node.value.id] in usr_temp_types: 
+        if  self.typed_record[self.scope][node.value.id] in usr_temp_types: 
             self.write(node.value, '->', node.attr, dest = 'src')
         else:
             raise Exception("Accessing attribute of object {} of unknown type".format(node.value))
