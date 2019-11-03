@@ -9,40 +9,63 @@ class pmat_(ABC):
     pass
 
 class pmat(pmat_):
-
     blasfeo_dmat = None
-    _i = None
-    _j = None
 
     def __init__(self, m: int, n: int):
         self.blasfeo_dmat = c_pmt_create_blasfeo_dmat(m, n)  
-    
-    def __getitem__(self, index):
-        if self._i is not None:
-            self._j = index
-            el = self.my_get_item()
-            return el
 
-        self._i = index
-        return self
+    def __getitem__(self, index):
+        if isinstance(index, tuple):
+            if len(index) == 2:
+                el = pmat_get(self, index[0], index[1])
+                return el
+        else:
+            raise Exception ('pmat subscript should be a 2-dimensional tuples, \
+                    you have: {}\n. Exiting'.format(index))
 
     def __setitem__(self, index, value):
-        self._j = index
-        self.my_set_item(value)
-        return
+        if isinstance(index, tuple):
+            if len(index) == 2:
+                pmat_set(self, value, index[0], index[1]) 
+        else:
+            raise Exception ('pmat subscripts must be 2-dimensional tuples, \
+                    you have: {}\n. Exiting'.format(index))
+
+# class pmat(pmat_):
+
+#     blasfeo_dmat = None
+#     _i = None
+#     _j = None
+
+#     def __init__(self, m: int, n: int):
+#         self.blasfeo_dmat = c_pmt_create_blasfeo_dmat(m, n)  
+    
+#     def __getitem__(self, index):
+#         if self._i is not None:
+#             self._j = index
+#             el = self.my_get_item()
+#             return el
+
+#         self._i = index
+#         return self
+
+#     def __setitem__(self, index, value):
+#         self._j = index
+#         self.my_set_item(value)
+#         return
    
 
-    def my_set_item(self, value):
-        pmat_set(self, value, self._i, self._j)
-        self._i = None
-        self._j = None
-        return
+#     def my_set_item(self, value):
+#         pmat_set(self, value, self._i, self._j)
+#         self._i = None
+#         self._j = None
+#         return
 
-    def my_get_item(self):
-        el = pmat_get(self, self._i, self._j)
-        self._i = None
-        self._j = None
-        return el 
+#     def my_get_item(self):
+#         el = pmat_get(self, self._i, self._j)
+#         self._i = None
+#         self._j = None
+#         return el 
     
     
     # TODO(andrea): ideally one would have three levels:
@@ -108,13 +131,13 @@ class pmat(pmat_):
 def pmat_fill(A: pmat, value):
     for i in range(A.blasfeo_dmat.m):
         for j in range(A.blasfeo_dmat.n):
-            A[i][j] = value
+            A[i,j] = value
     return
 
 def pmat_copy(A: pmat, B: pmat):
     for i in range(A.blasfeo_dmat.m):
         for j in range(A.blasfeo_dmat.n):
-            B[i][j] = A[i][j]
+            B[i,j] = A[i,j]
     return
 
 def pmt_getrs(A: pmat, B: pmat, fact: pmat, ipiv):
