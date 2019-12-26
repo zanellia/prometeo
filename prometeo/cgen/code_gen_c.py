@@ -26,6 +26,8 @@ from .string_repr import pretty_string
 from .source_repr import pretty_source
 from collections import namedtuple
 import astpretty as ap
+import os
+import json
 
 prmt_temp_functions = {\
         "pmat": "c_pmt_create_pmat", \
@@ -102,6 +104,24 @@ def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False
     #     generator.result.source.append('\n')
     #     generator.result.source.append('')
     
+    # dump meta-data to JSON file
+
+    pmt_cache_dir = '__pmt_cache__'
+    if not os.path.exists(pmt_cache_dir):
+        os.mkdir(pmt_cache_dir)
+
+    os.chdir(pmt_cache_dir)
+    json_file = 'typed_record.json'
+    with open(json_file, 'w') as f:
+        json.dump(generator.typed_record, f, indent=4, sort_keys=True)
+    json_file = 'dim_record.json'
+    with open(json_file, 'w') as f:
+        json.dump(generator.dim_record, f, indent=4, sort_keys=True)
+    json_file = 'usr_types.json'
+    with open(json_file, 'w') as f:
+        json.dump(usr_temp_types, f, indent=4, sort_keys=True)
+    os.chdir('..')
+
     return generator.result
 
 
@@ -337,6 +357,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 type_c = prmt_temp_types[type_py]
                 self.write('%s' %type_c, ' ', '%s' %item.target.id, ';\n', dest = 'hdr')
                 # self.conditional_write(' = ', item.value, ';')
+                self.typed_record[self.scope][item.target.id] = type_py
             elif isinstance(item, ast.FunctionDef):
                 
                 # build argument mangling
@@ -616,7 +637,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                     if self.typed_record[self.scope][target] in ('pmat'):
                         if not isinstance(node.targets[0].slice.value, ast.Tuple):
                             ap.pprint(node)
-                            raise Exception('Subscript to a pmat must object must be of type Tuple.')
+                            raise Exception('Subscript to a pmat object must be of type Tuple.')
                         print(self.typed_record[self.scope][target])
                         target = node.targets[0]
                         first_index  = Num_or_Name(node.targets[0].slice.value.elts[0])
@@ -633,9 +654,21 @@ class SourceGenerator(ExplicitNodeVisitor):
 
                                     value_expr = 'c_pmt_pmat_get_el(' + value + ', {}, {})'.format(first_index_value, second_index_value) 
                                     self.statement([], 'c_pmt_pmat_set_el(', target.value.id, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value_expr), ');')
+                                elif self.typed_record[self.scope][value] == 'pvec':
+                                    # if value is a pvec
+                                    sub_type = type(node.value.slice.value)
+                                    if sub_type == ast.Num: 
+                                        index_value = node.value.slice.value.n
+                                    elif sub_type == ast.Name: 
+                                        index_value = node.value.slice.value.id
+                                    else:
+                                        raise Exception("Subscripting with value of type {} not implemented".format(sub_type))
+
+                                    value_expr = 'c_pmt_pvec_get_el(' + value + ', {})'.format(index_value) 
+                                    self.statement([], 'c_pmt_pmat_set_el(', target.value.id, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value_expr), ');')
                         else:
                             target = node.targets[0].value.id
-                            value = node.value.n
+                            value = Num_or_Name(node.value)
                             self.statement([], 'c_pmt_pmat_set_el(', target, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value), ');')
                         return
 
@@ -743,10 +776,41 @@ class SourceGenerator(ExplicitNodeVisitor):
                                             self.statement([], 'c_pmt_pvec_set_el(', target.value.id, ', {}'.format(index), ', {}'.format(value_expr), ');')
                                 else:
                                     target = node.targets[0].value.id
-                                    value = node.value.n
+                                    value = Num_or_Name(node.value)
                                     self.statement([], 'c_pmt_pvec_set_el(', target, ', {}'.format(index), ', {}'.format(value), ');')
                                 return
 
+            elif type(node.value) == ast.Subscript:
+                target = node.targets[0].id
+                if target not in self.typed_record[self.scope]:
+                    raise Exception('Undefined variable {}'.format(target))
+                # target must be a float
+                if self.typed_record[self.scope][target] != 'float':
+                    raise Exception('Target must be a float {}'.format(target))
+                value = node.value.value.id
+                if value in self.typed_record[self.scope]:
+                    # if value is a pmat
+                    if self.typed_record[self.scope][value] == 'pmat':
+                        first_index_value = Num_or_Name(node.value.slice.value.elts[0])
+                        second_index_value = Num_or_Name(node.value.slice.value.elts[1])
+                        value_expr = 'c_pmt_pmat_get_el(' + value + ', {}, {})'.format(first_index_value, second_index_value) 
+                        self.statement([], target, ' = {}'.format(value_expr), ';')
+                        return
+                    # single subscripting
+                    else:
+                        # if value is a pvec
+                        if self.typed_record[self.scope][value] == 'pvec':
+                            sub_type = type(node.value.slice.value)
+                            if sub_type == ast.Num: 
+                                index_value = node.value.slice.value.n
+                            elif sub_type == ast.Name: 
+                                index_value = node.value.slice.value.id
+                            else:
+                                raise Exception("Subscripting with value of type {} not implemented".format(sub_type))
+
+                            value_expr = 'c_pmt_pvec_get_el(' + value + ', {})'.format(index_value) 
+                            self.statement([], target, ' = {}'.format(value_expr), ';')
+                            return
             elif 'id' in node.targets[0].__dict__: 
 
                 # check for Assigns targeting pmats
@@ -783,6 +847,11 @@ class SourceGenerator(ExplicitNodeVisitor):
                                     else:
                                         raise Exception('Unsupported operator call:{} {} {}'\
                                             .format(self.typed_record[self.scope][left_op], node.value.op, self.typed_record[self.scope][right_op]))
+                            # elif self.typed_record[self.scope][node.value] == 'float':
+                            #     import pdb; pdb.set_trace()
+                            #     value = Num_or_Name(node.value)
+                            #     self.statement([], 'c_pmt_pmat_set_el(', target.value.id, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value_expr), ');')
+
 
                     elif self.typed_record[self.scope][target] == 'pvec':
                         if type(node.value) == ast.BinOp:
@@ -801,7 +870,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                                     else:
                                         raise Exception('Unsupported operator call:{} {} {}'\
                                             .format(self.typed_record[self.scope][left_op], node.value.op, self.typed_record[self.scope][right_op]))
-                                        
+
 
             elif 'attr' in node.targets[0].__dict__: 
                 # Assign targeting a user-defined class (C struct)
@@ -830,6 +899,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                        node.value)
 
     def visit_AnnAssign(self, node):
+        ap.pprint(node)
         set_precedence(node, node.target, node.annotation)
         set_precedence(Precedence.Comma, node.value)
         need_parens = isinstance(node.target, ast.Name) and not node.simple
