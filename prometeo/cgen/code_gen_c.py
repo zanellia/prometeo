@@ -642,7 +642,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 target = node.targets[0].value.id
                 if target in self.typed_record[self.scope]: 
                     # map subscript for pmats to blasfeo el assign
-                    if self.typed_record[self.scope][target] in ('pmat'):
+                    if self.typed_record[self.scope][target] == 'pmat':
                         if not isinstance(node.targets[0].slice.value, ast.Tuple):
                             ap.pprint(node)
                             raise Exception('Subscript to a pmat object must be of type Tuple.')
@@ -922,7 +922,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                             raise Exception("Cannot create Lists without using prmt_list constructor.")
                         else:
                             ann = node.annotation.slice.value.id
-                            self.typed_record[self.scope][node.target.id] = ann
+                            self.typed_record[self.scope][node.target.id] = 'List[' + ann + ']'
                             if  ann in prmt_temp_types:
                                 ann = prmt_temp_types[ann]
                             else:

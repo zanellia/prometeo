@@ -51,8 +51,8 @@ def main() -> None:
 
     test_class.method_2(A, B, C)
 
-    # pmat_list: List[pmat] = prmt_list(pmat, 10)
-    # pmat_list[0] = A
+    pmat_list: List[pmat] = prmt_list(pmat, 10)
+    pmat_list[0] = A
 
     C = A * B
     pmat_print(C)
@@ -62,7 +62,7 @@ def main() -> None:
     pmat_print(C)
 
     function1(A, B, C)
-    # function1(pmat_list[0], B, C)
+    function1(pmat_list[0], B, C)
 
     pmat_fill(A, 0.0)
     for i in range(10):
