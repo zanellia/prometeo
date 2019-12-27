@@ -766,22 +766,21 @@ class SourceGenerator(ExplicitNodeVisitor):
                                             first_index_value = Num_or_Name(node.value.slice.value.elts[0])
                                             second_index_value = Num_or_Name(node.value.slice.value.elts[1])
                                             value_expr = 'c_pmt_pmat_get_el(' + value + ', {}, {})'.format(first_index_value, second_index_value) 
-                                            self.statement([], 'c_pmt_pvec_set_el(', target.value.id, ', {}'.format(index), ', {}'.format(value_expr), ');')
-                                    # single subscripting
-                                    else:
-                                        value = node.value.value.id
-                                        # if value is a pvec
-                                        if self.typed_record[self.scope][value] == 'pvec':
-                                            sub_type = type(node.value.slice.value)
-                                            if sub_type == ast.Num: 
-                                                index_value = node.value.slice.value.n
-                                            elif sub_type == ast.Name: 
-                                                index_value = node.value.slice.value.id
-                                            else:
-                                                raise Exception("Subscripting with value of type {} not implemented".format(sub_type))
+                                        # single subscripting
+                                        else:
+                                            value = node.value.value.id
+                                            # if value is a pvec
+                                            if self.typed_record[self.scope][value] == 'pvec':
+                                                sub_type = type(node.value.slice.value)
+                                                if sub_type == ast.Num: 
+                                                    index_value = node.value.slice.value.n
+                                                elif sub_type == ast.Name: 
+                                                    index_value = node.value.slice.value.id
+                                                else:
+                                                    raise Exception("Subscripting with value of type {} not implemented".format(sub_type))
 
-                                            value_expr = 'c_pmt_pvec_get_el(' + value + ', {})'.format(index_value) 
-                                            self.statement([], 'c_pmt_pvec_set_el(', target.value.id, ', {}'.format(index), ', {}'.format(value_expr), ');')
+                                                value_expr = 'c_pmt_pvec_get_el(' + value + ', {})'.format(index_value) 
+                                                self.statement([], 'c_pmt_pvec_set_el(', target.value.id, ', {}'.format(index), ', {}'.format(value_expr), ');')
                                 else:
                                     target = node.targets[0].value.id
                                     value = Num_or_Name(node.value)
