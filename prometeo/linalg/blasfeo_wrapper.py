@@ -53,6 +53,12 @@ bw.blasfeo_dtrsm_llnu.argtypes = [c_int, c_int, c_double, POINTER(blasfeo_dmat),
 bw.blasfeo_dtrsm_lunn.argtypes = [c_int, c_int, c_double, POINTER(blasfeo_dmat), c_int, c_int, 
         POINTER(blasfeo_dmat), c_int, c_int, POINTER(blasfeo_dmat), c_int, c_int]
 
+bw.blasfeo_dtrsv_lnn.argtypes = [c_int, c_double, POINTER(blasfeo_dmat), c_int, c_int, 
+        POINTER(blasfeo_dvec), c_int, POINTER(blasfeo_dvec), c_int]
+
+bw.blasfeo_dtrsv_lnn.argtypes = [c_int, c_double, POINTER(blasfeo_dmat), c_int, c_int, 
+        POINTER(blasfeo_dvec), c_int, POINTER(blasfeo_dvec), c_int]
+
 bw.blasfeo_dgemv_n.argtypes = [c_int, c_int, c_double, POINTER(blasfeo_dmat), c_int, c_int, 
         POINTER(blasfeo_dvec), c_int, c_double, POINTER(blasfeo_dvec), c_int, POINTER(blasfeo_dvec), c_int]
 

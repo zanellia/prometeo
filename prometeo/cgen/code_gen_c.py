@@ -25,19 +25,25 @@ from .node_util import ExplicitNodeVisitor
 from .string_repr import pretty_string
 from .source_repr import pretty_source
 from collections import namedtuple
+import astpretty as ap
+import os
+import json
 
 prmt_temp_functions = {\
         "pmat": "c_pmt_create_pmat", \
         "pvec": "c_pmt_create_pvec", \
-        "dgemm": "c_pmt_dgemm", \
-        "dgead": "c_pmt_dgead", \
+        "pmt_gemm": "c_pmt_gemm", \
+        "pmt_gead": "c_pmt_gead", \
+        "pmt_getrs": "c_pmt_getrs", \
+        "pmt_getrf": "c_pmt_getrf", \
+        "pmt_potrf": "c_pmt_potrf", \
+        "pmt_potrs": "c_pmt_potrs", \
         "pmat_fill": "c_pmt_pmat_fill", \
         "pmat_copy": "c_pmt_pmat_copy", \
         "pmat_print": "c_pmt_pmat_print", \
         "pvec_fill": "c_pmt_pvec_fill", \
         "pvec_copy": "c_pmt_pvec_copy", \
-        "pvec_print": "c_pmt_pvec_print", \
-        "prmt_lus" : "c_pmt_lus"}
+        "pvec_print": "c_pmt_pvec_print"}
 
 prmt_temp_types = {\
         "pmat": "struct pmat *", \
@@ -101,6 +107,24 @@ def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False
     #     generator.result.source.append('\n')
     #     generator.result.source.append('')
     
+    # dump meta-data to JSON file
+
+    pmt_cache_dir = '__pmt_cache__'
+    if not os.path.exists(pmt_cache_dir):
+        os.mkdir(pmt_cache_dir)
+
+    os.chdir(pmt_cache_dir)
+    json_file = 'typed_record.json'
+    with open(json_file, 'w') as f:
+        json.dump(generator.typed_record, f, indent=4, sort_keys=True)
+    json_file = 'dim_record.json'
+    with open(json_file, 'w') as f:
+        json.dump(generator.dim_record, f, indent=4, sort_keys=True)
+    json_file = 'usr_types.json'
+    with open(json_file, 'w') as f:
+        json.dump(usr_temp_types, f, indent=4, sort_keys=True)
+    os.chdir('..')
+
     return generator.result
 
 
@@ -133,6 +157,19 @@ def descope(current_scope, pop):
   if current_scope.endswith(pop):
     return current_scope[:-len(pop)]
   return current_scope
+
+def Num_or_Name(node):
+    if isinstance(node, ast.Num):
+        return node.n
+    elif isinstance(node, ast.Name):
+        return node.id
+    elif isinstance(node, ast.UnaryOp):
+        if isinstance(node.op, ast.USub):
+            return -Num_or_Name(node.operand)
+        else:
+            raise Exception('node.op is not of type ast.USub.\n')
+    else:
+        raise Exception('node is not of type ast.Num nor ast.Name.\n')
 
 class Delimit(object):
     """A context manager that can add enclosing
@@ -328,6 +365,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 type_c = prmt_temp_types[type_py]
                 self.write('%s' %type_c, ' ', '%s' %item.target.id, ';\n', dest = 'hdr')
                 # self.conditional_write(' = ', item.value, ';')
+                self.typed_record[self.scope][item.target.id] = type_py
             elif isinstance(item, ast.FunctionDef):
                 
                 # build argument mangling
@@ -601,124 +639,186 @@ class SourceGenerator(ExplicitNodeVisitor):
     def visit_Assign(self, node):
         if 'targets' in node.__dict__:
             if type(node.targets[0]) == ast.Subscript: 
-                # check for double subscripting (pmat)
-                if 'value' in node.targets[0].value.__dict__:
-                    target = node.targets[0].value.value.id
-                    if target in self.typed_record[self.scope]: 
-                        # map subscript for pmats to blasfeo el assign
-                        if self.typed_record[self.scope][target] in ('pmat'):
-                            print(self.typed_record[self.scope][target])
-                            target = node.targets[0]
-                            sub_type = type(target.value.slice.value)
-                            if sub_type == ast.Num:
-                                first_index = node.targets[0].value.slice.value.n
-                            elif sub_type == ast.Name:
-                                first_index = node.targets[0].value.slice.value.id
-                            else:
-                                raise Exception("Subscripting with value of type {} not implemented".format(sub_type))
+                target = node.targets[0].value.id
+                if target in self.typed_record[self.scope]: 
+                    # map subscript for pmats to blasfeo el assign
+                    if self.typed_record[self.scope][target] in ('pmat'):
+                        if not isinstance(node.targets[0].slice.value, ast.Tuple):
+                            ap.pprint(node)
+                            raise Exception('Subscript to a pmat object must be of type Tuple.')
+                        print(self.typed_record[self.scope][target])
+                        target = node.targets[0]
+                        first_index  = Num_or_Name(node.targets[0].slice.value.elts[0])
+                        second_index = Num_or_Name(node.targets[0].slice.value.elts[1])
 
-                            sub_type = type(target.slice.value)
-                            if sub_type == ast.Num: 
-                                second_index = node.targets[0].slice.value.n
-                            elif sub_type == ast.Name: 
-                                second_index = node.targets[0].slice.value.id
-                            else:
-                                raise Exception("Subscripting with value of type {} not implemented".format(sub_type))
+                        # check if subscripted expression is used in the value
+                        if type(node.value) == ast.Subscript:
+                            # if value is a pmat
+                            value = node.value.value.id
+                            if value in self.typed_record[self.scope]:
+                                if self.typed_record[self.scope][value] == 'pmat':
+                                    first_index_value = Num_or_Name(node.value.slice.value.elts[0])
+                                    second_index_value = Num_or_Name(node.value.slice.value.elts[1])
 
-                            # check if subscripted expression is used in the value
-                            if type(node.value) == ast.Subscript:
-                                # if value is a pmat
-                                value = node.value.value.value.id
-                                if value in self.typed_record[self.scope]:
-                                    if self.typed_record[self.scope][value] == 'pmat':
-                                        sub_type = type(node.value.slice.value)
-                                        if sub_type == ast.Num:
-                                            second_index_value = node.value.slice.value.n
-                                        elif sub_type == ast.Name:
-                                            second_index_value = node.value.slice.value.id
-                                        else:
-                                            raise Exception("Subscripting with value of type {} not implemented".format(sub_type))
-
-                                        sub_type = type(node.value.value.slice.value)
-                                        if sub_type == ast.Num: 
-                                            first_index_value = node.value.value.slice.value.n
-                                        elif sub_type == ast.Name: 
-                                            first_index_value = node.value.value.slice.value.id
-                                        else:
-                                            raise Exception("Subscripting with value of type {} not implemented".format(sub_type))
-
-                                        value_expr = 'c_pmt_pmat_get_el(' + value + ', {}, {})'.format(first_index_value, second_index_value) 
-                                        self.statement([], 'c_pmt_pmat_set_el(', target.value.value.id, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value_expr), ');')
-                            else:
-                                target = node.targets[0].value.value.id
-                                value = node.value.n
-                                self.statement([], 'c_pmt_pmat_set_el(', target, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value), ');')
-                            return
-
-                # check for single subscripting (pvec)
-                elif 'id' in node.targets[0].value.__dict__:
-                    target = node.targets[0].value.id
-                    if target in self.typed_record[self.scope]: 
-                        # map subscript for pvec to blasfeo el assign
-                        if self.typed_record[self.scope][target] in ('pvec'):
-                            target = node.targets[0]
-                            sub_type = type(target.slice.value)
-                            if sub_type == ast.Num:
-                                index = node.targets[0].slice.value.n
-                            elif sub_type == ast.Name:
-                                index = node.targets[0].slice.value.id
-                            else:
-                                raise Exception("Subscripting with value of type {} not implemented".format(sub_type))
-
-                            # check if subscripted expression is used in the value
-                            if type(node.value) == ast.Subscript:
-                                # check for double subscripting
-                                if 'value' in node.value.value.__dict__:
-                                    value = node.value.value.value.id
-                                    if value in self.typed_record[self.scope]:
-                                        # if value is a pmat
-                                        if self.typed_record[self.scope][value] == 'pmat':
-                                            sub_type = type(node.value.slice.value)
-                                            if sub_type == ast.Num:
-                                                second_index_value = node.value.slice.value.n
-                                            elif sub_type == ast.Name:
-                                                second_index_value = node.value.slice.value.id
-                                            else:
-                                                raise Exception("Subscripting with value of type {} not implemented".format(sub_type))
-
-                                            sub_type = type(node.value.value.slice.value)
-                                            if sub_type == ast.Num: 
-                                                first_index_value = node.value.value.slice.value.n
-                                            elif sub_type == ast.Name: 
-                                                first_index_value = node.value.value.slice.value.id
-                                            else:
-                                                raise Exception("Subscripting with value of type {} not implemented".format(sub_type))
-
-                                            value_expr = 'c_pmt_pmat_get_el(' + value + ', {}, {})'.format(first_index_value, second_index_value) 
-                                            # self.statement([], 'pmat_set_el(', target, ', ', first_index, ', ', second_index, ', ', value_expr, ');')
-                                            self.statement([], 'c_pmt_pvec_set_el(', target.value.id, ', {}'.format(index), ', {}'.format(value_expr), ');')
-                                # single subscripting
-                                else:
-                                    value = node.value.value.id
+                                    value_expr = 'c_pmt_pmat_get_el(' + value + ', {}, {})'.format(first_index_value, second_index_value) 
+                                    self.statement([], 'c_pmt_pmat_set_el(', target.value.id, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value_expr), ');')
+                                elif self.typed_record[self.scope][value] == 'pvec':
                                     # if value is a pvec
-                                    if self.typed_record[self.scope][value] == 'pvec':
-                                        sub_type = type(node.value.slice.value)
-                                        if sub_type == ast.Num: 
-                                            index_value = node.value.slice.value.n
-                                        elif sub_type == ast.Name: 
-                                            index_value = node.value.slice.value.id
-                                        else:
-                                            raise Exception("Subscripting with value of type {} not implemented".format(sub_type))
+                                    sub_type = type(node.value.slice.value)
+                                    if sub_type == ast.Num: 
+                                        index_value = node.value.slice.value.n
+                                    elif sub_type == ast.Name: 
+                                        index_value = node.value.slice.value.id
+                                    else:
+                                        raise Exception("Subscripting with value of type {} not implemented".format(sub_type))
 
-                                        value_expr = 'c_pmt_pvec_get_el(' + value + ', {})'.format(index_value) 
-                                        # self.statement([], 'pmat_set_el(', target, ', ', first_index, ', ', second_index, ', ', value_expr, ');')
-                                        self.statement([], 'c_pmt_pvec_set_el(', target.value.id, ', {}'.format(index), ', {}'.format(value_expr), ');')
+                                    value_expr = 'c_pmt_pvec_get_el(' + value + ', {})'.format(index_value) 
+                                    self.statement([], 'c_pmt_pmat_set_el(', target.value.id, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value_expr), ');')
+                        else:
+                            target = node.targets[0].value.id
+                            value = Num_or_Name(node.value)
+                            self.statement([], 'c_pmt_pmat_set_el(', target, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value), ');')
+                        return
+
+    # old double subscripting
+    # def visit_Assign(self, node):
+    #     if 'targets' in node.__dict__:
+    #         if type(node.targets[0]) == ast.Subscript: 
+    #             import pdb; pdb.set_trace()
+    #             # check for double subscripting (pmat)
+    #             if 'value' in node.targets[0].value.__dict__:
+    #                 target = node.targets[0].value.value.id
+    #                 if target in self.typed_record[self.scope]: 
+    #                     # map subscript for pmats to blasfeo el assign
+    #                     if self.typed_record[self.scope][target] in ('pmat'):
+    #                         print(self.typed_record[self.scope][target])
+    #                         target = node.targets[0]
+    #                         sub_type = type(target.value.slice.value)
+    #                         if sub_type == ast.Num:
+    #                             first_index = node.targets[0].value.slice.value.n
+    #                         elif sub_type == ast.Name:
+    #                             first_index = node.targets[0].value.slice.value.id
+    #                         else:
+    #                             raise Exception("Subscripting with value of type {} not implemented".format(sub_type))
+
+    #                         sub_type = type(target.slice.value)
+    #                         if sub_type == ast.Num: 
+    #                             second_index = node.targets[0].slice.value.n
+    #                         elif sub_type == ast.Name: 
+    #                             second_index = node.targets[0].slice.value.id
+    #                         else:
+    #                             raise Exception("Subscripting with value of type {} not implemented".format(sub_type))
+
+    #                         # check if subscripted expression is used in the value
+    #                         if type(node.value) == ast.Subscript:
+    #                             # if value is a pmat
+    #                             value = node.value.value.value.id
+    #                             if value in self.typed_record[self.scope]:
+    #                                 if self.typed_record[self.scope][value] == 'pmat':
+    #                                     sub_type = type(node.value.slice.value)
+    #                                     if sub_type == ast.Num:
+    #                                         second_index_value = node.value.slice.value.n
+    #                                     elif sub_type == ast.Name:
+    #                                         second_index_value = node.value.slice.value.id
+    #                                     else:
+    #                                         raise Exception("Subscripting with value of type {} not implemented".format(sub_type))
+
+    #                                     sub_type = type(node.value.value.slice.value)
+    #                                     if sub_type == ast.Num: 
+    #                                         first_index_value = node.value.value.slice.value.n
+    #                                     elif sub_type == ast.Name: 
+    #                                         first_index_value = node.value.value.slice.value.id
+    #                                     else:
+    #                                         raise Exception("Subscripting with value of type {} not implemented".format(sub_type))
+
+    #                                     value_expr = 'c_pmt_pmat_get_el(' + value + ', {}, {})'.format(first_index_value, second_index_value) 
+    #                                     self.statement([], 'c_pmt_pmat_set_el(', target.value.value.id, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value_expr), ');')
+    #                         else:
+    #                             target = node.targets[0].value.value.id
+    #                             value = node.value.n
+    #                             self.statement([], 'c_pmt_pmat_set_el(', target, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value), ');')
+    #                         return
+
+                    # check for pvec
+                    elif self.typed_record[self.scope][target] in ('pvec'):
+                        if type(node.targets[0].slice.value) not in (ast.Num, ast.Name):
+                            ap.pprint(node)
+                            raise Exception('Subscript to a pvec must object must be of type Num or Name.')
+                        target = node.targets[0].value.id
+                        if target in self.typed_record[self.scope]: 
+                            # map subscript for pvec to blasfeo el assign
+                            if self.typed_record[self.scope][target] in ('pvec'):
+                                target = node.targets[0]
+                                sub_type = type(target.slice.value)
+                                if sub_type == ast.Num:
+                                    index = node.targets[0].slice.value.n
+                                elif sub_type == ast.Name:
+                                    index = node.targets[0].slice.value.id
+                                else:
+                                    raise Exception("Subscripting with value of type {} not implemented".format(sub_type))
+
+                                # check if subscripted expression is used in the value
+                                if type(node.value) == ast.Subscript:
+                                    # if value is a pmat
+                                    value = node.value.value.id
+                                    if value in self.typed_record[self.scope]:
+                                        if self.typed_record[self.scope][value] == 'pmat':
+                                            first_index_value = Num_or_Name(node.value.slice.value.elts[0])
+                                            second_index_value = Num_or_Name(node.value.slice.value.elts[1])
+                                            value_expr = 'c_pmt_pmat_get_el(' + value + ', {}, {})'.format(first_index_value, second_index_value) 
+                                            self.statement([], 'c_pmt_pvec_set_el(', target.value.id, ', {}'.format(index), ', {}'.format(value_expr), ');')
+                                    # single subscripting
+                                    else:
+                                        value = node.value.value.id
+                                        # if value is a pvec
+                                        if self.typed_record[self.scope][value] == 'pvec':
+                                            sub_type = type(node.value.slice.value)
+                                            if sub_type == ast.Num: 
+                                                index_value = node.value.slice.value.n
+                                            elif sub_type == ast.Name: 
+                                                index_value = node.value.slice.value.id
+                                            else:
+                                                raise Exception("Subscripting with value of type {} not implemented".format(sub_type))
+
+                                            value_expr = 'c_pmt_pvec_get_el(' + value + ', {})'.format(index_value) 
+                                            self.statement([], 'c_pmt_pvec_set_el(', target.value.id, ', {}'.format(index), ', {}'.format(value_expr), ');')
+                                else:
+                                    target = node.targets[0].value.id
+                                    value = Num_or_Name(node.value)
+                                    self.statement([], 'c_pmt_pvec_set_el(', target, ', {}'.format(index), ', {}'.format(value), ');')
+                                return
+
+            elif type(node.value) == ast.Subscript:
+                target = node.targets[0].id
+                if target not in self.typed_record[self.scope]:
+                    raise Exception('Undefined variable {}'.format(target))
+                # target must be a float
+                if self.typed_record[self.scope][target] != 'float':
+                    raise Exception('Target must be a float {}'.format(target))
+                value = node.value.value.id
+                if value in self.typed_record[self.scope]:
+                    # if value is a pmat
+                    if self.typed_record[self.scope][value] == 'pmat':
+                        first_index_value = Num_or_Name(node.value.slice.value.elts[0])
+                        second_index_value = Num_or_Name(node.value.slice.value.elts[1])
+                        value_expr = 'c_pmt_pmat_get_el(' + value + ', {}, {})'.format(first_index_value, second_index_value) 
+                        self.statement([], target, ' = {}'.format(value_expr), ';')
+                        return
+                    # single subscripting
+                    else:
+                        # if value is a pvec
+                        if self.typed_record[self.scope][value] == 'pvec':
+                            sub_type = type(node.value.slice.value)
+                            if sub_type == ast.Num: 
+                                index_value = node.value.slice.value.n
+                            elif sub_type == ast.Name: 
+                                index_value = node.value.slice.value.id
                             else:
-                                target = node.targets[0].value.id
-                                value = node.value.n
-                                self.statement([], 'c_pmt_pvec_set_el(', target, ', {}'.format(index), ', {}'.format(value), ');')
-                            return
+                                raise Exception("Subscripting with value of type {} not implemented".format(sub_type))
 
+                            value_expr = 'c_pmt_pvec_get_el(' + value + ', {})'.format(index_value) 
+                            self.statement([], target, ' = {}'.format(value_expr), ';')
+                            return
             elif 'id' in node.targets[0].__dict__: 
 
                 # check for Assigns targeting pmats
@@ -755,6 +855,11 @@ class SourceGenerator(ExplicitNodeVisitor):
                                     else:
                                         raise Exception('Unsupported operator call:{} {} {}'\
                                             .format(self.typed_record[self.scope][left_op], node.value.op, self.typed_record[self.scope][right_op]))
+                            # elif self.typed_record[self.scope][node.value] == 'float':
+                            #     import pdb; pdb.set_trace()
+                            #     value = Num_or_Name(node.value)
+                            #     self.statement([], 'c_pmt_pmat_set_el(', target.value.id, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value_expr), ');')
+
 
                     elif self.typed_record[self.scope][target] == 'pvec':
                         if type(node.value) == ast.BinOp:
@@ -773,7 +878,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                                     else:
                                         raise Exception('Unsupported operator call:{} {} {}'\
                                             .format(self.typed_record[self.scope][left_op], node.value.op, self.typed_record[self.scope][right_op]))
-                                        
+
 
             elif 'attr' in node.targets[0].__dict__: 
                 # Assign targeting a user-defined class (C struct)
@@ -802,6 +907,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                        node.value)
 
     def visit_AnnAssign(self, node):
+        ap.pprint(node)
         set_precedence(node, node.target, node.annotation)
         set_precedence(Precedence.Comma, node.value)
         need_parens = isinstance(node.target, ast.Name) and not node.simple
@@ -821,7 +927,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                                 ann = prmt_temp_types[ann]
                             else:
                                 raise Exception ('Usage of non existing type {}'.format(ann))
-                            array_size = str(node.value.args[1].n)
+                            array_size = str(Num_or_Name(node.value.args[1]))
                             self.statement([], ann, ' ', node.target, '[', array_size, '];')
                             return
 
