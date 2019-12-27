@@ -140,20 +140,39 @@ def pmat_copy(A: pmat, B: pmat):
             B[i,j] = A[i,j]
     return
 
-def pmt_getrs(A: pmat, B: pmat, fact: pmat, ipiv: list):
+def pmt_getrsm(A: pmat, B: pmat, fact: pmat, ipiv: list, res: pmat):
     # create permutation vector
     c_ipiv = cast(create_string_buffer(sizeof(c_int)*A.blasfeo_dmat.m), POINTER(c_int))
     for i in range(A.blasfeo_dmat.n):
         c_ipiv[i] = ipiv[i]
     res  = pmat(A.blasfeo_dmat.m, B.blasfeo_dmat.n)
     # create permuted rhs
-    pB = pmat(B.blasfeo_dmat.m, B.blasfeo_dmat.n)
-    pmat_copy(B, pB)
-    pmt_rowpe(B.blasfeo_dmat.m, c_ipiv, pB)
+    # pB = pmat(B.blasfeo_dmat.m, B.blasfeo_dmat.n)
+    pmat_copy(B, res)
+    pmt_rowpe(B.blasfeo_dmat.m, c_ipiv, res)
     # solve
-    pmt_trsm_llnu(A, pB)
-    pmt_trsm_lunn(A, pB)
-    return pB
+    pmt_trsm_llnu(A, res)
+    pmt_trsm_lunn(A, res)
+    return res
+
+def pmt_getrs(b: pvec, fact: pmat, ipiv: list, res: pvec):
+    # create permutation vector
+    c_ipiv = cast(create_string_buffer(sizeof(c_int)*fact.blasfeo_dmat.m), POINTER(c_int))
+    for i in range(fact.blasfeo_dmat.n):
+        c_ipiv[i] = ipiv[i]
+    # permuted rhs
+    pvec_copy(b, res)
+    pmt_vecpe(b.blasfeo_dvec.m, c_ipiv, res)
+    # solve
+    pmt_trsv_llnu(fact, res)
+    pmt_trsv_lunn(fact, res)
+    return res
+
+def pmt_potrs(b: pvec, fact: pmat, res: pvec):
+    # solve
+    pmt_trsv_llnu(fact, res)
+    pmt_trsv_lunn(fact, res)
+    return res
 
 # intermediate-level linear algebra
 def pmt_gemm_nn(A: pmat, B: pmat, C: pmat, D: pmat):
@@ -188,6 +207,14 @@ def pmt_trsm_lunn(A: pmat, B: pmat):
     c_pmt_trsm_lunn(A, B)
     return
 
+def pmt_trsv_llnu(A: pmat, b: pvec):
+    c_pmt_trsv_llnu(A, b)
+    return 
+
+def pmt_trsv_lunn(A: pmat, b: pvec):
+    c_pmt_trsv_lunn(A, b)
+    return
+
 def pmt_getrf(A: pmat, fact: pmat, ipiv: list):
     pmat_copy(A, fact)
     # create permutation vector
@@ -196,6 +223,12 @@ def pmt_getrf(A: pmat, fact: pmat, ipiv: list):
     c_pmt_getrf(fact, c_ipiv)
     for i in range(A.blasfeo_dmat.n):
         ipiv[i] = c_ipiv[i]
+    return 
+
+def pmt_potrf(A: pmat, fact: pmat):
+    pmat_copy(A, fact)
+    # factorize
+    c_pmt_potrf(fact)
     return 
 
 def pmt_gemv_n(A: pmat, b: pvec, c: pvec, d: pvec):

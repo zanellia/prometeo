@@ -80,27 +80,46 @@ void c_pmt_dgemm(struct pmat *A, struct pmat *B, struct pmat *C, struct pmat *D)
     blasfeo_dgemm_nn(mA, nA, nB, 1.0, bA, 0, 0, bB, 0, 0, 1, bC, 0, 0, bD, 0, 0);
 }
 
-void c_pmt_getrf(struct pmat *A, struct pmat *LU, int *ipiv) {
+void c_pmt_getrf(struct pmat *A, struct pmat *fact, int *ipiv) {
     int mA = A->bmat->m; 
     struct blasfeo_dmat *bA = A->bmat;
-    struct blasfeo_dmat *bLU = LU->bmat;
+    struct blasfeo_dmat *bfact = fact->bmat;
 
     // factorization
-    blasfeo_dgetrf_rp(mA, mA, bA, 0, 0, bLU, 0, 0, ipiv);
+    blasfeo_dgetrf_rp(mA, mA, bA, 0, 0, bfact, 0, 0, ipiv);
 }
 
-void c_pmt_getrs(struct pmat *A, struct pvec *rhs, struct pmat *LU, int *ipiv, struct pvec *out) {
+void c_pmt_potrf(struct pmat *A, struct pmat *fact) {
     int mA = A->bmat->m; 
     struct blasfeo_dmat *bA = A->bmat;
-    struct blasfeo_dmat *bLU = LU->bmat;
-    struct blasfeo_dmat *brhs = rhs->bvec;
-    struct blasfeo_dmat *bout = out->bvec;
+    struct blasfeo_dmat *bfact = fact->bmat;
+
+    // factorization
+    blasfeo_dpotrf_l(mA, bA, 0, 0, bfact, 0, 0);
+}
+
+void c_pmt_getrs(struct pvec *rhs, struct pmat *fact, int *ipiv, struct pvec *out) {
+    int mfact = fact->bmat->m; 
+    struct blasfeo_dmat *bfact = fact->bmat;
+    struct blasfeo_dvec *brhs = rhs->bvec;
+    struct blasfeo_dvec *bout = out->bvec;
 
     // permute the r.h.s
-    blasfeo_dvecpe(mA, ipiv, brhs, 0);
+    blasfeo_dvecpe(mfact, ipiv, brhs, 0);
     // triangular solves 
-    blasfeo_dtrsv_lnu(mA, bLU, 0, 0, brhs, 0, bout, 0);
-    blasfeo_dtrsv_unn(mA, bLU, 0, 0, brhs, 0, bout, 0);
+    blasfeo_dtrsv_lnu(mfact, bfact, 0, 0, brhs, 0, bout, 0);
+    blasfeo_dtrsv_unn(mfact, bfact, 0, 0, brhs, 0, bout, 0);
+}
+
+void c_pmt_potrs(struct pvec *rhs, struct pmat *fact, struct pvec *out) {
+    int mfact = fact->bmat->m; 
+    struct blasfeo_dmat *bfact = fact->bmat;
+    struct blasfeo_dvec *brhs = rhs->bvec;
+    struct blasfeo_dvec *bout = out->bvec;
+
+    // triangular solves 
+    blasfeo_dtrsv_lnu(mfact, bfact, 0, 0, brhs, 0, bout, 0);
+    blasfeo_dtrsv_unn(mfact, bfact, 0, 0, brhs, 0, bout, 0);
 }
 
 void c_pmt_dgead(double alpha, struct pmat *A, struct pmat *B) {

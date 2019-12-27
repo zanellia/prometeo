@@ -32,10 +32,12 @@ import json
 prmt_temp_functions = {\
         "pmat": "c_pmt_create_pmat", \
         "pvec": "c_pmt_create_pvec", \
-        "pmt_gemm": "c_pmt_dgemm", \
-        "pmt_gead": "c_pmt_dgead", \
-        "pmt_getrs": "c_pmt_dgetrs", \
+        "pmt_gemm": "c_pmt_gemm", \
+        "pmt_gead": "c_pmt_gead", \
+        "pmt_getrs": "c_pmt_getrs", \
         "pmt_getrf": "c_pmt_getrf", \
+        "pmt_potrf": "c_pmt_potrf", \
+        "pmt_potrs": "c_pmt_potrs", \
         "pmat_fill": "c_pmt_pmat_fill", \
         "pmat_copy": "c_pmt_pmat_copy", \
         "pmat_print": "c_pmt_pmat_print", \
@@ -161,6 +163,11 @@ def Num_or_Name(node):
         return node.n
     elif isinstance(node, ast.Name):
         return node.id
+    elif isinstance(node, ast.UnaryOp):
+        if isinstance(node.op, ast.USub):
+            return -Num_or_Name(node.operand)
+        else:
+            raise Exception('node.op is not of type ast.USub.\n')
     else:
         raise Exception('node is not of type ast.Num nor ast.Name.\n')
 

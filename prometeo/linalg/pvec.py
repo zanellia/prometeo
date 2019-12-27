@@ -33,6 +33,9 @@ class pvec(pvec_):
             self[i] = value
         return
 
+def pmt_vecpe(m, ipiv, a):
+    c_pmt_vecpe(m, ipiv, a)
+
 # auxiliary functions
 def pvec_set_data(v: pvec, data: POINTER(c_double)):
     c_pmt_set_blasfeo_dvec(v.blasfeo_dvec, data)  
@@ -47,4 +50,8 @@ def pvec_get(v: pvec, i):
 def pvec_print(v: pvec):
     c_pmt_print_blasfeo_dvec(v)
 
+def pvec_copy(a: pvec, b: pvec):
+    for i in range(a.blasfeo_dvec.m):
+        b[i] = a[i]
+    return
 

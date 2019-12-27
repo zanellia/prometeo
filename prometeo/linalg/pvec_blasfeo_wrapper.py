@@ -40,6 +40,10 @@ def c_pmt_create_blasfeo_dvec(m: int):
     bw.blasfeo_dvecse(m, 0.0, byref(sv), 0);
     return sv
 
+def c_pmt_vecpe(m, ipiv, a):
+    ba = a.blasfeo_dvec
+    bw.blasfeo_dvecpe(m, ipiv, byref(ba));
+    return
 
 # auxiliary functions
 def c_pmt_print_blasfeo_dvec(v):

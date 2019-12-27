@@ -34,7 +34,7 @@ def main() -> None:
 
     n: int = 10
     A: pmat[2,2] = pmat(n, n)
-    A[0,2] = 2.0
+    A[0,2] = -2.0
     # A[0][2] = 2.0
 
     for i in range(2):
@@ -87,19 +87,24 @@ def main() -> None:
     c = A * a
     pvec_print(c)
 
-    # still to be implemented in code-generator
+    # test LU solve
     ipiv: List[int] = prmt_list(int, 2) 
     fact : pmat[2,2] = pmat(2, 2)
-    # for i in range(n):
-    #     ipiv[i] = 0.0
-    pmt_getrf(A, fact, ipiv)
-    # res = pmt_getrs(A, B, fact, ipiv)
+    M : pmat[2,2] = pmat(2,2)
+    pmt_getrf(M, fact, ipiv)
+    res: pvec[2] = pvec(2)
+    rhs: pvec[2] = pvec(2)
+    rhs[0] = 1.0
+    rhs[1] = -3.0
+    pmt_getrs(rhs, fact, ipiv, res)
 
-    # pmat_print(res)
-    # pmt_lus(A, B, C)
-    # pmat_print(C)
-    # D: pmat = pmat(n, n)
-    # D = A*C
+    # test Cholesky solve
+    M[0,0] = 1.0
+    M[0,1] = 0.1
+    M[1,0] = 0.1
+    M[1,1] = 1.0
+    pmt_potrf(M, fact)
+    pmt_potrs(rhs, fact, res)
 
 # UNCOMMENT THESE LINES TO EXECUTE 
 # if __name__ == "__main__":

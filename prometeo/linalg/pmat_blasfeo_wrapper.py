@@ -104,6 +104,12 @@ def c_pmt_getrf(A, ipiv):
     bw.blasfeo_dgetrf_rp(bA.m, bA.m, byref(bA), 0, 0, byref(bA), 0, 0, ipiv)
     return
 
+def c_pmt_potrf(A):
+    bA = A.blasfeo_dmat
+
+    bw.blasfeo_dpotrf_l(bA.m, byref(bA), 0, 0, byref(bA), 0, 0)
+    return
+
 def c_pmt_trsm_llnu(A, B):
     bA = A.blasfeo_dmat
     bB = B.blasfeo_dmat
@@ -117,6 +123,21 @@ def c_pmt_trsm_lunn(A, B):
     
     bw.blasfeo_dtrsm_lunn(bB.m, bB.n, 1.0, byref(bA), 0, 0, byref(bB), \
             0, 0, byref(bB), 0, 0)
+    return
+
+def c_pmt_trsv_llnu(A, b):
+    bA = A.blasfeo_dmat
+    bb = b.blasfeo_dvec
+    
+    bw.blasfeo_dtrsv_lnn(bb.m, 1.0, byref(bA), 0, 0, byref(bb), 0, byref(bb), 0)
+    return
+
+def c_pmt_trsv_lunn(A, b):
+    bA = A.blasfeo_dmat
+    bb = b.blasfeo_dvec    
+
+    bw.blasfeo_dtrsv_lnn(bb.m, 1.0, byref(bA), 0, 0, byref(bb), \
+            0, byref(bb), 0)
     return
 
 def c_pmt_dgemv_n(A, b, c, d):
