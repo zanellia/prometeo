@@ -76,19 +76,23 @@ def main() -> None:
     b[0] = a[1]
     b[1] = A[0, 2]
     A[0,2] = a[0]
-    # need to fix these
-    # el : double
-    # el = a[1]
-    # el = A[1][1]
-    # pvec_print(a)
-    # pvec_print(b)
+
+    el : float
+    el = a[1]
+    el = A[1, 1]
+    pvec_print(a)
+    pvec_print(b)
 
     c : pvec = pvec(10)
     c = A * a
     pvec_print(c)
 
     # still to be implemented in code-generator
-    # fact, ipiv = pmt_getrf(A)
+    ipiv: List[int] = prmt_list(int, 2) 
+    fact : pmat[2,2] = pmat(2, 2)
+    # for i in range(n):
+    #     ipiv[i] = 0.0
+    pmt_getrf(A, fact, ipiv)
     # res = pmt_getrs(A, B, fact, ipiv)
 
     # pmat_print(res)

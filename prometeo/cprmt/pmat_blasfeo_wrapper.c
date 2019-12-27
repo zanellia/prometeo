@@ -39,8 +39,8 @@ void c_pmt_assign_and_advance_blasfeo_dmat(int m, int n, struct blasfeo_dmat **b
 
     // assign current address of global heap to memory in blasfeo dmat
     char *pmem_ptr = (char *)___c_prmt_64_heap;
-    // align_char_to(64, &pmem_ptr);
-    // ___c_prmt_heap = pmem_ptr;
+    align_char_to(64, &pmem_ptr);
+    ___c_prmt_64_heap = pmem_ptr;
     assert((size_t) ___c_prmt_64_heap % 64 == 0 && "dmat not 64-byte aligned!");
     blasfeo_create_dmat(m, n, *bmat, ___c_prmt_64_heap);
 
@@ -86,7 +86,7 @@ void c_pmt_getrf(struct pmat *A, struct pmat *LU, int *ipiv) {
     struct blasfeo_dmat *bLU = LU->bmat;
 
     // factorization
-    blasfeo_dgetrf_rp(mA, mA, A, 0, 0, LU, 0, 0, ipiv);
+    blasfeo_dgetrf_rp(mA, mA, bA, 0, 0, bLU, 0, 0, ipiv);
 }
 
 void c_pmt_getrs(struct pmat *A, struct pvec *rhs, struct pmat *LU, int *ipiv, struct pvec *out) {

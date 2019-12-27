@@ -32,15 +32,16 @@ import json
 prmt_temp_functions = {\
         "pmat": "c_pmt_create_pmat", \
         "pvec": "c_pmt_create_pvec", \
-        "dgemm": "c_pmt_dgemm", \
-        "dgead": "c_pmt_dgead", \
+        "pmt_gemm": "c_pmt_dgemm", \
+        "pmt_gead": "c_pmt_dgead", \
+        "pmt_getrs": "c_pmt_dgetrs", \
+        "pmt_getrf": "c_pmt_getrf", \
         "pmat_fill": "c_pmt_pmat_fill", \
         "pmat_copy": "c_pmt_pmat_copy", \
         "pmat_print": "c_pmt_pmat_print", \
         "pvec_fill": "c_pmt_pvec_fill", \
         "pvec_copy": "c_pmt_pvec_copy", \
-        "pvec_print": "c_pmt_pvec_print", \
-        "prmt_lus" : "c_pmt_lus"}
+        "pvec_print": "c_pmt_pvec_print"}
 
 prmt_temp_types = {\
         "pmat": "struct pmat *", \
@@ -919,7 +920,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                                 ann = prmt_temp_types[ann]
                             else:
                                 raise Exception ('Usage of non existing type {}'.format(ann))
-                            array_size = str(node.value.args[1].n)
+                            array_size = str(Num_or_Name(node.value.args[1]))
                             self.statement([], ann, ' ', node.target, '[', array_size, '];')
                             return
 
