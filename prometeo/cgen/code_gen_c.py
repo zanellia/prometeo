@@ -362,12 +362,26 @@ class SourceGenerator(ExplicitNodeVisitor):
                 else:
                     # type_py = annotation.value.id
                     type_py = annotation.id
-                type_c = prmt_temp_types[type_py]
-                self.write('%s' %type_c, ' ', '%s' %item.target.id, ';\n', dest = 'hdr')
-                # self.conditional_write(' = ', item.value, ';')
-                self.typed_record[self.scope][item.target.id] = type_py
+                if hasattr(annotation, 'value'): 
+                    if annotation.value.id is 'List':
+                        if item.value.func.id is not 'prmt_list': 
+                            raise Exception("Cannot create Lists without using prmt_list constructor.")
+                        else:
+                            ann = item.annotation.slice.value.id
+                            self.typed_record[self.scope][item.target.id] = 'List[' + ann + ']'
+                            if  ann in prmt_temp_types:
+                                ann = prmt_temp_types[ann]
+                            else:
+                                raise Exception ('Usage of non existing type {}'.format(ann))
+                            array_size = str(Num_or_Name(item.value.args[1]))
+                            # self.statement([], ann, ' ', item.target, '[', array_size, '];')
+                            self.write('%s' %ann, ' ', '%s' %item.target.id, '[%s' %array_size, '];\n', dest = 'hdr')
+                else:
+                    type_c = prmt_temp_types[type_py]
+                    self.write('%s' %type_c, ' ', '%s' %item.target.id, ';\n', dest = 'hdr')
+                    # self.conditional_write(' = ', item.value, ';')
+                    self.typed_record[self.scope][item.target.id] = type_py
             elif isinstance(item, ast.FunctionDef):
-                
                 # build argument mangling
                 f_name_len = len(item.name)
                 pre_mangl = '_Z%s' %f_name_len 
@@ -455,15 +469,28 @@ class SourceGenerator(ExplicitNodeVisitor):
                 need_parens = isinstance(item.target, ast.Name) and not item.simple
                 begin = '(' if need_parens else ''
                 end = ')' if need_parens else ''
-                # self.statement(item, item.target, ';')
-                if item.value != None:
+                if isinstance(item.annotation, ast.Subscript):
+                    if item.annotation.value.id is not 'List' or item.value.func.id is not 'prmt_list':
+                        raise Exception("Invalid subscripted annotation. Lists must be created using prmt_list constructor and",  
+                                "the argument of List[] must be a valid type.\n")
+                    else:
+                        ann = item.annotation.slice.value.id
+                        self.typed_record[self.scope][item.target.id] = 'List[' + ann + ']'
+                        if  ann in prmt_temp_types:
+                            ann = prmt_temp_types[ann]
+                        else:
+                            raise Exception ('Usage of non existing type {}'.format(ann))
+                        array_size = str(Num_or_Name(item.value.args[1]))
+                        self.statement([], ann, ' ', item.target, '[', array_size, '];')
+                elif item.value != None:
                     if hasattr(item.value, 'value') is False:
                         self.conditional_write('\n', 'object->', item.target, ' = ', item.value, ';', dest = 'src')
                     else:
                         if item.value.value != None:
                             self.conditional_write('\n', 'object->', item.target, ' = ', item.value, ';', dest = 'src')
+                else:
+                    raise Exception('Cannot declare attribute without initialization\n')
             elif isinstance(item, ast.FunctionDef):
-                
                 # build argument mangling
                 f_name_len = len(item.name)
                 pre_mangl = '_Z%s' %f_name_len 
@@ -561,11 +588,14 @@ class SourceGenerator(ExplicitNodeVisitor):
             padding = [None] * (len(args) - len(defaults))
             for arg, default in zip(args, padding + defaults):
                 # fish C type from typed record
-                if arg.annotation.value.id == 'pmat':
-                    dim1 = arg.annotation.slice.value.elts[0].n
-                    dim2 = arg.annotation.slice.value.elts[1].n
-                    arg_type_py = arg.annotation.value.id
-                    self.dim_record[self.scope][arg.arg] = [dim1, dim2]
+                if hasattr(arg.annotation, 'value'):
+                    if arg.annotation.value.id == 'pmat':
+                        dim1 = arg.annotation.slice.value.elts[0].n
+                        dim2 = arg.annotation.slice.value.elts[1].n
+                        arg_type_py = arg.annotation.value.id
+                        self.dim_record[self.scope][arg.arg] = [dim1, dim2]
+                    else:
+                        raise Exception('Subscripted type annotation can be used only with pmat arguments.\n')
                 else:
                     arg_type_py = arg.annotation.id
 
@@ -638,8 +668,18 @@ class SourceGenerator(ExplicitNodeVisitor):
     # Statements
     def visit_Assign(self, node):
         if 'targets' in node.__dict__:
-            if type(node.targets[0]) == ast.Subscript: 
+            # check for attributes
+            if hasattr(node.targets[0].value, 'attr'):
+                # TODO(andrea): need to handle attributes recursively
+                target = node.targets[0].value.attr
+                scope = node.targets[0].value.value.id
+                all_scopes = self.typed_record.keys()
+                matching = [s for s in all_scopes if scope in s]
+                # TODO(andrea): need to compute local scope (find strings that contain scope and have a string in common with self.scope)
+                import pdb; pdb.set_trace()
+            else:
                 target = node.targets[0].value.id
+            if type(node.targets[0]) == ast.Subscript: 
                 if target in self.typed_record[self.scope]: 
                     # map subscript for pmats to blasfeo el assign
                     if self.typed_record[self.scope][target] == 'pmat':
@@ -647,7 +687,6 @@ class SourceGenerator(ExplicitNodeVisitor):
                             ap.pprint(node)
                             raise Exception('Subscript to a pmat object must be of type Tuple.')
                         print(self.typed_record[self.scope][target])
-                        target = node.targets[0]
                         first_index  = Num_or_Name(node.targets[0].slice.value.elts[0])
                         second_index = Num_or_Name(node.targets[0].slice.value.elts[1])
 
@@ -661,7 +700,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                                     second_index_value = Num_or_Name(node.value.slice.value.elts[1])
 
                                     value_expr = 'c_pmt_pmat_get_el(' + value + ', {}, {})'.format(first_index_value, second_index_value) 
-                                    self.statement([], 'c_pmt_pmat_set_el(', target.value.id, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value_expr), ');')
+                                    self.statement([], 'c_pmt_pmat_set_el(', target, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value_expr), ');')
                                 elif self.typed_record[self.scope][value] == 'pvec':
                                     # if value is a pvec
                                     sub_type = type(node.value.slice.value)
@@ -673,9 +712,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                                         raise Exception("Subscripting with value of type {} not implemented".format(sub_type))
 
                                     value_expr = 'c_pmt_pvec_get_el(' + value + ', {})'.format(index_value) 
-                                    self.statement([], 'c_pmt_pmat_set_el(', target.value.id, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value_expr), ');')
+                                    self.statement([], 'c_pmt_pmat_set_el(', target, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value_expr), ');')
                         else:
-                            target = node.targets[0].value.id
                             value = Num_or_Name(node.value)
                             self.statement([], 'c_pmt_pmat_set_el(', target, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value), ');')
                         return
@@ -940,6 +978,11 @@ class SourceGenerator(ExplicitNodeVisitor):
             # add variable to typed record
             self.typed_record[self.scope][node.target.id] = node.annotation.id
             print(self.typed_record[self.scope])
+            # check if a dimension is being declared
+            if ann == 'dim':
+                self.write('#define %s %s\n' %(node.target.id, node.value.n), dest='hdr')
+                return
+
             if ann in prmt_temp_types:
                 node.annotation.id = prmt_temp_types[ann]
                 self.statement(node, node.annotation, ' ', node.target)
@@ -975,7 +1018,6 @@ class SourceGenerator(ExplicitNodeVisitor):
                 ann = node.annotation.value.id
                 self.dim_record[self.scope][node.target.id] = [dim1]
             else:
-                import pdb; pdb.set_trace()
                 if 'id' in node.annotation.slice.value.__dict__: 
                     ann = 'ptr_' + node.annotation.slice.value.id
                 else:
