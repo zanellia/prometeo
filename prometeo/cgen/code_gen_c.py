@@ -356,13 +356,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                 annotation = item.annotation
                 # annotation = ast.parse(item.annotation.s).body[0]
                 # if 'value' in annotation.value.__dict__:
-                if 'value' in annotation.__dict__:
-                    # type_py = annotation.value.value.id
-                    type_py = annotation.value.id
-                else:
-                    # type_py = annotation.value.id
-                    type_py = annotation.id
                 if hasattr(annotation, 'value'): 
+                    type_py = annotation.value.id
                     if annotation.value.id is 'List':
                         if item.value.func.id is not 'prmt_list': 
                             raise Exception("Cannot create Lists without using prmt_list constructor.")
@@ -376,7 +371,13 @@ class SourceGenerator(ExplicitNodeVisitor):
                             array_size = str(Num_or_Name(item.value.args[1]))
                             # self.statement([], ann, ' ', item.target, '[', array_size, '];')
                             self.write('%s' %ann, ' ', '%s' %item.target.id, '[%s' %array_size, '];\n', dest = 'hdr')
+                    else:
+                        type_c = prmt_temp_types[type_py]
+                        self.write('%s' %type_c, ' ', '%s' %item.target.id, ';\n', dest = 'hdr')
+                        # self.conditional_write(' = ', item.value, ';')
+                        self.typed_record[self.scope][item.target.id] = type_py
                 else:
+                    type_py = annotation.id
                     type_c = prmt_temp_types[type_py]
                     self.write('%s' %type_c, ' ', '%s' %item.target.id, ';\n', dest = 'hdr')
                     # self.conditional_write(' = ', item.value, ';')
@@ -410,7 +411,10 @@ class SourceGenerator(ExplicitNodeVisitor):
                 else:
                     raise Exception ('Usage of non existing type {}'.format(ret_type))
 
-                self.write('%s (*%s%s%s' % (ret_type, pre_mangl, item.name, post_mangl) , ')', '(%s *self, ' %name, dest = 'hdr')
+                if len(item.args.args) > 0:  
+                    self.write('%s (*%s%s%s' % (ret_type, pre_mangl, item.name, post_mangl) , ')', '(%s *self, ' %name, dest = 'hdr')
+                else:
+                    self.write('%s (*%s%s%s' % (ret_type, pre_mangl, item.name, post_mangl) , ')', '(%s *self' %name, dest = 'hdr')
                 self.visit_arguments(item.args, 'hdr')
                 self.write(');\n', dest = 'hdr')
                 # insert back self argument 
@@ -423,7 +427,6 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.write('\n\n', dest = 'hdr')
         for item in params:
             if isinstance(item, ast.FunctionDef):
-                
                 # build argument mangling
                 f_name_len = len(item.name)
                 pre_mangl = '_Z%s' %f_name_len 
@@ -450,7 +453,10 @@ class SourceGenerator(ExplicitNodeVisitor):
                 else:
                     raise Exception ('Usage of non existing type {}'.format(ret_type))
 
-                self.write('%s (%s%s%s%s' % (ret_type, pre_mangl, item.name, post_mangl, name) , '_impl)', '(%s *self, ' %name, dest = 'hdr')
+                if len(item.args.args) > 0:
+                    self.write('%s (%s%s%s%s' % (ret_type, pre_mangl, item.name, post_mangl, name) , '_impl)', '(%s *self, ' %name, dest = 'hdr')
+                else:
+                    self.write('%s (%s%s%s%s' % (ret_type, pre_mangl, item.name, post_mangl, name) , '_impl)', '(%s *self' %name, dest = 'hdr')
                 self.visit_arguments(item.args, 'hdr')
                 self.write(');\n', dest = 'hdr')
                 # insert back self argument 
@@ -470,26 +476,66 @@ class SourceGenerator(ExplicitNodeVisitor):
                 begin = '(' if need_parens else ''
                 end = ')' if need_parens else ''
                 if isinstance(item.annotation, ast.Subscript):
-                    if item.annotation.value.id is not 'List' or item.value.func.id is not 'prmt_list':
-                        raise Exception("Invalid subscripted annotation. Lists must be created using prmt_list constructor and",  
-                                "the argument of List[] must be a valid type.\n")
-                    else:
-                        ann = item.annotation.slice.value.id
-                        self.typed_record[self.scope][item.target.id] = 'List[' + ann + ']'
+                    ann = item.annotation.value.id
+                    if ann != 'pmat' and ann != 'pvec':
+                        if item.annotation.value.id is not 'List' or item.value.func.id is not 'prmt_list':
+                            raise Exception("Invalid subscripted annotation. Lists must be created using prmt_list constructor and",  
+                                        "the argument of List[] must be a valid type.\n")
+                        else:
+                            ann = item.annotation.slice.value.id
+                            self.typed_record[self.scope][item.target.id] = 'List[' + ann + ']'
+                            if  ann in prmt_temp_types:
+                                ann = prmt_temp_types[ann]
+                            else:
+                                raise Exception ('Usage of non existing type {}'.format(ann))
+                            array_size = str(Num_or_Name(item.value.args[1]))
+                            self.statement([], ann, ' ', item.target, '[', array_size, '];')
+                    # pmat[<n>,<m>] or pvec[<n>]
+                    elif item.annotation.value.id in ['pmat', 'pvec']:
+                        if item.annotation.value.id == 'pmat':
+                            if 'id' in item.annotation.slice.value.elts[0].__dict__: 
+                                dim1 = item.annotation.slice.value.elts[0].id
+                                dim2 = item.annotation.slice.value.elts[1].id
+                            else:
+                                dim1 = item.annotation.slice.value.elts[0].n
+                                dim2 = item.annotation.slice.value.elts[1].n
+                            ann = item.annotation.value.id
+                            self.dim_record[self.scope][item.target.id] = [dim1, dim2]
+                        else:
+                            # pvec
+                            if 'id' in item.annotation.slice.value.__dict__: 
+                                dim1 = item.annotation.slice.value.id
+                            else:
+                                dim1 = item.annotation.slice.value.n
+                            ann = item.annotation.value.id
+                            self.dim_record[self.scope][item.target.id] = [dim1]
+                        # add variable to typed record
+                        self.typed_record[self.scope][item.target.id] = ann
+                        print('typed_record = \n', self.typed_record, '\n\n')
+                        print('dim_record = \n', self.dim_record, '\n\n')
                         if  ann in prmt_temp_types:
-                            ann = prmt_temp_types[ann]
+                            c_ann = prmt_temp_types[ann]
+                            # self.statement(item, c_ann, ' ', item.target.id)
                         else:
                             raise Exception ('Usage of non existing type {}'.format(ann))
-                        array_size = str(Num_or_Name(item.value.args[1]))
-                        self.statement([], ann, ' ', item.target, '[', array_size, '];')
-                elif item.value != None:
-                    if hasattr(item.value, 'value') is False:
-                        self.conditional_write('\n', 'object->', item.target, ' = ', item.value, ';', dest = 'src')
-                    else:
-                        if item.value.value != None:
-                            self.conditional_write('\n', 'object->', item.target, ' = ', item.value, ';', dest = 'src')
+                        if item.value != None:
+                            if hasattr(item.value, 'value') is False:
+                                self.conditional_write('\n', 'object->', item.target, ' = ', item.value, ';', dest = 'src')
+                            else:
+                                if item.value.value != None:
+                                    self.conditional_write('\n', 'object->', item.target, ' = ', item.value, ';', dest = 'src')
+                        else:
+                            raise Exception('Cannot declare attribute without initialization\n')
                 else:
-                    raise Exception('Cannot declare attribute without initialization\n')
+                    if item.value != None:
+                        if hasattr(item.value, 'value') is False:
+                            self.conditional_write('\n', 'object->', item.target, ' = ', item.value, ';', dest = 'src')
+                        else:
+                            if item.value.value != None:
+                                self.conditional_write('\n', 'object->', item.target, ' = ', item.value, ';', dest = 'src')
+                    else:
+                        raise Exception('Cannot declare attribute without initialization\n')
+
             elif isinstance(item, ast.FunctionDef):
                 # build argument mangling
                 f_name_len = len(item.name)
@@ -551,9 +597,16 @@ class SourceGenerator(ExplicitNodeVisitor):
                 else:
                     raise Exception ('Usage of non existing type {}'.format(ret_type))
 
-                self.statement(item, ret_type, ' %s%s%s%s' % (pre_mangl, \
-                        item.name, post_mangl, name), '_impl(', name, ' *self, ')
+                if len(item.args.args) > 0:
+                    self.statement(item, ret_type, ' %s%s%s%s' % (pre_mangl, \
+                            item.name, post_mangl, name), '_impl(', name, ' *self, ')
+                else:
+                    self.statement(item, ret_type, ' %s%s%s%s' % (pre_mangl, \
+                            item.name, post_mangl, name), '_impl(', name, ' *self')
 
+                self.scope = self.scope + '@' + item.name
+                self.typed_record[self.scope] = dict()
+                self.dim_record[self.scope] = dict()
                 self.visit_arguments(item.args, 'src')
                 self.write(') {', dest = 'src')
                 self.body(item.body)
@@ -590,10 +643,14 @@ class SourceGenerator(ExplicitNodeVisitor):
                 # fish C type from typed record
                 if hasattr(arg.annotation, 'value'):
                     if arg.annotation.value.id == 'pmat':
-                        dim1 = arg.annotation.slice.value.elts[0].n
-                        dim2 = arg.annotation.slice.value.elts[1].n
+                        dim1 = Num_or_Name(arg.annotation.slice.value.elts[0])
+                        dim2 = Num_or_Name(arg.annotation.slice.value.elts[1])
                         arg_type_py = arg.annotation.value.id
                         self.dim_record[self.scope][arg.arg] = [dim1, dim2]
+                    elif arg.annotation.value.id == 'pvec':
+                        dim1 = Num_or_Name(arg.annotation.slice.value.elts[0])
+                        arg_type_py = arg.annotation.value.id
+                        self.dim_record[self.scope][arg.arg] = [dim1]
                     else:
                         raise Exception('Subscripted type annotation can be used only with pmat arguments.\n')
                 else:
@@ -644,7 +701,17 @@ class SourceGenerator(ExplicitNodeVisitor):
         def loop_args_mangl(args):
             arg_mangl = ''
             for arg in args:
-                arg_mangl = arg_mangl + self.typed_record[self.scope][arg.id]
+                if isinstance(arg, ast.Num):
+                    if isinstance(arg.n, int):
+                        arg_value = 'int'
+                    elif isinstance(arg.n, float):
+                        arg_value = 'double'
+                    else:
+                        raise Exception('Invalid numeric argument.\n')
+                    arg_mangl = arg_mangl + arg_value
+                else:
+                    arg_value = arg.id
+                    arg_mangl = arg_mangl + self.typed_record[self.scope][arg_value]
             return arg_mangl
 
         arg_mangl = loop_args_mangl(args)
@@ -669,24 +736,27 @@ class SourceGenerator(ExplicitNodeVisitor):
     def visit_Assign(self, node):
         if 'targets' in node.__dict__:
             # check for attributes
-            if hasattr(node.targets[0].value, 'attr'):
-                # TODO(andrea): need to handle attributes recursively
-                target = node.targets[0].value.attr
-                scope = node.targets[0].value.value.id
-                all_scopes = self.typed_record.keys()
-                matching = [s for s in all_scopes if scope in s]
-                # TODO(andrea): need to compute local scope (find strings that contain scope and have a string in common with self.scope)
-                import pdb; pdb.set_trace()
-            else:
-                target = node.targets[0].value.id
+            if hasattr(node.targets[0], 'value'):
+                if hasattr(node.targets[0].value, 'attr'):
+                    # TODO(andrea): need to handle attributes recursively
+                    target = node.targets[0].value.attr
+                    obj_name = node.targets[0].value.value.id
+                    # all_scopes = self.typed_record.keys()
+                    # matching = [s for s in all_scopes if class_name in s]
+                    # TODO(andrea): need to compute local scope (find strings that contain scope and have a string in common with self.scope)
+                    # this assumes that the class has been defined in the global scope
+                    scope = 'global@' + self.typed_record[self.scope][obj_name]
+                else:
+                    target = node.targets[0].value.id
+                    scope = self.scope
             if type(node.targets[0]) == ast.Subscript: 
-                if target in self.typed_record[self.scope]: 
+                if target in self.typed_record[scope]: 
                     # map subscript for pmats to blasfeo el assign
-                    if self.typed_record[self.scope][target] == 'pmat':
+                    if self.typed_record[scope][target] == 'pmat':
                         if not isinstance(node.targets[0].slice.value, ast.Tuple):
                             ap.pprint(node)
                             raise Exception('Subscript to a pmat object must be of type Tuple.')
-                        print(self.typed_record[self.scope][target])
+                        print(self.typed_record[scope][target])
                         first_index  = Num_or_Name(node.targets[0].slice.value.elts[0])
                         second_index = Num_or_Name(node.targets[0].slice.value.elts[1])
 
@@ -694,14 +764,14 @@ class SourceGenerator(ExplicitNodeVisitor):
                         if type(node.value) == ast.Subscript:
                             # if value is a pmat
                             value = node.value.value.id
-                            if value in self.typed_record[self.scope]:
-                                if self.typed_record[self.scope][value] == 'pmat':
+                            if value in self.typed_record[scope]:
+                                if self.typed_record[scope][value] == 'pmat':
                                     first_index_value = Num_or_Name(node.value.slice.value.elts[0])
                                     second_index_value = Num_or_Name(node.value.slice.value.elts[1])
 
                                     value_expr = 'c_pmt_pmat_get_el(' + value + ', {}, {})'.format(first_index_value, second_index_value) 
                                     self.statement([], 'c_pmt_pmat_set_el(', target, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value_expr), ');')
-                                elif self.typed_record[self.scope][value] == 'pvec':
+                                elif self.typed_record[scope][value] == 'pvec':
                                     # if value is a pvec
                                     sub_type = type(node.value.slice.value)
                                     if sub_type == ast.Num: 
@@ -981,6 +1051,7 @@ class SourceGenerator(ExplicitNodeVisitor):
             # check if a dimension is being declared
             if ann == 'dim':
                 self.write('#define %s %s\n' %(node.target.id, node.value.n), dest='hdr')
+                # self.write('const int %s = %s;\n' %(node.target.id, node.value.n), dest='hdr')
                 return
 
             if ann in prmt_temp_types:
@@ -999,7 +1070,7 @@ class SourceGenerator(ExplicitNodeVisitor):
             #     self.statement(node, node.annotation, ' ', node.target)
                 # raise Exception("Could not resolve type '{}'. Exiting.".format(ann))
 
-        # List[<type>]
+        # pmat[<n>,<m>] or pvec[<n>]
         elif "slice" in node.annotation.__dict__:
             if node.annotation.value.id == 'pmat':
                 if 'id' in node.annotation.slice.value.elts[0].__dict__: 
@@ -1017,11 +1088,11 @@ class SourceGenerator(ExplicitNodeVisitor):
                     dim1 = node.annotation.slice.value.n
                 ann = node.annotation.value.id
                 self.dim_record[self.scope][node.target.id] = [dim1]
-            else:
-                if 'id' in node.annotation.slice.value.__dict__: 
-                    ann = 'ptr_' + node.annotation.slice.value.id
-                else:
-                    ann = 'ptr_' + str(node.annotation.slice.value.n)
+            # else:
+            #     if 'id' in node.annotation.slice.value.__dict__: 
+            #         ann = 'ptr_' + node.annotation.slice.value.id
+            #     else:
+            #         ann = 'ptr_' + str(node.annotation.slice.value.n)
             # add variable to typed record
             self.typed_record[self.scope][node.target.id] = ann
             print('typed_record = \n', self.typed_record, '\n\n')
@@ -1030,7 +1101,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 c_ann = prmt_temp_types[ann]
                 self.statement(node, c_ann, ' ', node.target.id)
             else:
-                raise Exception ('Usage of non existing type {}'.format(ret_type))
+                raise Exception ('Usage of non existing type {}'.format(ann))
 
         # switch to avoid double ';'
         if type(node.value) != ast.Call:
@@ -1080,6 +1151,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.generic_visit(node)
 
     def visit_FunctionDef(self, node, is_async=False):
+        ap.pprint(node)
         self.scope = self.scope + '@' + node.name
         self.typed_record[self.scope] = dict()
         self.dim_record[self.scope] = dict()
@@ -1173,10 +1245,10 @@ class SourceGenerator(ExplicitNodeVisitor):
     def visit_For(self, node, is_async=False):
         set_precedence(node, node.target)
         prefix = 'is_async ' if is_async else ''
-       
+        range_value = Num_or_Name(node.iter.args[0]) 
         self.statement(node, 'for(int ',
                        node.target, ' = 0; ', node.target, 
-                       ' < {}'.format(node.iter.args[0].n), 
+                       ' < {}'.format(range_value), 
                        '; ',node.target, '++) {')
 
         self.body_or_else(node)
@@ -1302,10 +1374,14 @@ class SourceGenerator(ExplicitNodeVisitor):
     # Expressions
 
     def visit_Attribute(self, node):
-        if  self.typed_record[self.scope][node.value.id] in usr_temp_types: 
+
+        if node.value.id == 'self':
             self.write(node.value, '->', node.attr, dest = 'src')
         else:
-            raise Exception("Accessing attribute of object {} of unknown type".format(node.value))
+            if  self.typed_record[self.scope][node.value.id] in usr_temp_types: 
+                self.write(node.value, '->', node.attr, dest = 'src')
+            else:
+                raise Exception("Accessing attribute of object {} of unknown type".format(node.value))
 
     def visit_Call(self, node, len=len):
         write = self.write
@@ -1313,6 +1389,7 @@ class SourceGenerator(ExplicitNodeVisitor):
 
         def write_comma():
             if want_comma:
+                # write(', ', dest = 'src')
                 write(', ', dest = 'src')
             else:
                 want_comma.append(True)
@@ -1341,7 +1418,10 @@ class SourceGenerator(ExplicitNodeVisitor):
 
         self.visit(node.func)
         if type(node.func) == ast.Attribute: 
-            code = '(' +  node.func.value.id + ', '
+            if len(args) > 0:
+                code = '(' +  node.func.value.id + ', '
+            else:
+                code = '(' +  node.func.value.id
             write(code, dest = 'src')
         else:
             write('(', dest = 'src')

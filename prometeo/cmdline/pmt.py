@@ -58,6 +58,7 @@ def pmt_main(script_path, stdout, stderr, args = None):
         filename_ = filename.split('.')[0]
         tree = ast.parse(''.join(open(filename)))
         # astpretty.pprint(tree)
+        # import pdb; pdb.set_trace()
 
         result  = prometeo.cgen.code_gen_c.to_source(tree, filename_, \
                 main=True, ___c_prmt_8_heap_size=10000, \

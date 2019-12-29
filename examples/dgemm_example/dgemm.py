@@ -35,7 +35,6 @@ def main() -> None:
     n: int = 10
     A: pmat[2,2] = pmat(n, n)
     A[0,2] = -2.0
-    # A[0][2] = 2.0
 
     for i in range(2):
         A[0,i] = A[0,i]
