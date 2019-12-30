@@ -26,17 +26,12 @@ class qp_data:
         Lxu: pmat[nxu, nxu] = pmat(nxu, nxu)
         Q: pmat[nx, nx] = pmat(nx, nx)
         R: pmat[nu, nu] = pmat(nu, nu)
-        Bt: pmat[nx, nx] = pmat(nx, nx)
-        At: pmat[nx, nx] = pmat(nx, nx)
-        BAt: pmat[nxu, nx] = pmat(nxu, nx)
         BA: pmat[nx, nxu] = pmat(nx, nxu)
         BAtP: pmat[nxu, nx] = pmat(nxu, nx)
         pmat_copy(self.Q[N-1], self.P[N-1])
         for i in range(1, N):
-            pmat_tran(self.B[N-i], Bt)
-            pmat_tran(self.A[N-i], At)
-            pmat_vcat(Bt, At, BAt)
-            pmt_gemm(BAt, self.P[N-i], BAtP, BAtP)
+            pmat_hcat(self.B[N-i], self.A[N-i], BA)
+            pmt_gemm_tn(BA, self.P[N-i], BAtP, BAtP)
 
             pmat_copy(self.Q[N-i], Q)
             pmat_copy(self.R[N-i], R)
@@ -46,8 +41,6 @@ class qp_data:
             for j in range(nx):
                 for k in range(nx):
                     M[nu+j,nu+k] = Q[j,k]
-
-            pmat_tran(BAt, BA)
 
             pmt_gemm(BAtP, BA, M, M)
             for j in range(nu):
