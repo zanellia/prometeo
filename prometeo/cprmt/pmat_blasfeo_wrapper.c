@@ -62,7 +62,7 @@ void c_pmt_assign_and_advance_blasfeo_dmat(int m, int n, struct blasfeo_dmat **b
 
 // BLAS API
 
-void c_pmt_dgemm(struct pmat *A, struct pmat *B, struct pmat *C, struct pmat *D) {
+void c_pmt_gemm(struct pmat *A, struct pmat *B, struct pmat *C, struct pmat *D) {
     int mA = A->bmat->m; 
     int nA = A->bmat->n; 
     int nB = B->bmat->n; 
@@ -145,7 +145,7 @@ void c_pmt_potrsv(struct pvec *rhs, struct pmat *fact, struct pvec *out) {
     blasfeo_dtrsv_lnu(mfact, bfact, 0, 0, brhs, 0, bout, 0);
     blasfeo_dtrsv_unn(mfact, bfact, 0, 0, brhs, 0, bout, 0);
 }
-void c_pmt_dgead(double alpha, struct pmat *A, struct pmat *B) {
+void c_pmt_gead(double alpha, struct pmat *A, struct pmat *B) {
     int mA = A->bmat->m; 
     int nA = A->bmat->n; 
     struct blasfeo_dmat *bA = A->bmat;
@@ -154,7 +154,7 @@ void c_pmt_dgead(double alpha, struct pmat *A, struct pmat *B) {
     blasfeo_dgead(mA, nA, alpha, bA, 0, 0, bB, 0, 0);
 }
 
-void c_pmt_dgemv(struct pmat *A, struct pvec *b, struct pvec *c, struct pvec *d) {
+void c_pmt_gemv(struct pmat *A, struct pvec *b, struct pvec *c, struct pvec *d) {
     int mA = A->bmat->m; 
     int nA = A->bmat->n; 
     int mb = b->bvec->m; 
@@ -201,6 +201,18 @@ void c_pmt_pmat_copy(struct pmat *A, struct pmat *B) {
         for(int j = 0; j < n; j++) {
             value = blasfeo_dgeex1(A->bmat, i, j);
             blasfeo_dgein1(value, B->bmat, i, j);
+        }
+}
+
+void c_pmt_pmat_tran(struct pmat *A, struct pmat *B) {
+    int m = A->bmat->m;
+    int n = A->bmat->n;
+    double value;
+
+    for(int i = 0; i < m; i++)
+        for(int j = 0; j < n; j++) {
+            value = blasfeo_dgeex1(A->bmat, i, j);
+            blasfeo_dgein1(value, B->bmat, j, i);
         }
 }
 

@@ -140,6 +140,11 @@ def pmat_copy(A: pmat, B: pmat):
             B[i,j] = A[i,j]
     return
 
+def pmat_tran(A: pmat, B: pmat):
+    for i in range(A.blasfeo_dmat.m):
+        for j in range(A.blasfeo_dmat.n):
+            B[i,j] = A[j,i]
+ 
 def pmt_getrsm(A: pmat, B: pmat, fact: pmat, ipiv: list, res: pmat):
     # create permutation vector
     c_ipiv = cast(create_string_buffer(sizeof(c_int)*A.blasfeo_dmat.m), POINTER(c_int))
@@ -197,6 +202,7 @@ def pmt_gemm_tt(A: pmat, B: pmat, C: pmat, D: pmat):
     c_pmt_dgemm_tt(A, B, C, D)
     return
 
+# B <= B + alpha*A
 def pmt_gead(alpha: float, A: pmat, B: pmat):
     c_pmt_dgead(alpha, A, B)
     return

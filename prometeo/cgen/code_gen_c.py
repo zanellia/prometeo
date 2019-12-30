@@ -42,6 +42,7 @@ prmt_temp_functions = {\
         "pmt_potrsv": "c_pmt_potrsv", \
         "pmat_fill": "c_pmt_pmat_fill", \
         "pmat_copy": "c_pmt_pmat_copy", \
+        "pmat_tran": "c_pmt_pmat_tran", \
         "pmat_print": "c_pmt_pmat_print", \
         "pvec_fill": "c_pmt_pvec_fill", \
         "pvec_copy": "c_pmt_pvec_copy", \
