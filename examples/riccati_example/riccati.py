@@ -5,11 +5,11 @@ sizes: dimv = [[2,2], [2,2], [2,2], [2,2], [2,2]]
 nx: dims = 2
 nu: dims = 2
 N:  dims = 5
-# sizes: dim = N*[nx, nx]
 
 class qp_data:
     C: pmat[nu,nu] = pmat(nx,nu)
     A: List[pmat, sizes]  = plist(pmat, sizes)
+    # l: List[int, 5] = plist(int, 5)
     B: List[pmat, sizes]  = plist(pmat, sizes)
     Q: List[pmat, sizes]  = plist(pmat, sizes)
     R: List[pmat, sizes]  = plist(pmat, sizes)
@@ -25,7 +25,7 @@ class qp_data:
             pmat_tran(self.B[i], Bt)
             pmt_gemm(Bt, res, self.R[i], res)
             pmt_potrf(res, self.fact[i])
-            # pmt_trsm(res, self.fact[i])
+            # pmt_potrsm(res, self.fact[i])
 
         return
 
@@ -36,6 +36,8 @@ def main() -> None:
     Q: pmat[nu,nu] = pmat(nx, nx)
     R: pmat[nu,nu] = pmat(nu, nu)
     P: pmat[nu,nu] = pmat(nx, nx)
+
+    # M: List[pmat, sizes]  = plist(pmat, sizes)
 
     fact: pmat[nu,nu] = pmat(nx, nx)
 

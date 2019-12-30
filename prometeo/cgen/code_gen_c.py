@@ -370,13 +370,18 @@ class SourceGenerator(ExplicitNodeVisitor):
                                 raise Exception('Type annotations in List declaration must have the format List[<type>, <sizes>]')
                             # attribute is a List
                             ann = item.annotation.slice.value.elts[0].id
-                            dims = item.annotation.slice.value.elts[1].id
-                            self.typed_record[self.scope][item.target.id] = 'List[' + ann + ', ' + dims + ']'
+                            dims = Num_or_Name(item.annotation.slice.value.elts[1])
+                            if isinstance(dims, str):
+                                self.typed_record[self.scope][item.target.id] = 'List[' + ann + ', ' + dims + ']'
+                            else:
+                                self.typed_record[self.scope][item.target.id] = 'List[' + ann + ', ' + str(dims) + ']'
                             if  ann in prmt_temp_types:
                                 ann = prmt_temp_types[ann]
                             else:
                                 raise Exception ('Usage of non existing type {}'.format(ann))
-                            dim_list = self.dim_record[dims]
+                            # check is dims is not a numerical value
+                            if isinstance(dims, str):
+                                dim_list = self.dim_record[dims]
                             array_size = len(dim_list)
                                 # array_size = str(Num_or_Name(item.value.args[1]))
                                 # self.statement([], ann, ' ', item.target, '[', array_size, '];')
@@ -494,8 +499,11 @@ class SourceGenerator(ExplicitNodeVisitor):
                         else:
                             # attribute is a List
                             ann = item.annotation.slice.value.elts[0].id
-                            dims = item.annotation.slice.value.elts[1].id
-                            dim_list = self.dim_record[dims]
+                            dims = Num_or_Name(item.annotation.slice.value.elts[1])
+                            if isinstance(dims, str):
+                                dim_list = self.dim_record[dims]
+                            else:
+                                dim_list = dims
                             if ann == 'pmat': 
                                 # build init for List of pmats
                                 for i in range(len(dim_list)):
@@ -1047,14 +1055,35 @@ class SourceGenerator(ExplicitNodeVisitor):
                         if node.value.func.id is not 'plist': 
                             raise Exception("Cannot create Lists without using plist constructor.")
                         else:
-                            ann = node.annotation.slice.value.id
-                            self.typed_record[self.scope][node.target.id] = 'List[' + ann + ']'
+                            if len(node.annotation.slice.value.elts) != 2:
+                                raise Exception('Type annotations in List declaration must have the format List[<type>, <sizes>]')
+                            # attribute is a List
+                            ann = node.annotation.slice.value.elts[0].id
+                            dims = Num_or_Name(node.annotation.slice.value.elts[1])
+                            if isinstance(dims, str):
+                                self.typed_record[self.scope][node.target.id] = 'List[' + ann + ', ' + dims + ']'
+                            else:
+                                self.typed_record[self.scope][node.target.id] = 'List[' + ann + ', ' + str(dims) + ']'
                             if  ann in prmt_temp_types:
                                 ann = prmt_temp_types[ann]
                             else:
                                 raise Exception ('Usage of non existing type {}'.format(ann))
-                            array_size = str(Num_or_Name(node.value.args[1]))
-                            self.statement([], ann, ' ', node.target, '[', array_size, '];')
+                            # check is dims is not a numerical value
+                            if isinstance(dims, str):
+                                dim_list = self.dim_record[dims]
+                            array_size = len(dim_list)
+                                # array_size = str(Num_or_Name(node.value.args[1]))
+                                # self.statement([], ann, ' ', node.target, '[', array_size, '];')
+                            self.write('%s' %ann, ' ', '%s' %node.target.id, '[%s' %array_size, '];\n', dest = 'src')
+                            if ann == 'struct pmat *': 
+                                # build init for List of pmats
+                                for i in range(len(dim_list)):
+                                    self.statement([], '\n', node.target.id, '[', str(i),'] = c_pmt_create_pmat(', str(dim_list[i][0]), ', ', str(dim_list[i][1]), ');')
+
+                            elif ann == 'struct pvec *': 
+                                # build init for List of pvecs
+                                for i in range(len(dim_list)):
+                                    self.statement([], '\n', node.target.id, '[', str(i),'] = c_pmt_create_pvec(', str(dim_list[i][0]), ');')
                             return
 
         # check if the annotation contains directly a type or something fancier

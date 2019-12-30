@@ -186,6 +186,10 @@ def pmt_potrsv(b: pvec, fact: pmat, res: pvec):
     return res
 
 # intermediate-level linear algebra
+def pmt_gemm(A: pmat, B: pmat, C: pmat, D: pmat):
+    c_pmt_dgemm_nn(A, B, C, D)
+    return
+
 def pmt_gemm_nn(A: pmat, B: pmat, C: pmat, D: pmat):
     c_pmt_dgemm_nn(A, B, C, D)
     return
