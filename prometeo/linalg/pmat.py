@@ -135,15 +135,42 @@ def pmat_fill(A: pmat, value):
     return
 
 def pmat_copy(A: pmat, B: pmat):
+    if A.blasfeo_dmat.m != B.blasfeo_dmat.m \
+            or A.blasfeo_dmat.n != B.blasfeo_dmat.n:
+        raise Exception('__copy__: mismatching dimensions:' 
+            ' ({}, {}) -> ({}, {})'.format(A.blasfeo_dmat.m, \
+            A.blasfeo_dmat.n, B.blasfeo_dmat.m, \
+            B.blasfeo_dmat.n))
     for i in range(A.blasfeo_dmat.m):
         for j in range(A.blasfeo_dmat.n):
             B[i,j] = A[i,j]
     return
 
 def pmat_tran(A: pmat, B: pmat):
+    if A.blasfeo_dmat.m != B.blasfeo_dmat.n \
+            or A.blasfeo_dmat.n != B.blasfeo_dmat.m:
+        raise Exception('__tran__: mismatching dimensions:' 
+            ' ({}, {}) -> ({}, {})'.format(A.blasfeo_dmat.m, \
+            A.blasfeo_dmat.n, B.blasfeo_dmat.m, \
+            B.blasfeo_dmat.n))
     for i in range(A.blasfeo_dmat.m):
         for j in range(A.blasfeo_dmat.n):
             B[i,j] = A[j,i]
+ 
+def pmat_vcat(A: pmat, B: pmat, res: pmat):
+    if A.blasfeo_dmat.n != B.blasfeo_dmat.n \
+            or A.blasfeo_dmat.n != res.blasfeo_dmat.n \
+            or A.blasfeo_dmat.m + B.blasfeo_dmat.m != res.blasfeo_dmat.m:
+        raise Exception('__vcat__: mismatching dimensions:' 
+            ' ({}, {}) + ({}, {})'.format(A.blasfeo_dmat.m, \
+            A.blasfeo_dmat.n, B.blasfeo_dmat.m, \
+            B.blasfeo_dmat.n))
+    for i in range(A.blasfeo_dmat.m):
+        for j in range(A.blasfeo_dmat.n):
+            res[i,j] = A[j,i]
+    for i in range(B.blasfeo_dmat.m):
+        for j in range(B.blasfeo_dmat.n):
+            res[A.blasfeo_dmat.m + i,j] = A[j,i]
  
 def pmt_getrsm(A: pmat, B: pmat, fact: pmat, ipiv: list, res: pmat):
     # create permutation vector

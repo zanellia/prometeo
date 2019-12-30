@@ -37,6 +37,7 @@ void c_pmt_pmat_set_el(struct pmat *A, int i, int j, double value);
 double c_pmt_pmat_get_el(struct pmat *A, int i, int j);
 void c_pmt_pmat_copy(struct pmat *A, struct pmat *B);
 void c_pmt_pmat_tran(struct pmat *A, struct pmat *B);
+void c_pmt_pmat_vcat(struct pmat *A, struct pmat *B, struct pmat *res);
 void c_pmt_pmat_print(struct pmat *A);
 
 #endif // PROMETEO_PRMT_MAT_BLASFEO_WRAPPER_H_

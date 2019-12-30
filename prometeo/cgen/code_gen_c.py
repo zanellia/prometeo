@@ -18,6 +18,7 @@ this code came from here (in 2012):
 """
 
 import ast
+import astunparse as astu
 import sys
 
 from .op_util import get_op_symbol, get_op_precedence, Precedence
@@ -43,6 +44,7 @@ prmt_temp_functions = {\
         "pmat_fill": "c_pmt_pmat_fill", \
         "pmat_copy": "c_pmt_pmat_copy", \
         "pmat_tran": "c_pmt_pmat_tran", \
+        "pmat_vcat": "c_pmt_pmat_vcat", \
         "pmat_print": "c_pmt_pmat_print", \
         "pvec_fill": "c_pmt_pvec_fill", \
         "pvec_copy": "c_pmt_pvec_copy", \
@@ -784,8 +786,13 @@ class SourceGenerator(ExplicitNodeVisitor):
                             ap.pprint(node)
                             raise Exception('Subscript to a pmat object must be of type Tuple.')
                         print(self.typed_record[scope][target])
-                        first_index  = Num_or_Name(node.targets[0].slice.value.elts[0])
-                        second_index = Num_or_Name(node.targets[0].slice.value.elts[1])
+                        # # slice is either ast.Name or ast.Num
+                        # first_index  = Num_or_Name(node.targets[0].slice.value.elts[0])
+                        # second_index = Num_or_Name(node.targets[0].slice.value.elts[1])
+
+                        # unparse slice expression
+                        first_index = astu.unparse(node.targets[0].slice.value.elts[0]).strip('\n') 
+                        second_index = astu.unparse(node.targets[0].slice.value.elts[1]).strip('\n') 
 
                         # check if subscripted expression is used in the value
                         if type(node.value) == ast.Subscript:
@@ -810,6 +817,8 @@ class SourceGenerator(ExplicitNodeVisitor):
 
                                     value_expr = 'c_pmt_pvec_get_el(' + value + ', {})'.format(index_value) 
                                     self.statement([], 'c_pmt_pmat_set_el(', target, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value_expr), ');')
+                            else: 
+                                raise Exception('Undefined variable {}.'.format(value))
                         else:
                             value = Num_or_Name(node.value)
                             self.statement([], 'c_pmt_pmat_set_el(', target, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value), ');')
@@ -1307,11 +1316,27 @@ class SourceGenerator(ExplicitNodeVisitor):
     def visit_For(self, node, is_async=False):
         set_precedence(node, node.target)
         prefix = 'is_async ' if is_async else ''
-        range_value = Num_or_Name(node.iter.args[0]) 
-        self.statement(node, 'for(int ',
-                       node.target, ' = 0; ', node.target, 
-                       ' < {}'.format(range_value), 
-                       '; ',node.target, '++) {')
+        if len(node.iter.args) == 1:
+            # range(<value>)
+            range_value = astu.unparse(node.iter.args[0]).strip('\n') 
+            self.statement(node, 'for(int ',
+                    node.target, ' = 0; ', node.target, 
+                    ' < {}'.format(range_value), 
+                    '; ',node.target, '++) {')
+        elif len(node.iter.args) == 2:
+            # range(<value>, <value>)
+            range_value_1 = astu.unparse(node.iter.args[0]).strip('\n') 
+            range_value_2 = astu.unparse(node.iter.args[1]).strip('\n') 
+            if range_value_1 > range_value_2:
+                increment = 1
+            else:
+                increment = -1
+            self.statement(node, 'for(int ',
+                    node.target, ' = {}; '.format(range_value_1), node.target, 
+                    ' < {}'.format(range_value_2), 
+                    '; ',node.target, '+={})'.format(increment), ' {')
+        else:
+            raise Exception('Too many arguments for range()')
 
         self.body_or_else(node)
         self.write('\n    }\n', dest = 'src')

@@ -2,27 +2,53 @@
 from prometeo import *
 
 sizes: dimv = [[2,2], [2,2], [2,2], [2,2], [2,2]]
-nx: dims = 2
-nu: dims = 2
-N:  dims = 5
+nx: dims  = 2
+nxu: dims = 4
+nu: dims  = 2
+N:  dims  = 5
 
 class qp_data:
-    A: List[pmat, sizes]  = plist(pmat, sizes)
-    B: List[pmat, sizes]  = plist(pmat, sizes)
-    Q: List[pmat, sizes]  = plist(pmat, sizes)
-    R: List[pmat, sizes]  = plist(pmat, sizes)
-    P: List[pmat, sizes]  = plist(pmat, sizes)
+    A: List[pmat, sizes] = plist(pmat, sizes)
+    B: List[pmat, sizes] = plist(pmat, sizes)
+    Q: List[pmat, sizes] = plist(pmat, sizes)
+    R: List[pmat, sizes] = plist(pmat, sizes)
+    P: List[pmat, sizes] = plist(pmat, sizes)
 
     fact: List[pmat, sizes] = plist(pmat, sizes)
 
     def factorize(self) -> None:
-        res: pmat[nx, nx] = pmat(nx, nx)
+        M: pmat[nxu, nxu] = pmat(nxu, nxu)
+        Mu: pmat[nu, nu] = pmat(nu, nu)
+        Lu: pmat[nu, nu] = pmat(nu, nu)
+        Q: pmat[nx, nx] = pmat(nx, nx)
+        R: pmat[nu, nu] = pmat(nu, nu)
         Bt: pmat[nx, nx] = pmat(nx, nx)
-        for i in range(N):
-            pmt_gemm(self.P[i], self.B[i], res, res)
+        At: pmat[nx, nx] = pmat(nx, nx)
+        BAt: pmat[nxu, nx] = pmat(nxu, nx)
+        BA: pmat[nx, nxu] = pmat(nx, nxu)
+        BAtP: pmat[nxu, nx] = pmat(nxu, nx)
+        pmat_copy(self.P[N-1], self.Q[N-1])
+        for i in range(N-1, 0):
             pmat_tran(self.B[i], Bt)
-            pmt_gemm(Bt, res, self.R[i], res)
-            pmt_potrf(res, self.fact[i])
+            pmat_tran(self.A[i], At)
+            pmat_vcat(Bt, At, BAt)
+            pmt_gemm(BAt, self.P[i], BAtP, BAtP)
+            pmat_copy(self.Q[i], Q)
+            pmat_copy(self.R[i], R)
+            for j in range(nu):
+                for k in range(nu):
+                    M[i,j] = R[i,j]
+            for j in range(nx):
+                for k in range(nx):
+                    M[nu+i,nu+j] = Q[nx,nx]
+
+            pmat_tran(BAt, BA)
+            pmt_gemm(BAtP, BA, M, M)
+            for j in range(nu):
+                for k in range(nu):
+                    Mu[j,j] = M[j,j]
+            pmt_potrf(Mu, Lu)
+            # pmt_gemm(Bt, res, self.R[i], res)
             # pmt_potrsm(res, self.fact[i])
 
         return

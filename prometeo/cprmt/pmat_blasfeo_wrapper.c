@@ -216,6 +216,25 @@ void c_pmt_pmat_tran(struct pmat *A, struct pmat *B) {
         }
 }
 
+void c_pmt_pmat_vcat(struct pmat *A, struct pmat *B, struct pmat *res) {
+    int mA = A->bmat->m;
+    int nA = A->bmat->n;
+    int mB = B->bmat->m;
+    int nB = B->bmat->n;
+    double value;
+
+    for(int i = 0; i < mA; i++)
+        for(int j = 0; j < nA; j++) {
+            value = blasfeo_dgeex1(A->bmat, i, j);
+            blasfeo_dgein1(value, res->bmat, i, j);
+        }
+    for(int i = 0; i < mB; i++)
+        for(int j = 0; j < nB; j++) {
+            value = blasfeo_dgeex1(B->bmat, i, j);
+            blasfeo_dgein1(value, res->bmat, mA + i, j);
+        }
+}
+
 void c_pmt_pmat_print(struct pmat *A) {
     int m = A->bmat->m;
     int n = A->bmat->n;
