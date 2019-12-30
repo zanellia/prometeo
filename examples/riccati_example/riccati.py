@@ -9,13 +9,13 @@ N:  dims = 5
 
 class qp_data:
     C: pmat[nu,nu] = pmat(nx,nu)
-    A: List[pmat, sizes]  = prmt_list(pmat, sizes)
-    B: List[pmat, sizes]  = prmt_list(pmat, sizes)
-    Q: List[pmat, sizes]  = prmt_list(pmat, sizes)
-    R: List[pmat, sizes]  = prmt_list(pmat, sizes)
-    P: List[pmat, sizes]  = prmt_list(pmat, sizes)
+    A: List[pmat, sizes]  = plist(pmat, sizes)
+    B: List[pmat, sizes]  = plist(pmat, sizes)
+    Q: List[pmat, sizes]  = plist(pmat, sizes)
+    R: List[pmat, sizes]  = plist(pmat, sizes)
+    P: List[pmat, sizes]  = plist(pmat, sizes)
 
-    fact: List[pmat, sizes] = prmt_list(pmat, sizes)
+    fact: List[pmat, sizes] = plist(pmat, sizes)
 
     def factorize(self) -> None:
         for i in range(N):
@@ -55,7 +55,7 @@ def main() -> None:
     # A_ : pmat[2,2] = qp.A[0]
     # A_ : pmat[2,2] = pmat(2,2)
     # A_ = qp.A[0]
-    # n_list: List[int] = prmt_list(int, 10) 
+    # n_list: List[int] = plist(int, 10) 
     # n_list[0] = 1
 
     # test_class: p_class = p_class()
@@ -86,7 +86,7 @@ def main() -> None:
 
     # test_class.method_2(A, B, C)
 
-    # pmat_list: List[pmat] = prmt_list(pmat, 10)
+    # pmat_list: List[pmat] = plist(pmat, 10)
     # pmat_list[0] = A
 
     # C = A * B
@@ -123,7 +123,7 @@ def main() -> None:
     # pvec_print(c)
 
     # # test LU solve
-    # ipiv: List[int] = prmt_list(int, 2) 
+    # ipiv: List[int] = plist(int, 2) 
     # fact : pmat[2,2] = pmat(2, 2)
     # M : pmat[2,2] = pmat(2,2)
     # pmt_getrf(M, fact, ipiv)

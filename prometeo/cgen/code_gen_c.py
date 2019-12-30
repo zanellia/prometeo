@@ -362,8 +362,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                 if hasattr(annotation, 'value'): 
                     type_py = annotation.value.id
                     if annotation.value.id is 'List':
-                        if item.value.func.id is not 'prmt_list': 
-                            raise Exception("Cannot create Lists without using prmt_list constructor.")
+                        if item.value.func.id is not 'plist': 
+                            raise Exception("Cannot create Lists without using plist constructor.")
                         else:
                             if len(item.annotation.slice.value.elts) != 2:
                                 raise Exception('Type annotations in List declaration must have the format List[<type>, <sizes>]')
@@ -487,8 +487,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                 if isinstance(item.annotation, ast.Subscript):
                     ann = item.annotation.value.id
                     if ann != 'pmat' and ann != 'pvec':
-                        if item.annotation.value.id is not 'List' or item.value.func.id is not 'prmt_list':
-                            raise Exception("Invalid subscripted annotation. Lists must be created using prmt_list constructor and",  
+                        if item.annotation.value.id is not 'List' or item.value.func.id is not 'plist':
+                            raise Exception("Invalid subscripted annotation. Lists must be created using plist constructor and",  
                                         "the argument of List[] must be a valid type.\n")
                         else:
                             # attribute is a List
@@ -500,12 +500,11 @@ class SourceGenerator(ExplicitNodeVisitor):
                                 for i in range(len(dim_list)):
                                     self.statement([], '\n', 'object->', item.target.id, '[', str(i),'] = c_pmt_create_pmat(', str(dim_list[i][0]), ', ', str(dim_list[i][1]), ');')
 
-                            #     # array_size = str(Num_or_Name(item.value.args[1]))
-                            #     # self.statement([], ann, ' ', item.target, '[', array_size, '];')
-                            # self.write('%s' %ann, ' ', '%s' %item.target.id, '[%s' %array_size, '];\n', dest = 'hdr')
-
-                            # array_size = str(Num_or_Name(item.value.args[1]))
-                            # self.statement([], ann, ' ', item.target, '[', array_size, '];')
+                            elif ann == 'pvec': 
+                                # build init for List of pvecs
+                                for i in range(len(dim_list)):
+                                    self.statement([], '\n', 'object->', item.target.id, '[', str(i),'] = c_pmt_create_pvec(', str(dim_list[i][0]), ');')
+                            # else: do nothing (no init required for "memoryless" objects)
                     # pmat[<n>,<m>] or pvec[<n>]
                     elif item.annotation.value.id in ['pmat', 'pvec']:
                         if item.annotation.value.id == 'pmat':
@@ -1041,8 +1040,8 @@ class SourceGenerator(ExplicitNodeVisitor):
             if "value" in node.annotation.__dict__:
                 if "id" in node.annotation.value.__dict__:
                     if node.annotation.value.id is 'List':
-                        if node.value.func.id is not 'prmt_list': 
-                            raise Exception("Cannot create Lists without using prmt_list constructor.")
+                        if node.value.func.id is not 'plist': 
+                            raise Exception("Cannot create Lists without using plist constructor.")
                         else:
                             ann = node.annotation.slice.value.id
                             self.typed_record[self.scope][node.target.id] = 'List[' + ann + ']'
