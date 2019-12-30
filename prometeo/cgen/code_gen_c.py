@@ -624,7 +624,10 @@ class SourceGenerator(ExplicitNodeVisitor):
                 self.typed_record[self.scope] = dict()
                 self.var_dim_record[self.scope] = dict()
                 self.visit_arguments(item.args, 'src')
-                self.write(') {', dest = 'src')
+                self.write(') {\n', dest = 'src')
+                # store current pmt_heap value (and restore before returning)
+                self.write('\tvoid *callee_prmt_8_heap = ___c_prmt_8_heap;\n', dest = 'src')
+                self.write('\tvoid *callee_prmt_64_heap = ___c_prmt_64_heap;\n', dest = 'src')
                 self.body(item.body)
                 self.newline(1)
                 self.write('}', dest = 'src')
@@ -1207,6 +1210,10 @@ class SourceGenerator(ExplicitNodeVisitor):
             self.write('    pmem_ptr = (char *)___c_prmt_64_heap; \n', dest = 'src')
             self.write('    align_char_to(64, &pmem_ptr);\n', dest = 'src')
             self.write('    ___c_prmt_64_heap = pmem_ptr;\n', dest = 'src')
+        else:
+            # store current pmt_heap value (and restore before returning)
+            self.write('\tvoid *callee_prmt_8_heap = ___c_prmt_8_heap;\n', dest = 'src')
+            self.write('\tvoid *callee_prmt_64_heap = ___c_prmt_64_heap;\n', dest = 'src')
 
         # self.write(':')
         self.body(node.body)
@@ -1378,8 +1385,12 @@ class SourceGenerator(ExplicitNodeVisitor):
 
     def visit_Return(self, node):
         set_precedence(node, node.value)
+
+        # restore pmt_heap values 
+        self.write('\t___c_prmt_8_heap = callee_prmt_8_heap;\n', dest = 'src')
+        self.write('\t___c_prmt_64_heap = callee_prmt_64_heap;\n', dest = 'src')
         self.statement(node, 'return')
-        self.conditional_write(' ', node.value, ';', dest = 'src')
+        self.conditional_write('', node.value, ';', dest = 'src')
 
     def visit_Break(self, node):
         self.statement(node, 'break')
