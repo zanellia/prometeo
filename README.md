@@ -13,7 +13,7 @@ on BLASFEO, make sure that you have cloned the submodule (`git submodule init & 
 you have compiled and installed BLASFEO: run `make static_library & make shared_library & sudo make install_shared` 
 from `<prometeo_root>/external/blasfeo/`. 
 
-Finally, you can run the examples in `prometeo/examples` with `pmt <example_name>.py --cgen=<True/False>`, where the `--cgen` flag determines whether the code is executed by the Python intereter or C code is generated compiled and run.
+Finally, you can run the examples in `<root>/examples` with `pmt <example_name>.py --cgen=<True/False>`, where the `--cgen` flag determines whether the code is executed by the Python intereter or C code is generated compiled and run.
 
 ### a simple example
 
