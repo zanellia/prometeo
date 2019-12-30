@@ -7,9 +7,7 @@ nu: dims = 2
 N:  dims = 5
 
 class qp_data:
-    C: pmat[nu,nu] = pmat(nx,nu)
     A: List[pmat, sizes]  = plist(pmat, sizes)
-    # l: List[int, 5] = plist(int, 5)
     B: List[pmat, sizes]  = plist(pmat, sizes)
     Q: List[pmat, sizes]  = plist(pmat, sizes)
     R: List[pmat, sizes]  = plist(pmat, sizes)
@@ -32,14 +30,28 @@ class qp_data:
 def main() -> None:
 
     A: pmat[nu,nu] = pmat(nx, nx)
+    A[0,0] = 0.8
+    A[0,1] = 0.1
+    A[1,0] = 0.0
+    A[1,1] = 0.8
+
     B: pmat[nu,nu] = pmat(nx, nu)
+    B[0,0] = 1.0  
+    B[0,1] = 0.0
+    B[1,0] = 0.0
+    B[1,1] = 1.0
+
     Q: pmat[nu,nu] = pmat(nx, nx)
+    Q[0,0] = 1.0  
+    Q[0,1] = 0.0
+    Q[1,0] = 0.0
+    Q[1,1] = 1.0
+
     R: pmat[nu,nu] = pmat(nu, nu)
-    P: pmat[nu,nu] = pmat(nx, nx)
-
-    # M: List[pmat, sizes]  = plist(pmat, sizes)
-
-    fact: pmat[nu,nu] = pmat(nx, nx)
+    R[0,0] = 1.0  
+    R[0,1] = 0.0
+    R[1,0] = 0.0
+    R[1,1] = 1.0
 
     qp : qp_data = qp_data() 
 
@@ -54,8 +66,5 @@ def main() -> None:
 
     for i in range(N):
         qp.R[i] = R
-
-    for i in range(N):
-        qp.fact[i] = fact
 
     qp.factorize()
