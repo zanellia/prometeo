@@ -19,6 +19,9 @@ class qp_data:
     def factorize(self) -> None:
         M: pmat[nxu, nxu] = pmat(nxu, nxu)
         Mu: pmat[nu, nu] = pmat(nu, nu)
+        Mxut: pmat[nu, nxu] = pmat(nu, nxu)
+        Mxx: pmat[nx, nx] = pmat(nx, nx)
+        Mxu: pmat[nxu, nu] = pmat(nxu, nu)
         Lu: pmat[nu, nu] = pmat(nu, nu)
         Lxu: pmat[nxu, nxu] = pmat(nxu, nxu)
         Q: pmat[nx, nx] = pmat(nx, nx)
@@ -29,19 +32,12 @@ class qp_data:
         BA: pmat[nx, nxu] = pmat(nx, nxu)
         BAtP: pmat[nxu, nx] = pmat(nxu, nx)
         pmat_copy(self.Q[N-1], self.P[N-1])
-        for i in range(1, N-1):
+        for i in range(1, N):
             pmat_tran(self.B[N-i], Bt)
-
-            pmat_print(Bt)
             pmat_tran(self.A[N-i], At)
-
-            pmat_print(At)
             pmat_vcat(Bt, At, BAt)
-
-            pmat_print(BAt)
             pmt_gemm(BAt, self.P[N-i], BAtP, BAtP)
 
-            pmat_print(BAtP)
             pmat_copy(self.Q[N-i], Q)
             pmat_copy(self.R[N-i], R)
             for j in range(nu):
@@ -53,20 +49,26 @@ class qp_data:
 
             pmat_tran(BAt, BA)
 
-            pmat_print(BA)
             pmt_gemm(BAtP, BA, M, M)
-            pmat_print(M)
             for j in range(nu):
                 for k in range(nu):
                     Mu[j,k] = M[j,k]
             pmt_potrf(Mu, Lu)
 
-            pmat_print(Mu)
-            pmat_print(Lu)
-            pmt_potrsm(Lu, Mu)
+            for j in range(nx):
+                for k in range(nx):
+                    Mxut[k,nu+j] = M[j,k]
 
-            pmat_print(Lxu)
-            # pmt_gemm(Bt, res, self.R[i], res)
+            for j in range(nx):
+                for k in range(nx):
+                    Mxx[k,j] = M[nu+j,nu+k]
+
+            pmt_potrsm(Lu, Mxut)
+            pmat_tran(Mxut, Mxu)
+            pmt_gemm(Mxut, Mxu, self.P[N-i-1], self.P[N-i-1])
+            pmt_gead(-1.0, self.P[N-i-1], Mxx)
+            pmat_copy(Mxx, self.P[N-i-1])
+            pmat_print(self.P[N-i-1])
 
         return
 
@@ -89,7 +91,6 @@ def main() -> None:
     Q[0,1] = 0.0
     Q[1,0] = 0.0
     Q[1,1] = 1.0
-    # print(Q[0,0])
 
     R: pmat[nu,nu] = pmat(nu, nu)
     R[0,0] = 1.0  

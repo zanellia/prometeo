@@ -1688,7 +1688,7 @@ class SourceGenerator(ExplicitNodeVisitor):
             # what the parent operation was...
             node.operand._p_op = node.op
             sym = get_op_symbol(node.op)
-            self.write(sym, ' ' if sym.isalpha() else '', node.operand)
+            self.write(sym, ' ' if sym.isalpha() else '', node.operand, dest = 'src')
 
     def visit_Subscript(self, node):
         set_precedence(node, node.slice)
