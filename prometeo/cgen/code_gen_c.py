@@ -1082,7 +1082,9 @@ class SourceGenerator(ExplicitNodeVisitor):
                             # check is dims is not a numerical value
                             if isinstance(dims, str):
                                 dim_list = self.dim_record[dims]
-                            array_size = len(dim_list)
+                                array_size = len(dim_list)
+                            else: 
+                                array_size = dims
                                 # array_size = str(Num_or_Name(node.value.args[1]))
                                 # self.statement([], ann, ' ', node.target, '[', array_size, '];')
                             self.write('%s' %ann, ' ', '%s' %node.target.id, '[%s' %array_size, '];\n', dest = 'src')
