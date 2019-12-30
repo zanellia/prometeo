@@ -20,6 +20,7 @@ class qp_data:
         M: pmat[nxu, nxu] = pmat(nxu, nxu)
         Mu: pmat[nu, nu] = pmat(nu, nu)
         Lu: pmat[nu, nu] = pmat(nu, nu)
+        Lxu: pmat[nxu, nxu] = pmat(nxu, nxu)
         Q: pmat[nx, nx] = pmat(nx, nx)
         R: pmat[nu, nu] = pmat(nu, nu)
         Bt: pmat[nx, nx] = pmat(nx, nx)
@@ -27,29 +28,45 @@ class qp_data:
         BAt: pmat[nxu, nx] = pmat(nxu, nx)
         BA: pmat[nx, nxu] = pmat(nx, nxu)
         BAtP: pmat[nxu, nx] = pmat(nxu, nx)
-        pmat_copy(self.P[N-1], self.Q[N-1])
-        for i in range(N-1, 0):
-            pmat_tran(self.B[i], Bt)
-            pmat_tran(self.A[i], At)
+        pmat_copy(self.Q[N-1], self.P[N-1])
+        for i in range(1, N-1):
+            pmat_tran(self.B[N-i], Bt)
+
+            pmat_print(Bt)
+            pmat_tran(self.A[N-i], At)
+
+            pmat_print(At)
             pmat_vcat(Bt, At, BAt)
-            pmt_gemm(BAt, self.P[i], BAtP, BAtP)
-            pmat_copy(self.Q[i], Q)
-            pmat_copy(self.R[i], R)
+
+            pmat_print(BAt)
+            pmt_gemm(BAt, self.P[N-i], BAtP, BAtP)
+
+            pmat_print(BAtP)
+            pmat_copy(self.Q[N-i], Q)
+            pmat_copy(self.R[N-i], R)
             for j in range(nu):
                 for k in range(nu):
-                    M[i,j] = R[i,j]
+                    M[j,k] = R[j,k]
             for j in range(nx):
                 for k in range(nx):
-                    M[nu+i,nu+j] = Q[nx,nx]
+                    M[nu+j,nu+k] = Q[j,k]
 
             pmat_tran(BAt, BA)
+
+            pmat_print(BA)
             pmt_gemm(BAtP, BA, M, M)
+            pmat_print(M)
             for j in range(nu):
                 for k in range(nu):
-                    Mu[j,j] = M[j,j]
+                    Mu[j,k] = M[j,k]
             pmt_potrf(Mu, Lu)
+
+            pmat_print(Mu)
+            pmat_print(Lu)
+            pmt_potrsm(Lu, Mu)
+
+            pmat_print(Lxu)
             # pmt_gemm(Bt, res, self.R[i], res)
-            # pmt_potrsm(res, self.fact[i])
 
         return
 
@@ -61,17 +78,18 @@ def main() -> None:
     A[1,0] = 0.0
     A[1,1] = 0.8
 
-    B: pmat[nu,nu] = pmat(nx, nu)
+    B: pmat[nx,nu] = pmat(nx, nu)
     B[0,0] = 1.0  
     B[0,1] = 0.0
     B[1,0] = 0.0
     B[1,1] = 1.0
 
-    Q: pmat[nu,nu] = pmat(nx, nx)
+    Q: pmat[nx,nx] = pmat(nx, nx)
     Q[0,0] = 1.0  
     Q[0,1] = 0.0
     Q[1,0] = 0.0
     Q[1,1] = 1.0
+    # print(Q[0,0])
 
     R: pmat[nu,nu] = pmat(nu, nu)
     R[0,0] = 1.0  

@@ -1327,10 +1327,7 @@ class SourceGenerator(ExplicitNodeVisitor):
             # range(<value>, <value>)
             range_value_1 = astu.unparse(node.iter.args[0]).strip('\n') 
             range_value_2 = astu.unparse(node.iter.args[1]).strip('\n') 
-            if range_value_1 > range_value_2:
-                increment = 1
-            else:
-                increment = -1
+            increment = 1
             self.statement(node, 'for(int ',
                     node.target, ' = {}; '.format(range_value_1), node.target, 
                     ' < {}'.format(range_value_2), 

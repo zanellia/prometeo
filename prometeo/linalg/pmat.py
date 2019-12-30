@@ -155,7 +155,7 @@ def pmat_tran(A: pmat, B: pmat):
             B.blasfeo_dmat.n))
     for i in range(A.blasfeo_dmat.m):
         for j in range(A.blasfeo_dmat.n):
-            B[i,j] = A[j,i]
+            B[j,i] = A[i,j]
  
 def pmat_vcat(A: pmat, B: pmat, res: pmat):
     if A.blasfeo_dmat.n != B.blasfeo_dmat.n \
@@ -167,10 +167,10 @@ def pmat_vcat(A: pmat, B: pmat, res: pmat):
             B.blasfeo_dmat.n))
     for i in range(A.blasfeo_dmat.m):
         for j in range(A.blasfeo_dmat.n):
-            res[i,j] = A[j,i]
+            res[i,j] = A[i,j]
     for i in range(B.blasfeo_dmat.m):
         for j in range(B.blasfeo_dmat.n):
-            res[A.blasfeo_dmat.m + i,j] = A[j,i]
+            res[A.blasfeo_dmat.m + i,j] = B[i,j]
  
 def pmt_getrsm(A: pmat, B: pmat, fact: pmat, ipiv: list, res: pmat):
     # create permutation vector
@@ -200,17 +200,17 @@ def pmt_getrsv(b: pvec, fact: pmat, ipiv: list, res: pvec):
     pmt_trsv_lunn(fact, res)
     return res
 
-def pmt_potrsm(b: pmat, fact: pmat, res: pmat):
+def pmt_potrsm(fact: pmat, rhs: pmat):
     # solve
-    pmt_trsm_llnu(fact, res)
-    pmt_trsm_lunn(fact, res)
-    return res
+    pmt_trsm_llnu(fact, rhs)
+    pmt_trsm_lunn(fact, rhs)
+    return 
 
-def pmt_potrsv(b: pvec, fact: pmat, res: pvec):
+def pmt_potrsv(fact: pmat, rhs: pvec):
     # solve
-    pmt_trsv_llnu(fact, res)
-    pmt_trsv_lunn(fact, res)
-    return res
+    pmt_trsv_llnu(fact, rhs)
+    pmt_trsv_lunn(fact, rhs)
+    return 
 
 # intermediate-level linear algebra
 def pmt_gemm(A: pmat, B: pmat, C: pmat, D: pmat):
