@@ -21,9 +21,9 @@ class qp_data:
         res: pmat[nx, nx] = pmat(nx, nx)
         Bt: pmat[nx, nx] = pmat(nx, nx)
         for i in range(N):
-            pmt_gemm(self.P[i], self.B[i], res, res)
+            pmt_gemm_nn(self.P[i], self.B[i], res, res)
             pmat_tran(self.B[i], Bt)
-            pmt_gemm(Bt, res, self.R[i], res)
+            pmt_gemm_nn(Bt, res, self.R[i], res)
             pmt_potrf(res, self.fact[i])
             # pmt_potrsm(res, self.fact[i])
 

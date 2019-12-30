@@ -1,6 +1,7 @@
 # UNCOMMENT THESE LINES TO EXECUTE 
 from prometeo import *
 
+sizes: dimv = [[2,2], [2,2], [2,2]]
 class p_class:
     attr_1: int = 1
     attr_2: float = 3.0
@@ -19,7 +20,7 @@ def function1(A: pmat[2,2], B: pmat[2,2], C: pmat[2,2]) -> None:
 
 def main() -> None:
 
-    n_list: List[int] = plist(int, 10) 
+    n_list: List[int, 10] = plist(int, 10) 
     n_list[0] = 1
 
     test_class: p_class = p_class()
@@ -50,7 +51,7 @@ def main() -> None:
 
     test_class.method_2(A, B, C)
 
-    pmat_list: List[pmat] = plist(pmat, 10)
+    pmat_list: List[pmat, sizes] = plist(pmat, sizes)
     pmat_list[0] = A
 
     C = A * B
@@ -87,7 +88,7 @@ def main() -> None:
     pvec_print(c)
 
     # test LU solve
-    ipiv: List[int] = plist(int, 2) 
+    ipiv: List[int, 2] = plist(int, 2) 
     fact : pmat[2,2] = pmat(2, 2)
     M : pmat[2,2] = pmat(2,2)
     pmt_getrf(M, fact, ipiv)
@@ -95,7 +96,7 @@ def main() -> None:
     rhs: pvec[2] = pvec(2)
     rhs[0] = 1.0
     rhs[1] = -3.0
-    pmt_getrsv(rhs, fact, ipiv, res)
+    # pmt_getrsv(fact, ipiv, rhs)
 
     # test Cholesky solve
     M[0,0] = 1.0
@@ -103,7 +104,7 @@ def main() -> None:
     M[1,0] = 0.1
     M[1,1] = 1.0
     pmt_potrf(M, fact)
-    pmt_potrsv(rhs, fact, res)
+    pmt_potrsv(fact, rhs)
 
 # UNCOMMENT THESE LINES TO EXECUTE 
 # if __name__ == "__main__":

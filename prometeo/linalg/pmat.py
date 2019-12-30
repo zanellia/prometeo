@@ -202,7 +202,7 @@ def pmt_getrsm(A: pmat, B: pmat, fact: pmat, ipiv: list, res: pmat):
     pmt_trsm_lunn(A, res)
     return res
 
-def pmt_getrsv(b: pvec, fact: pmat, ipiv: list, res: pvec):
+def pmt_getrsv(fact: pmat, ipiv: list, rhs: pvec):
     # create permutation vector
     c_ipiv = cast(create_string_buffer(sizeof(c_int)*fact.blasfeo_dmat.m), POINTER(c_int))
     for i in range(fact.blasfeo_dmat.n):
@@ -211,9 +211,9 @@ def pmt_getrsv(b: pvec, fact: pmat, ipiv: list, res: pvec):
     pvec_copy(b, res)
     pmt_vecpe(b.blasfeo_dvec.m, c_ipiv, res)
     # solve
-    pmt_trsv_llnu(fact, res)
-    pmt_trsv_lunn(fact, res)
-    return res
+    pmt_trsv_llnu(fact, rhs)
+    pmt_trsv_lunn(fact, rhs)
+    return 
 
 def pmt_potrsm(fact: pmat, rhs: pmat):
     # solve

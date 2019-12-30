@@ -1,7 +1,5 @@
 from setuptools import setup, find_packages
 
-import prometeo
-
 setup(name='prometeo',
    version='0.1',
    python_requires='>=3.6, <3.8',
