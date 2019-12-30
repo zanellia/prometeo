@@ -119,9 +119,9 @@ def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False
     json_file = 'typed_record.json'
     with open(json_file, 'w') as f:
         json.dump(generator.typed_record, f, indent=4, sort_keys=True)
-    json_file = 'dim_record.json'
+    json_file = 'var_dim_record.json'
     with open(json_file, 'w') as f:
-        json.dump(generator.dim_record, f, indent=4, sort_keys=True)
+        json.dump(generator.var_dim_record, f, indent=4, sort_keys=True)
     json_file = 'usr_types.json'
     with open(json_file, 'w') as f:
         json.dump(usr_temp_types, f, indent=4, sort_keys=True)
@@ -261,7 +261,8 @@ class SourceGenerator(ExplicitNodeVisitor):
 
         self.typed_record = {'global': dict()}
         self.scope = 'global'
-        self.dim_record = {'global': dict()}
+        self.var_dim_record = {'global': dict()}
+        self.dim_record = dict()
         
         def write(*params, dest):
             """ self.write is a closure for performance (to reduce the number
@@ -364,14 +365,20 @@ class SourceGenerator(ExplicitNodeVisitor):
                         if item.value.func.id is not 'prmt_list': 
                             raise Exception("Cannot create Lists without using prmt_list constructor.")
                         else:
-                            ann = item.annotation.slice.value.id
-                            self.typed_record[self.scope][item.target.id] = 'List[' + ann + ']'
+                            if len(item.annotation.slice.value.elts) != 2:
+                                raise Exception('Type annotations in List declaration must have the format List[<type>, <sizes>]')
+                            # attribute is a List
+                            ann = item.annotation.slice.value.elts[0].id
+                            dims = item.annotation.slice.value.elts[1].id
+                            self.typed_record[self.scope][item.target.id] = 'List[' + ann + ', ' + dims + ']'
                             if  ann in prmt_temp_types:
                                 ann = prmt_temp_types[ann]
                             else:
                                 raise Exception ('Usage of non existing type {}'.format(ann))
-                            array_size = str(Num_or_Name(item.value.args[1]))
-                            # self.statement([], ann, ' ', item.target, '[', array_size, '];')
+                            dim_list = self.dim_record[dims]
+                            array_size = len(dim_list)
+                                # array_size = str(Num_or_Name(item.value.args[1]))
+                                # self.statement([], ann, ' ', item.target, '[', array_size, '];')
                             self.write('%s' %ann, ' ', '%s' %item.target.id, '[%s' %array_size, '];\n', dest = 'hdr')
                     else:
                         type_c = prmt_temp_types[type_py]
@@ -484,14 +491,21 @@ class SourceGenerator(ExplicitNodeVisitor):
                             raise Exception("Invalid subscripted annotation. Lists must be created using prmt_list constructor and",  
                                         "the argument of List[] must be a valid type.\n")
                         else:
-                            ann = item.annotation.slice.value.id
-                            self.typed_record[self.scope][item.target.id] = 'List[' + ann + ']'
-                            if  ann in prmt_temp_types:
-                                ann = prmt_temp_types[ann]
-                            else:
-                                raise Exception ('Usage of non existing type {}'.format(ann))
-                            array_size = str(Num_or_Name(item.value.args[1]))
-                            self.statement([], ann, ' ', item.target, '[', array_size, '];')
+                            # attribute is a List
+                            ann = item.annotation.slice.value.elts[0].id
+                            dims = item.annotation.slice.value.elts[1].id
+                            dim_list = self.dim_record[dims]
+                            if ann == 'pmat': 
+                                # build init for List of pmats
+                                for i in range(len(dim_list)):
+                                    self.statement([], '\n', 'object->', item.target.id, '[', str(i),'] = c_pmt_create_pmat(', str(dim_list[i][0]), ', ', str(dim_list[i][1]), ');')
+
+                            #     # array_size = str(Num_or_Name(item.value.args[1]))
+                            #     # self.statement([], ann, ' ', item.target, '[', array_size, '];')
+                            # self.write('%s' %ann, ' ', '%s' %item.target.id, '[%s' %array_size, '];\n', dest = 'hdr')
+
+                            # array_size = str(Num_or_Name(item.value.args[1]))
+                            # self.statement([], ann, ' ', item.target, '[', array_size, '];')
                     # pmat[<n>,<m>] or pvec[<n>]
                     elif item.annotation.value.id in ['pmat', 'pvec']:
                         if item.annotation.value.id == 'pmat':
@@ -502,7 +516,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                                 dim1 = item.annotation.slice.value.elts[0].n
                                 dim2 = item.annotation.slice.value.elts[1].n
                             ann = item.annotation.value.id
-                            self.dim_record[self.scope][item.target.id] = [dim1, dim2]
+                            self.var_dim_record[self.scope][item.target.id] = [dim1, dim2]
                         else:
                             # pvec
                             if 'id' in item.annotation.slice.value.__dict__: 
@@ -510,11 +524,11 @@ class SourceGenerator(ExplicitNodeVisitor):
                             else:
                                 dim1 = item.annotation.slice.value.n
                             ann = item.annotation.value.id
-                            self.dim_record[self.scope][item.target.id] = [dim1]
+                            self.var_dim_record[self.scope][item.target.id] = [dim1]
                         # add variable to typed record
                         self.typed_record[self.scope][item.target.id] = ann
                         print('typed_record = \n', self.typed_record, '\n\n')
-                        print('dim_record = \n', self.dim_record, '\n\n')
+                        print('var_dim_record = \n', self.var_dim_record, '\n\n')
                         if  ann in prmt_temp_types:
                             c_ann = prmt_temp_types[ann]
                             # self.statement(item, c_ann, ' ', item.target.id)
@@ -608,7 +622,7 @@ class SourceGenerator(ExplicitNodeVisitor):
 
                 self.scope = self.scope + '@' + item.name
                 self.typed_record[self.scope] = dict()
-                self.dim_record[self.scope] = dict()
+                self.var_dim_record[self.scope] = dict()
                 self.visit_arguments(item.args, 'src')
                 self.write(') {', dest = 'src')
                 self.body(item.body)
@@ -648,11 +662,11 @@ class SourceGenerator(ExplicitNodeVisitor):
                         dim1 = Num_or_Name(arg.annotation.slice.value.elts[0])
                         dim2 = Num_or_Name(arg.annotation.slice.value.elts[1])
                         arg_type_py = arg.annotation.value.id
-                        self.dim_record[self.scope][arg.arg] = [dim1, dim2]
+                        self.var_dim_record[self.scope][arg.arg] = [dim1, dim2]
                     elif arg.annotation.value.id == 'pvec':
                         dim1 = Num_or_Name(arg.annotation.slice.value.elts[0])
                         arg_type_py = arg.annotation.value.id
-                        self.dim_record[self.scope][arg.arg] = [dim1]
+                        self.var_dim_record[self.scope][arg.arg] = [dim1]
                     else:
                         raise Exception('Subscripted type annotation can be used only with pmat arguments.\n')
                 else:
@@ -1051,9 +1065,19 @@ class SourceGenerator(ExplicitNodeVisitor):
             self.typed_record[self.scope][node.target.id] = node.annotation.id
             print(self.typed_record[self.scope])
             # check if a dimension is being declared
-            if ann == 'dim':
+            if ann == 'dims':
                 self.write('#define %s %s\n' %(node.target.id, node.value.n), dest='hdr')
+                self.dim_record[node.target.id] = node.value.n
                 # self.write('const int %s = %s;\n' %(node.target.id, node.value.n), dest='hdr')
+                return
+            elif ann == 'dimv':
+                self.dim_record
+                self.dim_record[node.target.id] = []
+                for i in range(len(node.value.elts)):
+                    self.dim_record[node.target.id].append([])
+                    for j in range(len(node.value.elts[i].elts)):
+                        self.dim_record[node.target.id][i].append(node.value.elts[i].elts[j].n)
+                        self.write('#define %s_%s_%s %s\n' %(node.target.id, i, j, node.value.elts[i].elts[j].n), dest='hdr')
                 return
 
             if ann in prmt_temp_types:
@@ -1082,14 +1106,14 @@ class SourceGenerator(ExplicitNodeVisitor):
                     dim1 = node.annotation.slice.value.elts[0].n
                     dim2 = node.annotation.slice.value.elts[1].n
                 ann = node.annotation.value.id
-                self.dim_record[self.scope][node.target.id] = [dim1, dim2]
+                self.var_dim_record[self.scope][node.target.id] = [dim1, dim2]
             elif node.annotation.value.id == 'pvec':
                 if 'id' in node.annotation.slice.value.__dict__: 
                     dim1 = node.annotation.slice.value.id
                 else:
                     dim1 = node.annotation.slice.value.n
                 ann = node.annotation.value.id
-                self.dim_record[self.scope][node.target.id] = [dim1]
+                self.var_dim_record[self.scope][node.target.id] = [dim1]
             # else:
             #     if 'id' in node.annotation.slice.value.__dict__: 
             #         ann = 'ptr_' + node.annotation.slice.value.id
@@ -1098,7 +1122,7 @@ class SourceGenerator(ExplicitNodeVisitor):
             # add variable to typed record
             self.typed_record[self.scope][node.target.id] = ann
             print('typed_record = \n', self.typed_record, '\n\n')
-            print('dim_record = \n', self.dim_record, '\n\n')
+            print('var_dim_record = \n', self.var_dim_record, '\n\n')
             if  ann in prmt_temp_types:
                 c_ann = prmt_temp_types[ann]
                 self.statement(node, c_ann, ' ', node.target.id)
@@ -1156,7 +1180,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         ap.pprint(node)
         self.scope = self.scope + '@' + node.name
         self.typed_record[self.scope] = dict()
-        self.dim_record[self.scope] = dict()
+        self.var_dim_record[self.scope] = dict()
         prefix = 'is_async ' if is_async else ''
         self.decorators(node, 1 if self.indentation else 2)
         # self.write()
@@ -1199,7 +1223,7 @@ class SourceGenerator(ExplicitNodeVisitor):
     def visit_ClassDef(self, node):
         self.scope = self.scope + '@' + node.name
         self.typed_record[self.scope] = dict()
-        self.dim_record[self.scope] = dict()
+        self.var_dim_record[self.scope] = dict()
         have_args = []
 
         def paren_or_comma():

@@ -1,18 +1,21 @@
 # UNCOMMENT THESE LINES TO EXECUTE 
 from prometeo import *
 
-nx: dim = 2
-nu: dim = 2
-N:  dim = 10
+sizes: dimv = [[2,2], [2,2], [2,2], [2,2], [2,2]]
+nx: dims = 2
+nu: dims = 2
+N:  dims = 5
+# sizes: dim = N*[nx, nx]
 
 class qp_data:
     C: pmat[nu,nu] = pmat(nx,nu)
-    A: List[pmat]  = prmt_list(pmat, N)
-    B: List[pmat]  = prmt_list(pmat, N)
-    Q: List[pmat]  = prmt_list(pmat, N)
-    R: List[pmat]  = prmt_list(pmat, N)
+    A: List[pmat, sizes]  = prmt_list(pmat, sizes)
+    B: List[pmat, sizes]  = prmt_list(pmat, sizes)
+    Q: List[pmat, sizes]  = prmt_list(pmat, sizes)
+    R: List[pmat, sizes]  = prmt_list(pmat, sizes)
+    P: List[pmat, sizes]  = prmt_list(pmat, sizes)
 
-    fact: List[pmat] = prmt_list(pmat, N)
+    fact: List[pmat, sizes] = prmt_list(pmat, sizes)
 
     def factorize(self) -> None:
         for i in range(N):
@@ -26,6 +29,7 @@ def main() -> None:
     B: pmat[nu,nu] = pmat(nx, nu)
     Q: pmat[nu,nu] = pmat(nx, nx)
     R: pmat[nu,nu] = pmat(nu, nu)
+    P: pmat[nu,nu] = pmat(nx, nx)
 
     fact: pmat[nu,nu] = pmat(nx, nx)
 
