@@ -11,7 +11,9 @@ shared library associated with the C back end running `make shared & sudo make i
 this location is added to your `LD_LIBRARY_PATH` when you want to run the generated code. Since prometeo relies 
 on BLASFEO, make sure that you have cloned the submodule (`git submodule init & git submodule update`) and that 
 you have compiled and installed BLASFEO: run `make static_library & make shared_library & sudo make install_shared` 
-from `<prometeo_root>/external/blasfeo/`. Finally, you can run the examples in `prometeo/examples` with `pmt <example_name>.py --cgen=<True/False>`, where the `--cgen` flag determines whether the code is executed by the Python intereter or C code is generated compiled and run.
+from `<prometeo_root>/external/blasfeo/`. 
+
+Finally, you can run the examples in `prometeo/examples` with `pmt <example_name>.py --cgen=<True/False>`, where the `--cgen` flag determines whether the code is executed by the Python intereter or C code is generated compiled and run.
 
 ### a simple example
 
