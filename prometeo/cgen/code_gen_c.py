@@ -800,8 +800,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                             value = node.value.value.id
                             if value in self.typed_record[scope]:
                                 if self.typed_record[scope][value] == 'pmat':
-                                    first_index_value = Num_or_Name(node.value.slice.value.elts[0])
-                                    second_index_value = Num_or_Name(node.value.slice.value.elts[1])
+                                    first_index_value = astu.unparse(node.value.slice.value.elts[0]).strip('\n')
+                                    second_index_value = astu.unparse(node.value.slice.value.elts[1]).strip('\n')
 
                                     value_expr = 'c_pmt_pmat_get_el(' + value + ', {}, {})'.format(first_index_value, second_index_value) 
                                     self.statement([], 'c_pmt_pmat_set_el(', target, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value_expr), ');')
