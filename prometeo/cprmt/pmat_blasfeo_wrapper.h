@@ -23,8 +23,10 @@ void c_pmt_assign_and_advance_blasfeo_dmat(int m, int n, struct blasfeo_dmat **b
 void c_pmt_dgemm(struct pmat *A, struct pmat *B, struct pmat *C, struct pmat *D);
 void c_pmt_getrf(struct pmat *A, struct pmat *fact, int *ipiv);
 void c_pmt_potrf(struct pmat *A, struct pmat *fact);
-void c_pmt_getrs(struct pvec *rhs, struct pmat *fact, int *ipiv, struct pvec *out);
-void c_pmt_potrs(struct pvec *rhs, struct pmat *fact, struct pvec *out);
+void c_pmt_getrsm(struct pmat *rhs, struct pmat *fact, int *ipiv, struct pmat *out);
+void c_pmt_getrsv(struct pvec *rhs, struct pmat *fact, int *ipiv, struct pvec *out);
+void c_pmt_potrsm(struct pmat *rhs, struct pmat *fact, struct pmat *out);
+void c_pmt_potrsv(struct pvec *rhs, struct pmat *fact, struct pvec *out);
 void c_pmt_dgead(double alpha, struct pmat *A, struct pmat *B); 
 
 void c_pmt_dgemv(struct pmat *A, struct pvec *b, struct pvec *c, struct pvec *d);

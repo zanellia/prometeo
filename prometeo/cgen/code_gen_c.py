@@ -34,10 +34,12 @@ prmt_temp_functions = {\
         "pvec": "c_pmt_create_pvec", \
         "pmt_gemm": "c_pmt_gemm", \
         "pmt_gead": "c_pmt_gead", \
-        "pmt_getrs": "c_pmt_getrs", \
         "pmt_getrf": "c_pmt_getrf", \
+        "pmt_getrsm": "c_pmt_getrsm", \
+        "pmt_getrsv": "c_pmt_getrsv", \
         "pmt_potrf": "c_pmt_potrf", \
-        "pmt_potrs": "c_pmt_potrs", \
+        "pmt_potrsm": "c_pmt_potrsm", \
+        "pmt_potrsv": "c_pmt_potrsv", \
         "pmat_fill": "c_pmt_pmat_fill", \
         "pmat_copy": "c_pmt_pmat_copy", \
         "pmat_print": "c_pmt_pmat_print", \

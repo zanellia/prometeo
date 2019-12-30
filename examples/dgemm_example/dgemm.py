@@ -95,7 +95,7 @@ def main() -> None:
     rhs: pvec[2] = pvec(2)
     rhs[0] = 1.0
     rhs[1] = -3.0
-    pmt_getrs(rhs, fact, ipiv, res)
+    pmt_getrsv(rhs, fact, ipiv, res)
 
     # test Cholesky solve
     M[0,0] = 1.0
@@ -103,7 +103,7 @@ def main() -> None:
     M[1,0] = 0.1
     M[1,1] = 1.0
     pmt_potrf(M, fact)
-    pmt_potrs(rhs, fact, res)
+    pmt_potrsv(rhs, fact, res)
 
 # UNCOMMENT THESE LINES TO EXECUTE 
 # if __name__ == "__main__":

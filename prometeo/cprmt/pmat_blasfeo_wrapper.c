@@ -98,7 +98,7 @@ void c_pmt_potrf(struct pmat *A, struct pmat *fact) {
     blasfeo_dpotrf_l(mA, bA, 0, 0, bfact, 0, 0);
 }
 
-void c_pmt_getrs(struct pvec *rhs, struct pmat *fact, int *ipiv, struct pvec *out) {
+void c_pmt_getrsv(struct pvec *rhs, struct pmat *fact, int *ipiv, struct pvec *out) {
     int mfact = fact->bmat->m; 
     struct blasfeo_dmat *bfact = fact->bmat;
     struct blasfeo_dvec *brhs = rhs->bvec;
@@ -111,7 +111,31 @@ void c_pmt_getrs(struct pvec *rhs, struct pmat *fact, int *ipiv, struct pvec *ou
     blasfeo_dtrsv_unn(mfact, bfact, 0, 0, brhs, 0, bout, 0);
 }
 
-void c_pmt_potrs(struct pvec *rhs, struct pmat *fact, struct pvec *out) {
+void c_pmt_getrsm(struct pmat *rhs, struct pmat *fact, int *ipiv, struct pmat *out) {
+    int mfact = fact->bmat->m; 
+    struct blasfeo_dmat *bfact = fact->bmat;
+    struct blasfeo_dmat *brhs  = rhs->bmat;
+    struct blasfeo_dmat *bout  = out->bmat;
+
+    // permute the r.h.s
+    blasfeo_drowpe(mfact, ipiv, brhs);
+    // triangular solves 
+    blasfeo_dtrsm_llnu(mfact, mfact, 1.0, bfact, 0, 0, brhs, 0, 0, bout, 0, 0);
+    blasfeo_dtrsm_lunn(mfact, mfact, 1.0, bfact, 0, 0, brhs, 0, 0, bout, 0, 0);
+}
+
+void c_pmt_potrsm(struct pmat *rhs, struct pmat *fact, struct pmat *out) {
+    int mfact = fact->bmat->m; 
+    struct blasfeo_dmat *bfact = fact->bmat;
+    struct blasfeo_dmat *brhs  = rhs->bmat;
+    struct blasfeo_dmat *bout  = out->bmat;
+
+    // triangular solves 
+    blasfeo_dtrsm_llnu(mfact, mfact, 1.0, bfact, 0, 0, brhs, 0, 0, bout, 0, 0);
+    blasfeo_dtrsm_lunn(mfact, mfact, 1.0, bfact, 0, 0, brhs, 0, 0, bout, 0, 0);
+}
+
+void c_pmt_potrsv(struct pvec *rhs, struct pmat *fact, struct pvec *out) {
     int mfact = fact->bmat->m; 
     struct blasfeo_dmat *bfact = fact->bmat;
     struct blasfeo_dvec *brhs = rhs->bvec;
@@ -121,7 +145,6 @@ void c_pmt_potrs(struct pvec *rhs, struct pmat *fact, struct pvec *out) {
     blasfeo_dtrsv_lnu(mfact, bfact, 0, 0, brhs, 0, bout, 0);
     blasfeo_dtrsv_unn(mfact, bfact, 0, 0, brhs, 0, bout, 0);
 }
-
 void c_pmt_dgead(double alpha, struct pmat *A, struct pmat *B) {
     int mA = A->bmat->m; 
     int nA = A->bmat->n; 
