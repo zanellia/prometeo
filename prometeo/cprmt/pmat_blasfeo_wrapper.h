@@ -20,7 +20,8 @@ struct pmat * c_pmt_create_pmat(int m, int n);
 void c_pmt_assign_and_advance_blasfeo_dmat(int m, int n, struct blasfeo_dmat **bmat);
 
 // BLAS API
-void c_pmt_gemm(struct pmat *A, struct pmat *B, struct pmat *C, struct pmat *D);
+void c_pmt_gemm_nn(struct pmat *A, struct pmat *B, struct pmat *C, struct pmat *D);
+void c_pmt_gemm_tn(struct pmat *A, struct pmat *B, struct pmat *C, struct pmat *D);
 void c_pmt_getrf(struct pmat *A, struct pmat *fact, int *ipiv);
 void c_pmt_potrf(struct pmat *A, struct pmat *fact);
 void c_pmt_getrsm(struct pmat *fact, int *ipiv, struct pmat *rhs);
@@ -38,6 +39,7 @@ double c_pmt_pmat_get_el(struct pmat *A, int i, int j);
 void c_pmt_pmat_copy(struct pmat *A, struct pmat *B);
 void c_pmt_pmat_tran(struct pmat *A, struct pmat *B);
 void c_pmt_pmat_vcat(struct pmat *A, struct pmat *B, struct pmat *res);
+void c_pmt_pmat_hcat(struct pmat *A, struct pmat *B, struct pmat *res);
 void c_pmt_pmat_print(struct pmat *A);
 
 #endif // PROMETEO_PRMT_MAT_BLASFEO_WRAPPER_H_

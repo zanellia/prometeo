@@ -62,7 +62,7 @@ void c_pmt_assign_and_advance_blasfeo_dmat(int m, int n, struct blasfeo_dmat **b
 
 // BLAS API
 
-void c_pmt_gemm(struct pmat *A, struct pmat *B, struct pmat *C, struct pmat *D) {
+void c_pmt_gemm_nn(struct pmat *A, struct pmat *B, struct pmat *C, struct pmat *D) {
     int mA = A->bmat->m; 
     int nA = A->bmat->n; 
     int nB = B->bmat->n; 
@@ -80,6 +80,23 @@ void c_pmt_gemm(struct pmat *A, struct pmat *B, struct pmat *C, struct pmat *D) 
     blasfeo_dgemm_nn(mA, nA, nB, 1.0, bA, 0, 0, bB, 0, 0, 1, bC, 0, 0, bD, 0, 0);
 }
 
+void c_pmt_gemm_tn(struct pmat *A, struct pmat *B, struct pmat *C, struct pmat *D) {
+    int mA = A->bmat->m; 
+    int nA = A->bmat->n; 
+    int nB = B->bmat->n; 
+    struct blasfeo_dmat *bA = A->bmat;
+    struct blasfeo_dmat *bB = B->bmat;
+    struct blasfeo_dmat *bC = C->bmat;
+    struct blasfeo_dmat *bD = D->bmat;
+
+    // printf("In dgemm\n");
+    // blasfeo_print_dmat(mA, nA, A->bmat, 0, 0);
+    // blasfeo_print_dmat(mA, nA, B->bmat, 0, 0);
+    // blasfeo_print_dmat(mA, nA, C->bmat, 0, 0);
+    // blasfeo_print_dmat(mA, nA, D->bmat, 0, 0);
+
+    blasfeo_dgemm_tn(mA, nA, nB, 1.0, bA, 0, 0, bB, 0, 0, 1, bC, 0, 0, bD, 0, 0);
+}
 void c_pmt_getrf(struct pmat *A, struct pmat *fact, int *ipiv) {
     int mA = A->bmat->m; 
     struct blasfeo_dmat *bA = A->bmat;
@@ -234,6 +251,24 @@ void c_pmt_pmat_vcat(struct pmat *A, struct pmat *B, struct pmat *res) {
         }
 }
 
+void c_pmt_pmat_hcat(struct pmat *A, struct pmat *B, struct pmat *res) {
+    int mA = A->bmat->m;
+    int nA = A->bmat->n;
+    int mB = B->bmat->m;
+    int nB = B->bmat->n;
+    double value;
+
+    for(int i = 0; i < mA; i++)
+        for(int j = 0; j < nA; j++) {
+            value = blasfeo_dgeex1(A->bmat, i, j);
+            blasfeo_dgein1(value, res->bmat, i, j);
+        }
+    for(int i = 0; i < mB; i++)
+        for(int j = 0; j < nB; j++) {
+            value = blasfeo_dgeex1(B->bmat, i, j);
+            blasfeo_dgein1(value, res->bmat, i, nA + j);
+        }
+}
 void c_pmt_pmat_print(struct pmat *A) {
     int m = A->bmat->m;
     int n = A->bmat->n;

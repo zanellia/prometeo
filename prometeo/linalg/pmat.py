@@ -172,6 +172,21 @@ def pmat_vcat(A: pmat, B: pmat, res: pmat):
         for j in range(B.blasfeo_dmat.n):
             res[A.blasfeo_dmat.m + i,j] = B[i,j]
  
+def pmat_hcat(A: pmat, B: pmat, res: pmat):
+    if A.blasfeo_dmat.m != B.blasfeo_dmat.m \
+            or A.blasfeo_dmat.m != res.blasfeo_dmat.m \
+            or A.blasfeo_dmat.n + B.blasfeo_dmat.n != res.blasfeo_dmat.n:
+        raise Exception('__vcat__: mismatching dimensions:' 
+            ' ({}, {}) + ({}, {})'.format(A.blasfeo_dmat.m, \
+            A.blasfeo_dmat.n, B.blasfeo_dmat.m, \
+            B.blasfeo_dmat.n))
+    for i in range(A.blasfeo_dmat.m):
+        for j in range(A.blasfeo_dmat.n):
+            res[i,j] = A[i,j]
+    for i in range(B.blasfeo_dmat.m):
+        for j in range(B.blasfeo_dmat.n):
+            res[i,A.blasfeo_dmat.n + j] = B[i,j]
+ 
 def pmt_getrsm(A: pmat, B: pmat, fact: pmat, ipiv: list, res: pmat):
     # create permutation vector
     c_ipiv = cast(create_string_buffer(sizeof(c_int)*A.blasfeo_dmat.m), POINTER(c_int))

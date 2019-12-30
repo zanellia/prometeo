@@ -33,7 +33,8 @@ import json
 prmt_temp_functions = {\
         "pmat": "c_pmt_create_pmat", \
         "pvec": "c_pmt_create_pvec", \
-        "pmt_gemm": "c_pmt_gemm", \
+        "pmt_gemm_nn": "c_pmt_gemm_nn", \
+        "pmt_gemm_tn": "c_pmt_gemm_tn", \
         "pmt_gead": "c_pmt_gead", \
         "pmt_getrf": "c_pmt_getrf", \
         "pmt_getrsm": "c_pmt_getrsm", \
@@ -45,6 +46,7 @@ prmt_temp_functions = {\
         "pmat_copy": "c_pmt_pmat_copy", \
         "pmat_tran": "c_pmt_pmat_tran", \
         "pmat_vcat": "c_pmt_pmat_vcat", \
+        "pmat_hcat": "c_pmt_pmat_hcat", \
         "pmat_print": "c_pmt_pmat_print", \
         "pvec_fill": "c_pmt_pvec_fill", \
         "pvec_copy": "c_pmt_pvec_copy", \

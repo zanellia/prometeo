@@ -42,7 +42,7 @@ class qp_data:
                 for k in range(nx):
                     M[nu+j,nu+k] = Q[j,k]
 
-            pmt_gemm(BAtP, BA, M, M)
+            pmt_gemm_nn(BAtP, BA, M, M)
             for j in range(nu):
                 for k in range(nu):
                     Mu[j,k] = M[j,k]
@@ -58,7 +58,7 @@ class qp_data:
 
             pmt_potrsm(Lu, Mxut)
             pmat_tran(Mxut, Mxu)
-            pmt_gemm(Mxut, Mxu, self.P[N-i-1], self.P[N-i-1])
+            pmt_gemm_nn(Mxut, Mxu, self.P[N-i-1], self.P[N-i-1])
             pmt_gead(-1.0, self.P[N-i-1], Mxx)
             pmat_copy(Mxx, self.P[N-i-1])
             pmat_print(self.P[N-i-1])
