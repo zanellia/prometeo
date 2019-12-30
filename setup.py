@@ -13,6 +13,7 @@ setup(name='prometeo',
    entry_points={'console_scripts': ['pmt=prometeo.__main__:console_entry']},
    install_requires=[
       'astpretty',
+      'astunparse',
       'numpy',
       'scipy',
       'multipledispatch',
