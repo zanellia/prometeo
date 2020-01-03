@@ -521,20 +521,17 @@ class SourceGenerator(ExplicitNodeVisitor):
                     # pmat[<n>,<m>] or pvec[<n>]
                     elif item.annotation.value.id in ['pmat', 'pvec']:
                         if item.annotation.value.id == 'pmat':
-                            if 'id' in item.annotation.slice.value.elts[0].__dict__: 
-                                dim1 = item.annotation.slice.value.elts[0].id
-                                dim2 = item.annotation.slice.value.elts[1].id
-                            else:
-                                dim1 = item.annotation.slice.value.elts[0].n
-                                dim2 = item.annotation.slice.value.elts[1].n
+                            if node.value.func.id != 'pmat':
+                                raise Exception('pmat objects need to be declared calling the pmat(<n>, <m>) constructor\n.')
+                            dim1 = Num_or_Name(node.value.args[0])
+                            dim2 = Num_or_Name(node.value.args[1])
                             ann = item.annotation.value.id
                             self.var_dim_record[self.scope][item.target.id] = [dim1, dim2]
                         else:
                             # pvec
-                            if 'id' in item.annotation.slice.value.__dict__: 
-                                dim1 = item.annotation.slice.value.id
-                            else:
-                                dim1 = item.annotation.slice.value.n
+                            if node.value.func.id != 'pvec':
+                                raise Exception('pvec objects need to be declared calling the pvec(<n>, <m>) constructor\n.')
+                            dim1 = Num_or_Name(node.value.args[0])
                             ann = item.annotation.value.id
                             self.var_dim_record[self.scope][item.target.id] = [dim1]
                         # add variable to typed record
@@ -1144,19 +1141,26 @@ class SourceGenerator(ExplicitNodeVisitor):
         # pmat[<n>,<m>] or pvec[<n>]
         elif "slice" in node.annotation.__dict__:
             if node.annotation.value.id == 'pmat':
-                if 'id' in node.annotation.slice.value.elts[0].__dict__: 
-                    dim1 = node.annotation.slice.value.elts[0].id
-                    dim2 = node.annotation.slice.value.elts[1].id
-                else:
-                    dim1 = node.annotation.slice.value.elts[0].n
-                    dim2 = node.annotation.slice.value.elts[1].n
+                if node.value.func.id != 'pmat':
+                    raise Exception('pmat objects need to be declared calling the pmat(<n>, <m>) constructor\n.')
+                dim1 = Num_or_Name(node.value.args[0])
+                dim2 = Num_or_Name(node.value.args[1])
+                # if 'id' in node.annotation.slice.value.elts[0].__dict__: 
+                #     dim1 = node.annotation.slice.value.elts[0].id
+                #     dim2 = node.annotation.slice.value.elts[1].id
+                # else:
+                #     dim1 = node.annotation.slice.value.elts[0].n
+                #     dim2 = node.annotation.slice.value.elts[1].n
                 ann = node.annotation.value.id
                 self.var_dim_record[self.scope][node.target.id] = [dim1, dim2]
             elif node.annotation.value.id == 'pvec':
-                if 'id' in node.annotation.slice.value.__dict__: 
-                    dim1 = node.annotation.slice.value.id
-                else:
-                    dim1 = node.annotation.slice.value.n
+                if node.value.func.id != 'pvec':
+                    raise Exception('pvec objects need to be declared calling the pvec(<n>, <m>) constructor\n.')
+                dim1 = Num_or_Name(node.value.args[0])
+                # if 'id' in node.annotation.slice.value.__dict__: 
+                #     dim1 = node.annotation.slice.value.id
+                # else:
+                #     dim1 = node.annotation.slice.value.n
                 ann = node.annotation.value.id
                 self.var_dim_record[self.scope][node.target.id] = [dim1]
             # else:
