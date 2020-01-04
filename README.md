@@ -343,7 +343,5 @@ int n_list[10];
 	free(___c_prmt_64_heap_head);
 }
 ```
-and run in order to carry out the same operations.
-
 __Disclaimer: prometeo is still at a very preliminary stage and only very few linear algebra operations and Python constructs are supported for the time being.__
 
