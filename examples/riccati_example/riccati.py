@@ -8,26 +8,15 @@ nu: dims  = 2
 N:  dims  = 5
 
 class qp_data:
-    A: List[pmat, sizes] = plist(pmat, sizes)
-    B: List[pmat, sizes] = plist(pmat, sizes)
-    Q: List[pmat, sizes] = plist(pmat, sizes)
-    R: List[pmat, sizes] = plist(pmat, sizes)
-    P: List[pmat, sizes] = plist(pmat, sizes)
+    A: List = plist(pmat, sizes)
+    B: List = plist(pmat, sizes)
+    Q: List = plist(pmat, sizes)
+    R: List = plist(pmat, sizes)
+    P: List = plist(pmat, sizes)
 
-    fact: List[pmat, sizes] = plist(pmat, sizes)
+    fact: List = plist(pmat, sizes)
 
     def factorize(self) -> None:
-        # M: pmat[nxu, nxu] = pmat(nxu, nxu)
-        # Mu: pmat[nu, nu] = pmat(nu, nu)
-        # Mxut: pmat[nu, nxu] = pmat(nu, nxu)
-        # Mxx: pmat[nx, nx] = pmat(nx, nx)
-        # Mxu: pmat[nxu, nu] = pmat(nxu, nu)
-        # Lu: pmat[nu, nu] = pmat(nu, nu)
-        # Lxu: pmat[nxu, nxu] = pmat(nxu, nxu)
-        # Q: pmat[nx, nx] = pmat(nx, nx)
-        # R: pmat[nu, nu] = pmat(nu, nu)
-        # BA: pmat[nx, nxu] = pmat(nx, nxu)
-        # BAtP: pmat[nxu, nx] = pmat(nxu, nx)
         M: pmat = pmat(nxu, nxu)
         Mu: pmat = pmat(nu, nu)
         Mxut: pmat = pmat(nu, nxu)
@@ -78,25 +67,27 @@ class qp_data:
 
 def main() -> None:
 
-    A: pmat[nu,nu] = pmat(nx, nx)
+    A: pmat = pmat(nx, nx)
     A[0,0] = 0.8
     A[0,1] = 0.1
     A[1,0] = 0.0
     A[1,1] = 0.8
+    # x = SX.sym('x', 2, 1)
+    # a = mtimes(A, x)
 
-    B: pmat[nx,nu] = pmat(nx, nu)
+    B: pmat = pmat(nx, nu)
     B[0,0] = 1.0  
     B[0,1] = 0.0
     B[1,0] = 0.0
     B[1,1] = 1.0
 
-    Q: pmat[nx,nx] = pmat(nx, nx)
+    Q: pmat = pmat(nx, nx)
     Q[0,0] = 1.0  
     Q[0,1] = 0.0
     Q[1,0] = 0.0
     Q[1,1] = 1.0
 
-    R: pmat[nu,nu] = pmat(nu, nu)
+    R: pmat = pmat(nu, nu)
     R[0,0] = 1.0  
     R[0,1] = 0.0
     R[1,0] = 0.0

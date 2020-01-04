@@ -364,43 +364,44 @@ class SourceGenerator(ExplicitNodeVisitor):
                 annotation = item.annotation
                 # annotation = ast.parse(item.annotation.s).body[0]
                 # if 'value' in annotation.value.__dict__:
-                if hasattr(annotation, 'value'): 
-                    type_py = annotation.value.id
-                    if annotation.value.id is 'List':
-                        if item.value.func.id is not 'plist': 
-                            raise Exception("Cannot create Lists without using plist constructor.")
-                        else:
-                            if len(item.annotation.slice.value.elts) != 2:
-                                raise Exception('Type annotations in List declaration must have the format List[<type>, <sizes>]')
-                            # attribute is a List
-                            ann = item.annotation.slice.value.elts[0].id
-                            dims = Num_or_Name(item.annotation.slice.value.elts[1])
-                            if isinstance(dims, str):
-                                self.typed_record[self.scope][item.target.id] = 'List[' + ann + ', ' + dims + ']'
-                            else:
-                                self.typed_record[self.scope][item.target.id] = 'List[' + ann + ', ' + str(dims) + ']'
-                            if  ann in prmt_temp_types:
-                                ann = prmt_temp_types[ann]
-                            else:
-                                raise Exception ('Usage of non existing type {}'.format(ann))
-                            # check is dims is not a numerical value
-                            if isinstance(dims, str):
-                                dim_list = self.dim_record[dims]
-                            array_size = len(dim_list)
-                                # array_size = str(Num_or_Name(item.value.args[1]))
-                                # self.statement([], ann, ' ', item.target, '[', array_size, '];')
-                            self.write('%s' %ann, ' ', '%s' %item.target.id, '[%s' %array_size, '];\n', dest = 'hdr')
+                type_py = annotation.id
+                if annotation.id is 'List':
+                    if item.value.func.id is not 'plist': 
+                        raise Exception("Cannot create Lists without using plist constructor.")
                     else:
-                        type_c = prmt_temp_types[type_py]
-                        self.write('%s' %type_c, ' ', '%s' %item.target.id, ';\n', dest = 'hdr')
-                        # self.conditional_write(' = ', item.value, ';')
-                        self.typed_record[self.scope][item.target.id] = type_py
+                        if len(item.value.args) != 2:
+                            raise Exception('Type annotations in List declaration must have the format List[<type>, <sizes>]')
+                        # attribute is a List
+                        ann = item.value.args[0].id
+                        dims = Num_or_Name(item.value.args[1])
+                        # ann = item.annotation.slice.value.elts[0].id
+                        # dims = Num_or_Name(item.annotation.slice.value.elts[1])
+                        if isinstance(dims, str):
+                            self.typed_record[self.scope][item.target.id] = 'List[' + ann + ', ' + dims + ']'
+                        else:
+                            self.typed_record[self.scope][item.target.id] = 'List[' + ann + ', ' + str(dims) + ']'
+                        if  ann in prmt_temp_types:
+                            ann = prmt_temp_types[ann]
+                        else:
+                            raise Exception ('Usage of non existing type {}'.format(ann))
+                        # check is dims is not a numerical value
+                        if isinstance(dims, str):
+                            dim_list = self.dim_record[dims]
+                        array_size = len(dim_list)
+                            # array_size = str(Num_or_Name(item.value.args[1]))
+                            # self.statement([], ann, ' ', item.target, '[', array_size, '];')
+                        self.write('%s' %ann, ' ', '%s' %item.target.id, '[%s' %array_size, '];\n', dest = 'hdr')
                 else:
-                    type_py = annotation.id
                     type_c = prmt_temp_types[type_py]
                     self.write('%s' %type_c, ' ', '%s' %item.target.id, ';\n', dest = 'hdr')
                     # self.conditional_write(' = ', item.value, ';')
                     self.typed_record[self.scope][item.target.id] = type_py
+                # else:
+                #     type_py = annotation.id
+                #     type_c = prmt_temp_types[type_py]
+                #     self.write('%s' %type_c, ' ', '%s' %item.target.id, ';\n', dest = 'hdr')
+                #     # self.conditional_write(' = ', item.value, ';')
+                #     self.typed_record[self.scope][item.target.id] = type_py
             elif isinstance(item, ast.FunctionDef):
                 # build argument mangling
                 f_name_len = len(item.name)
@@ -494,6 +495,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 need_parens = isinstance(item.target, ast.Name) and not item.simple
                 begin = '(' if need_parens else ''
                 end = ')' if need_parens else ''
+                # TODO(andrea): need to fix the code below!
                 if isinstance(item.annotation, ast.Subscript):
                     ann = item.annotation.value.id
                     if ann != 'pmat' and ann != 'pvec':
@@ -1066,8 +1068,10 @@ class SourceGenerator(ExplicitNodeVisitor):
                             if len(node.annotation.slice.value.elts) != 2:
                                 raise Exception('Type annotations in List declaration must have the format List[<type>, <sizes>]')
                             # attribute is a List
-                            ann = node.annotation.slice.value.elts[0].id
-                            dims = Num_or_Name(node.annotation.slice.value.elts[1])
+                            ann = node.value.args[0].id
+                            dims = Num_or_Name(node.value.args[1])
+                            # ann = node.annotation.slice.value.elts[0].id
+                            # dims = Num_or_Name(node.annotation.slice.value.elts[1])
                             if isinstance(dims, str):
                                 self.typed_record[self.scope][node.target.id] = 'List[' + ann + ', ' + dims + ']'
                             else:
