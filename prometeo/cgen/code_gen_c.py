@@ -1265,6 +1265,8 @@ class SourceGenerator(ExplicitNodeVisitor):
         if node.name == 'main':
             self.write('void *___c_prmt_8_heap; \n', dest = 'src')
             self.write('void *___c_prmt_64_heap; \n', dest = 'src')
+            self.write('void *___c_prmt_8_heap_head; \n', dest = 'src')
+            self.write('void *___c_prmt_64_heap_head; \n', dest = 'src')
 
         print(return_type_py)
         return_type_c = prmt_temp_types[return_type_py.__class__.__name__]
@@ -1274,12 +1276,14 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.write(') {\n', dest = 'src')
         if node.name == 'main':
             self.write('    ___c_prmt_8_heap = malloc(%s); \n' %(self.heap8_size), dest = 'src')
-            self.write('    char *pmem_ptr = (char *)___c_prmt_8_heap; \n', dest = 'src')
+            self.write('    ___c_prmt_8_heap_head = ___c_prmt_8_heap;\n', dest = 'src')
+            self.write('    char *pmem_ptr = (char *)___c_prmt_8_heap;\n', dest = 'src')
             self.write('    align_char_to(8, &pmem_ptr);\n', dest = 'src')
             self.write('    ___c_prmt_8_heap = pmem_ptr;\n', dest = 'src')
             
-            self.write('    ___c_prmt_64_heap = malloc(%s); \n' %(self.heap64_size), dest = 'src')
-            self.write('    pmem_ptr = (char *)___c_prmt_64_heap; \n', dest = 'src')
+            self.write('    ___c_prmt_64_heap = malloc(%s);\n' %(self.heap64_size), dest = 'src')
+            self.write('    ___c_prmt_64_heap_head = ___c_prmt_64_heap;\n', dest = 'src')
+            self.write('    pmem_ptr = (char *)___c_prmt_64_heap;\n', dest = 'src')
             self.write('    align_char_to(64, &pmem_ptr);\n', dest = 'src')
             self.write('    ___c_prmt_64_heap = pmem_ptr;\n', dest = 'src')
         else:
@@ -1290,6 +1294,8 @@ class SourceGenerator(ExplicitNodeVisitor):
         # self.write(':')
         self.body(node.body)
         self.newline(1)
+        self.write('\tfree(___c_prmt_8_heap_head);\n', dest='src')
+        self.write('\tfree(___c_prmt_64_heap_head);\n', dest='src')
         self.write('}', dest='src')
         if not self.indentation:
             self.newline(extra=2)
