@@ -7,19 +7,19 @@ nu: dims = 2
 N:  dims = 5
 
 class qp_data:
-    C: pmat[nu,nu] = pmat(nx,nu)
-    A: List[pmat, sizes]  = plist(pmat, sizes)
-    l: List[int, 5] = plist(int, 5)
-    B: List[pmat, sizes]  = plist(pmat, sizes)
-    Q: List[pmat, sizes]  = plist(pmat, sizes)
-    R: List[pmat, sizes]  = plist(pmat, sizes)
-    P: List[pmat, sizes]  = plist(pmat, sizes)
+    C: pmat  = pmat(nx,nu)
+    A: List  = plist(pmat, sizes)
+    l: List  = plist(int, 5)
+    B: List  = plist(pmat, sizes)
+    Q: List  = plist(pmat, sizes)
+    R: List  = plist(pmat, sizes)
+    P: List  = plist(pmat, sizes)
 
-    fact: List[pmat, sizes] = plist(pmat, sizes)
+    fact: List = plist(pmat, sizes)
 
     def factorize(self) -> None:
-        res: pmat[nx, nx] = pmat(nx, nx)
-        Bt: pmat[nx, nx] = pmat(nx, nx)
+        res: pmat = pmat(nx, nx)
+        Bt: pmat = pmat(nx, nx)
         for i in range(N):
             pmt_gemm_nn(self.P[i], self.B[i], res, res)
             pmat_tran(self.B[i], Bt)
@@ -33,9 +33,9 @@ def main() -> None:
 
     # test assignments
     n: int = 10
-    M: pmat[2,2] = pmat(n, n)
+    M: pmat = pmat(n, n)
 
-    a : pvec[10] = pvec(10)
+    a : pvec = pvec(10)
     a[1] = 3.0
 
     d : float = 10.0
@@ -72,15 +72,15 @@ def main() -> None:
     M[0, 2] = a[1]
 
     # run Riccati code
-    A: pmat[nu,nu] = pmat(nx, nx)
-    B: pmat[nu,nu] = pmat(nx, nu)
-    Q: pmat[nu,nu] = pmat(nx, nx)
-    R: pmat[nu,nu] = pmat(nu, nu)
-    P: pmat[nu,nu] = pmat(nx, nx)
+    A: pmat = pmat(nx, nx)
+    B: pmat = pmat(nx, nu)
+    Q: pmat = pmat(nx, nx)
+    R: pmat = pmat(nu, nu)
+    P: pmat = pmat(nx, nx)
 
-    mat_list: List[pmat, sizes]  = plist(pmat, sizes)
+    mat_list: List  = plist(pmat, sizes)
 
-    fact: pmat[nu,nu] = pmat(nx, nx)
+    fact: pmat = pmat(nx, nx)
 
     qp : qp_data = qp_data() 
 

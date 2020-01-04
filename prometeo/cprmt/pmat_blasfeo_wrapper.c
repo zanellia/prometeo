@@ -170,7 +170,7 @@ void c_pmt_gead(double alpha, struct pmat *A, struct pmat *B) {
     blasfeo_dgead(mA, nA, alpha, bA, 0, 0, bB, 0, 0);
 }
 
-void c_pmt_gemv(struct pmat *A, struct pvec *b, struct pvec *c, struct pvec *d) {
+void c_pmt_gemv_n(struct pmat *A, struct pvec *b, struct pvec *c, struct pvec *d) {
     int mA = A->bmat->m; 
     int nA = A->bmat->n; 
     int mb = b->bvec->m; 

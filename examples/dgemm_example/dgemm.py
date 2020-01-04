@@ -5,7 +5,7 @@ sizes: dimv = [[2,2], [2,2], [2,2]]
 class p_class:
     attr_1: int = 1
     attr_2: float = 3.0
-    attr_3: pmat[10,10] = pmat(10, 10) 
+    attr_3: pmat = pmat(10, 10) 
 
     def method_2(self, A: pmat[2,2], B: pmat[2,2], C: pmat[2,2]) -> None:
         C = A * B
@@ -15,12 +15,12 @@ class p_class:
 def function1(A: pmat[2,2], B: pmat[2,2], C: pmat[2,2]) -> None:
     C = A * B
     pmat_print(C)
-    attr_3: pmat[10,10] = pmat(10, 10)
+    attr_3: pmat = pmat(10, 10)
     return
 
 def main() -> None:
 
-    n_list: List[int, 10] = plist(int, 10) 
+    n_list: List = plist(int, 10) 
     n_list[0] = 1
 
     test_class: p_class = p_class()
@@ -34,7 +34,7 @@ def main() -> None:
         j = j - 1
 
     n: int = 10
-    A: pmat[2,2] = pmat(n, n)
+    A: pmat = pmat(n, n)
     A[0,2] = -2.0
 
     for i in range(2):
@@ -42,16 +42,16 @@ def main() -> None:
 
     pmat_fill(A, 1.0)
 
-    B: pmat[n,n] = pmat(n, n)
+    B: pmat = pmat(n, n)
     for i in range(2):
         B[0,i] = A[0,i]
     pmat_fill(B, 2.0)
 
-    C: pmat[n,n] = pmat(n, n)
+    C: pmat = pmat(n, n)
 
     test_class.method_2(A, B, C)
 
-    pmat_list: List[pmat, sizes] = plist(pmat, sizes)
+    pmat_list: List = plist(pmat, sizes)
     pmat_list[0] = A
 
     C = A * B
@@ -70,14 +70,14 @@ def main() -> None:
 
     pmat_print(A)
 
-    a : pvec[10] = pvec(10)
+    a : pvec = pvec(10)
     a[1] = 3.0
     b : pvec = pvec(3)
     b[0] = a[1]
     b[1] = A[0, 2]
     A[0,2] = a[0]
 
-    el : float
+    el : float = 1.0
     el = a[1]
     el = A[1, 1]
     pvec_print(a)
@@ -88,12 +88,12 @@ def main() -> None:
     pvec_print(c)
 
     # test LU solve
-    ipiv: List[int, 2] = plist(int, 2) 
-    fact : pmat[2,2] = pmat(2, 2)
-    M : pmat[2,2] = pmat(2,2)
+    ipiv: List = plist(int, 2) 
+    fact : pmat = pmat(2, 2)
+    M : pmat = pmat(2,2)
     pmt_getrf(M, fact, ipiv)
-    res: pvec[2] = pvec(2)
-    rhs: pvec[2] = pvec(2)
+    res: pvec = pvec(2)
+    rhs: pvec = pvec(2)
     rhs[0] = 1.0
     rhs[1] = -3.0
     # pmt_getrsv(fact, ipiv, rhs)

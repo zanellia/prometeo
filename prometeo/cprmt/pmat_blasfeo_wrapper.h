@@ -30,7 +30,7 @@ void c_pmt_potrsm(struct pmat *fact, struct pmat *rhs);
 void c_pmt_potrsv(struct pmat *fact, struct pvec *rhs);
 void c_pmt_gead(double alpha, struct pmat *A, struct pmat *B); 
 
-void c_pmt_gemv(struct pmat *A, struct pvec *b, struct pvec *c, struct pvec *d);
+void c_pmt_gemv_n(struct pmat *A, struct pvec *b, struct pvec *c, struct pvec *d);
 
 // auxiliary
 void c_pmt_pmat_fill(struct pmat *A, double fill_value);

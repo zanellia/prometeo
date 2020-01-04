@@ -59,7 +59,10 @@ prmt_temp_types = {\
         "NoneType": "void", \
         "ptr_int": "int *", \
         "ptr_pmat": "struct pmat **", \
-        "int": "int", "float": "double"}
+        "int": "int", \
+        "float": "double", \
+        "dimv": "dimv", \
+        "dims": "dims"}
 
 usr_temp_types = {}
 
@@ -1002,21 +1005,21 @@ class SourceGenerator(ExplicitNodeVisitor):
                                         # set target to zero
                                         self.statement([], 'c_pmt_pmat_fill(', target, ', 0.0);')
                                         # call dgemm
-                                        self.statement([], 'c_pmt_dgemm(', left_op, ', ', right_op, ', ', target, ', ', target, ');')
+                                        self.statement([], 'c_pmt_gemm_nn(', left_op, ', ', right_op, ', ', target, ', ', target, ');')
                                         return
                                     # dgead
                                     if type(node.value.op) == ast.Add:
                                         # set target to zero
                                         self.statement([], 'c_pmt_pmat_copy(', right_op, ', ', target, ');')
                                         # call dgead
-                                        self.statement([], 'c_pmt_dgead(1.0, ', left_op, ', ', target, ');')
+                                        self.statement([], 'c_pmt_gead(1.0, ', left_op, ', ', target, ');')
                                         return
                                     # dgead (Sub)
                                     if type(node.value.op) == ast.Sub:
                                         # set target to zero
                                         self.statement([], 'c_pmt_pmat_copy(', left_op, ', ', target, ');')
                                         # call dgead
-                                        self.statement([], 'c_pmt_dgead(-1.0, ', right_op, ', ', target, ');')
+                                        self.statement([], 'c_pmt_gead(-1.0, ', right_op, ', ', target, ');')
                                         return
                                     else:
                                         raise Exception('Unsupported operator call:{} {} {}'\
@@ -1038,7 +1041,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                                         # set target to zero
                                         self.statement([], 'c_pmt_pvec_fill(', target, ', 0.0);')
                                         # call dgemm
-                                        self.statement([], 'c_pmt_dgemv(', left_op, ', ', right_op, ', ', target, ', ', target, ');')
+                                        self.statement([], 'c_pmt_gemv_n(', left_op, ', ', right_op, ', ', target, ', ', target, ');')
                                         return
                                     # dgead
                                     else:
@@ -1079,144 +1082,123 @@ class SourceGenerator(ExplicitNodeVisitor):
         need_parens = isinstance(node.target, ast.Name) and not node.simple
         begin = '(' if need_parens else ''
         end = ')' if need_parens else ''
+
+        if "value" not in node.__dict__:
+            raise Exception('Cannot declare variable without initialization\n')
+
+        ann = node.annotation.id
         # check if a List is being declared
-        if "value" in node.__dict__:
-            if "value" in node.annotation.__dict__:
-                if "id" in node.annotation.value.__dict__:
-                    if node.annotation.value.id is 'List':
-                        if node.value.func.id is not 'plist': 
-                            raise Exception("Cannot create Lists without using plist constructor.")
-                        else:
-                            if len(node.annotation.slice.value.elts) != 2:
-                                raise Exception('Type annotations in List declaration must have the format List[<type>, <sizes>]')
-                            # attribute is a List
-                            ann = node.value.args[0].id
-                            dims = Num_or_Name(node.value.args[1])
-                            # ann = node.annotation.slice.value.elts[0].id
-                            # dims = Num_or_Name(node.annotation.slice.value.elts[1])
-                            if isinstance(dims, str):
-                                self.typed_record[self.scope][node.target.id] = 'List[' + ann + ', ' + dims + ']'
-                            else:
-                                self.typed_record[self.scope][node.target.id] = 'List[' + ann + ', ' + str(dims) + ']'
-                            if  ann in prmt_temp_types:
-                                ann = prmt_temp_types[ann]
-                            else:
-                                raise Exception ('Usage of non existing type {}'.format(ann))
-                            # check is dims is not a numerical value
-                            if isinstance(dims, str):
-                                dim_list = self.dim_record[dims]
-                                array_size = len(dim_list)
-                            else: 
-                                array_size = dims
-                                # array_size = str(Num_or_Name(node.value.args[1]))
-                                # self.statement([], ann, ' ', node.target, '[', array_size, '];')
-                            self.write('%s' %ann, ' ', '%s' %node.target.id, '[%s' %array_size, '];\n', dest = 'src')
-                            if ann == 'struct pmat *': 
-                                # build init for List of pmats
-                                for i in range(len(dim_list)):
-                                    self.statement([], '\n', node.target.id, '[', str(i),'] = c_pmt_create_pmat(', str(dim_list[i][0]), ', ', str(dim_list[i][1]), ');')
+        if ann is 'List':
+            if node.value.func.id is not 'plist': 
+                raise Exception("Cannot create Lists without using plist constructor.")
 
-                            elif ann == 'struct pvec *': 
-                                # build init for List of pvecs
-                                for i in range(len(dim_list)):
-                                    self.statement([], '\n', node.target.id, '[', str(i),'] = c_pmt_create_pvec(', str(dim_list[i][0]), ');')
-                            return
+            if len(node.value.args) != 2:
+                raise Exception('plist constructor takes 2 arguments plist(<type>, <sizes>)')
 
-        # check if the annotation contains directly a type or something fancier
-        if "id" in node.annotation.__dict__:
-            ann = node.annotation.id
-            # if ann == 'pmat':
-            #     dim1 = node.__dict__['value'].__dict__['args'][0].__dict__['id']
-            #     dim2 = node.__dict__['value'].__dict__['args'][1].__dict__['id']
-            #     ann = ann + '_' + dim1 + '_' + dim2
-            # add variable to typed record
-            self.typed_record[self.scope][node.target.id] = node.annotation.id
-            print(self.typed_record[self.scope])
-            # check if a dimension is being declared
-            if ann == 'dims':
-                self.write('#define %s %s\n' %(node.target.id, node.value.n), dest='hdr')
-                self.dim_record[node.target.id] = node.value.n
-                # self.write('const int %s = %s;\n' %(node.target.id, node.value.n), dest='hdr')
-                return
-            elif ann == 'dimv':
-                self.dim_record
-                self.dim_record[node.target.id] = []
-                for i in range(len(node.value.elts)):
-                    self.dim_record[node.target.id].append([])
-                    for j in range(len(node.value.elts[i].elts)):
-                        self.dim_record[node.target.id][i].append(node.value.elts[i].elts[j].n)
-                        self.write('#define %s_%s_%s %s\n' %(node.target.id, i, j, node.value.elts[i].elts[j].n), dest='hdr')
-                return
-
-            if ann in prmt_temp_types:
-                node.annotation.id = prmt_temp_types[ann]
-                self.statement(node, node.annotation, ' ', node.target)
-            # check if annotation corresponds to user-defined class name
-            elif ann in usr_temp_types:
-                class_name = node.annotation.id
-                node.annotation.id = usr_temp_types[ann]
-                self.statement([], 'struct ', class_name, ' ', node.target, '___;')
-                self.statement(node, node.annotation, ' ', node.target, '= &', node.target, '___;')
-                self.statement([], class_name, '_init(', node.target, '); //')
+            # attribute is a List
+            lann = node.value.args[0].id
+            dims = Num_or_Name(node.value.args[1])
+            if isinstance(dims, str):
+                self.typed_record[self.scope][node.target.id] = 'List[' + lann + ', ' + dims + ']'
             else:
-                raise Exception ('Usage of non existing type {}'.format(ann))
-            # else:
-            #     self.statement(node, node.annotation, ' ', node.target)
-                # raise Exception("Could not resolve type '{}'. Exiting.".format(ann))
+                self.typed_record[self.scope][node.target.id] = 'List[' + lann + ', ' + str(dims) + ']'
+            if  lann in prmt_temp_types:
+                lann = prmt_temp_types[lann]
+            else:
+                raise Exception ('Usage of non existing type {}'.format(lann))
+            # check is dims is not a numerical value
+            if isinstance(dims, str):
+                dim_list = self.dim_record[dims]
+                array_size = len(dim_list)
+            else: 
+                array_size = dims
+                # array_size = str(Num_or_Name(node.value.args[1]))
+                # self.statement([], lann, ' ', node.target, '[', array_size, '];')
+            self.write('%s' %lann, ' ', '%s' %node.target.id, '[%s' %array_size, '];\n', dest = 'src')
+            if lann == 'struct pmat *': 
+                # build init for List of pmats
+                for i in range(len(dim_list)):
+                    self.statement([], '\n', node.target.id, \
+                        '[', str(i),'] = c_pmt_create_pmat(', \
+                        str(dim_list[i][0]), ', ', \
+                        str(dim_list[i][1]), ');')
 
-        # pmat[<n>,<m>] or pvec[<n>]
-        elif "slice" in node.annotation.__dict__:
-            if node.annotation.value.id == 'pmat':
-                if node.value.func.id != 'pmat':
-                    raise Exception('pmat objects need to be declared calling the pmat(<n>, <m>) constructor\n.')
-                dim1 = Num_or_Name(node.value.args[0])
-                dim2 = Num_or_Name(node.value.args[1])
-                # if 'id' in node.annotation.slice.value.elts[0].__dict__: 
-                #     dim1 = node.annotation.slice.value.elts[0].id
-                #     dim2 = node.annotation.slice.value.elts[1].id
-                # else:
-                #     dim1 = node.annotation.slice.value.elts[0].n
-                #     dim2 = node.annotation.slice.value.elts[1].n
-                ann = node.annotation.value.id
-                self.var_dim_record[self.scope][node.target.id] = [dim1, dim2]
-            elif node.annotation.value.id == 'pvec':
-                if node.value.func.id != 'pvec':
-                    raise Exception('pvec objects need to be declared calling the pvec(<n>, <m>) constructor\n.')
-                dim1 = Num_or_Name(node.value.args[0])
-                # if 'id' in node.annotation.slice.value.__dict__: 
-                #     dim1 = node.annotation.slice.value.id
-                # else:
-                #     dim1 = node.annotation.slice.value.n
-                ann = node.annotation.value.id
-                self.var_dim_record[self.scope][node.target.id] = [dim1]
-            # else:
-            #     if 'id' in node.annotation.slice.value.__dict__: 
-            #         ann = 'ptr_' + node.annotation.slice.value.id
-            #     else:
-            #         ann = 'ptr_' + str(node.annotation.slice.value.n)
-            # add variable to typed record
-            self.typed_record[self.scope][node.target.id] = ann
-            print('typed_record = \n', self.typed_record, '\n\n')
-            print('var_dim_record = \n', self.var_dim_record, '\n\n')
+            elif lann == 'struct pvec *': 
+                # build init for List of pvecs
+                for i in range(len(dim_list)):
+                    self.statement([], '\n', node.target.id, \
+                        '[', str(i),'] = c_pmt_create_pvec(', \
+                        str(dim_list[i][0]), ');')
+            # self.conditional_write(' = ', node.value, '', dest = 'src')
+
+        # pmat[<n>,<m>] 
+        elif ann == 'pmat':
+            if node.value.func.id != 'pmat':
+                raise Exception('pmat objects need to be declared calling', 
+                    ' the pmat(<n>, <m>) constructor\n.')
+            dim1 = Num_or_Name(node.value.args[0])
+            dim2 = Num_or_Name(node.value.args[1])
+            self.var_dim_record[self.scope][node.target.id] = [dim1, dim2]
+            node.annotation.id = prmt_temp_types[ann]
+            self.statement(node, node.annotation, ' ', node.target)
+            self.conditional_write(' = ', node.value, '', dest = 'src')
+        # or pvec[<n>]
+        elif ann == 'pvec':
+            if node.value.func.id != 'pvec':
+                raise Exception('pvec objects need to be declared calling the pvec(<n>, <m>) constructor\n.')
+            dim1 = Num_or_Name(node.value.args[0])
+            self.var_dim_record[self.scope][node.target.id] = [dim1]
+            node.annotation.id = prmt_temp_types[ann]
+            self.statement(node, node.annotation, ' ', node.target)
+            self.conditional_write(' = ', node.value, '', dest = 'src')
+
+
+        # or dims
+        elif ann == 'dims':
+            self.write('#define %s %s\n' %(node.target.id, node.value.n), dest='hdr')
+            self.dim_record[node.target.id] = node.value.n
+            # self.write('const int %s = %s;\n' %(node.target.id, node.value.n), dest='hdr')
+
+        # or dimv
+        elif ann == 'dimv':
+            self.dim_record
+            self.dim_record[node.target.id] = []
+            for i in range(len(node.value.elts)):
+                self.dim_record[node.target.id].append([])
+                for j in range(len(node.value.elts[i].elts)):
+                    self.dim_record[node.target.id][i].append(node.value.elts[i].elts[j].n)
+                    self.write('#define %s_%s_%s %s\n' %(node.target.id, i, j, node.value.elts[i].elts[j].n), dest='hdr')
+
+        # check if annotation corresponds to user-defined class name
+        elif ann in usr_temp_types:
+            class_name = node.annotation.id
+            node.annotation.id = usr_temp_types[ann]
+            self.statement([], 'struct ', class_name, ' ', node.target, '___;')
+            self.statement(node, node.annotation, ' ', node.target, '= &', node.target, '___;')
+            self.statement([], class_name, '_init(', node.target, '); //')
+        else:
             if  ann in prmt_temp_types:
                 c_ann = prmt_temp_types[ann]
                 self.statement(node, c_ann, ' ', node.target.id)
+                self.conditional_write(' = ', node.value, ';', dest = 'src')
             else:
                 raise Exception ('Usage of non existing type {}'.format(ann))
 
+        print('typed_record = \n', self.typed_record, '\n\n')
+        print('var_dim_record = \n', self.var_dim_record, '\n\n')
+        self.typed_record[self.scope][node.target.id] = ann
+
         # switch to avoid double ';'
-        if type(node.value) != ast.Call:
-            if node.value is not None:
-                self.conditional_write(' = ', node.value, ';', dest = 'src')
-            else:
-                self.conditional_write(';', dest = 'src')
-        else:
-            if node.value is not None:
-                self.conditional_write(' = ', node.value, '', dest = 'src')
-            else:
-                self.conditional_write('', dest = 'src')
-
-
+        # if type(node.value) != ast.Call:
+        #     if node.value is not None:
+        #         self.conditional_write(' = ', node.value, ';', dest = 'src')
+        #     else:
+        #         self.conditional_write(';', dest = 'src')
+        # else:
+        #     if node.value is not None:
+        #         self.conditional_write(' = ', node.value, '', dest = 'src')
+        #     else:
+        #         self.conditional_write('', dest = 'src')
 
     def visit_ImportFrom(self, node):
         include = node.module
@@ -1294,8 +1276,9 @@ class SourceGenerator(ExplicitNodeVisitor):
         # self.write(':')
         self.body(node.body)
         self.newline(1)
-        self.write('\tfree(___c_prmt_8_heap_head);\n', dest='src')
-        self.write('\tfree(___c_prmt_64_heap_head);\n', dest='src')
+        if node.name == 'main':
+            self.write('\tfree(___c_prmt_8_heap_head);\n', dest='src')
+            self.write('\tfree(___c_prmt_64_heap_head);\n', dest='src')
         self.write('}', dest='src')
         if not self.indentation:
             self.newline(extra=2)
