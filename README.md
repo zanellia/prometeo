@@ -1,6 +1,6 @@
 This is prometeo, a modeling tool for embedded high-performance computing. It is a 
 domain specific language (DSL) based on a subset of the Python language that allows 
-one to conveniently write scientific computing programs in a high-level language and generate
+one to conveniently write scientific computing programs in a high-level language (Python itself) and generate
 high-performance self-contained C code that can be easily deployed on embedded devices.
 
 ### installation
