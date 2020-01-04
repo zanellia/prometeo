@@ -23,7 +23,6 @@ class qp_data:
         Mxx: pmat = pmat(nx, nx)
         Mxu: pmat = pmat(nxu, nu)
         Lu: pmat = pmat(nu, nu)
-        Lxu: pmat = pmat(nxu, nxu)
         Q: pmat = pmat(nx, nx)
         R: pmat = pmat(nu, nu)
         BA: pmat = pmat(nx, nxu)
