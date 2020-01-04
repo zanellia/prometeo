@@ -45,43 +45,47 @@ At the same time, the code can be parsed by prometeo and its abstract syntax tre
 to generate the following high-performance C code:
 ```c
 #include "stdlib.h"
-#include "pmat_blasfeo_wrapper.h"
-#include "pvec_blasfeo_wrapper.h"
-#include "prmt_heap.h"
 #include "simple_example.h"
 
+#include "prometeo.h"
 
 
 void *___c_prmt_8_heap; 
 void *___c_prmt_64_heap; 
+void *___c_prmt_8_heap_head; 
+void *___c_prmt_64_heap_head; 
 void main() {
-    ___c_prmt_8_heap = malloc(1000); 
-    char *mem_ptr = (char *)___c_prmt_8_heap; 
-    align_char_to(8, &mem_ptr);
-    ___c_prmt_8_heap = mem_ptr;
-    ___c_prmt_64_heap = malloc(100000); 
-    mem_ptr = (char *)___c_prmt_64_heap; 
-    align_char_to(64, &mem_ptr);
-    ___c_prmt_64_heap = mem_ptr;
+    ___c_prmt_8_heap = malloc(10000); 
+    ___c_prmt_8_heap_head = ___c_prmt_8_heap;
+    char *pmem_ptr = (char *)___c_prmt_8_heap;
+    align_char_to(8, &pmem_ptr);
+    ___c_prmt_8_heap = pmem_ptr;
+    ___c_prmt_64_heap = malloc(1000000);
+    ___c_prmt_64_heap_head = ___c_prmt_64_heap;
+    pmem_ptr = (char *)___c_prmt_64_heap;
+    align_char_to(64, &pmem_ptr);
+    ___c_prmt_64_heap = pmem_ptr;
 
     int n = 10;
-    struct pmat * A = ___c_prmt___create_pmat(n, n);
+    struct pmat * A = c_pmt_create_pmat(n, n);
     for(int i = 0; i < 10; i++) {
         for(int j = 0; j < 10; j++) {
-            ___c_prmt___pmat_set_el(A, i, j, 1.0);
+            c_pmt_pmat_set_el(A, i, j, 1.0);
     }
 
     }
 
-    struct pmat * B = ___c_prmt___create_pmat(n, n);
+    struct pmat * B = c_pmt_create_pmat(n, n);
     for(int i = 0; i < 10; i++) {
-        ___c_prmt___pmat_set_el(B, 0, i, 2.0);
+        c_pmt_pmat_set_el(B, 0, i, 2.0);
     }
 
-    struct pmat * C = ___c_prmt___create_pmat(n, n);
-    ___c_prmt___pmat_fill(C, 0.0);
-    ___c_prmt___dgemm(A, B, C, C);
-    ___c_prmt___pmat_print(C);
+    struct pmat * C = c_pmt_create_pmat(n, n);
+    c_pmt_pmat_fill(C, 0.0);
+    c_pmt_gemm_nn(A, B, C, C);
+    c_pmt_pmat_print(C);
+	free(___c_prmt_8_heap_head);
+	free(___c_prmt_64_heap_head);
 }
 ```
 which relies on the high-performance linear algebra package BLASFEO. The generated code will be readily compiled and run with when running `pmt simple_example.py --cgen=True`.
