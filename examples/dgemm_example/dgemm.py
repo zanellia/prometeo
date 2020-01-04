@@ -1,4 +1,3 @@
-# UNCOMMENT THESE LINES TO EXECUTE 
 from prometeo import *
 
 sizes: dimv = [[2,2], [2,2], [2,2]]
@@ -96,7 +95,7 @@ def main() -> None:
     rhs: pvec = pvec(2)
     rhs[0] = 1.0
     rhs[1] = -3.0
-    # pmt_getrsv(fact, ipiv, rhs)
+    pmt_getrsv(fact, ipiv, rhs)
 
     # test Cholesky solve
     M[0,0] = 1.0

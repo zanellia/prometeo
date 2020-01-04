@@ -1277,8 +1277,8 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.body(node.body)
         self.newline(1)
         if node.name == 'main':
-            self.write('\tfree(___c_prmt_8_heap_head);\n', dest='src')
-            self.write('\tfree(___c_prmt_64_heap_head);\n', dest='src')
+            self.write('free(___c_prmt_8_heap_head);\n', dest='src')
+            self.write('free(___c_prmt_64_heap_head);\n', dest='src')
         self.write('}', dest='src')
         if not self.indentation:
             self.newline(extra=2)

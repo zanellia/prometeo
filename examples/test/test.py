@@ -1,4 +1,3 @@
-# UNCOMMENT THESE LINES TO EXECUTE 
 from prometeo import *
 
 sizes: dimv = [[2,2], [2,2], [2,2], [2,2], [2,2]]
