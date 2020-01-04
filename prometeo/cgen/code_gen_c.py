@@ -496,63 +496,66 @@ class SourceGenerator(ExplicitNodeVisitor):
                 begin = '(' if need_parens else ''
                 end = ')' if need_parens else ''
                 # TODO(andrea): need to fix the code below!
-                if isinstance(item.annotation, ast.Subscript):
-                    ann = item.annotation.value.id
-                    if ann != 'pmat' and ann != 'pvec':
-                        if item.annotation.value.id is not 'List' or item.value.func.id is not 'plist':
-                            raise Exception("Invalid subscripted annotation. Lists must be created using plist constructor and",  
-                                        "the argument of List[] must be a valid type.\n")
+                ann = item.annotation.id
+                if ann == 'List':
+                    if item.value.func.id is not 'plist':
+                        raise Exception('Invalid subscripted annotation.', 
+                                ' Lists must be created using plist constructor and',  
+                                ' the argument of List[] must be a valid type.\n')
+                    else:
+                        # attribute is a List
+                        ann = Num_or_Name(item.value.args[0])
+                        dims = Num_or_Name(item.value.args[1])
+                        # ann = item.annotation.slice.value.elts[0].id
+                        # dims = Num_or_Name(item.annotation.slice.value.elts[1])
+                        if isinstance(dims, str):
+                            dim_list = self.dim_record[dims]
                         else:
-                            # attribute is a List
-                            ann = item.annotation.slice.value.elts[0].id
-                            dims = Num_or_Name(item.annotation.slice.value.elts[1])
-                            if isinstance(dims, str):
-                                dim_list = self.dim_record[dims]
-                            else:
-                                dim_list = dims
-                            if ann == 'pmat': 
-                                # build init for List of pmats
-                                for i in range(len(dim_list)):
-                                    self.statement([], '\n', 'object->', item.target.id, '[', str(i),'] = c_pmt_create_pmat(', str(dim_list[i][0]), ', ', str(dim_list[i][1]), ');')
+                            dim_list = dims
+                        if ann == 'pmat': 
+                            # build init for List of pmats
+                            for i in range(len(dim_list)):
+                                self.statement([], '\n', 'object->', item.target.id, '[', str(i),'] = c_pmt_create_pmat(', str(dim_list[i][0]), ', ', str(dim_list[i][1]), ');')
 
-                            elif ann == 'pvec': 
-                                # build init for List of pvecs
-                                for i in range(len(dim_list)):
-                                    self.statement([], '\n', 'object->', item.target.id, '[', str(i),'] = c_pmt_create_pvec(', str(dim_list[i][0]), ');')
-                            # else: do nothing (no init required for "memoryless" objects)
-                    # pmat[<n>,<m>] or pvec[<n>]
-                    elif item.annotation.value.id in ['pmat', 'pvec']:
-                        if item.annotation.value.id == 'pmat':
-                            if node.value.func.id != 'pmat':
-                                raise Exception('pmat objects need to be declared calling the pmat(<n>, <m>) constructor\n.')
-                            dim1 = Num_or_Name(node.value.args[0])
-                            dim2 = Num_or_Name(node.value.args[1])
-                            ann = item.annotation.value.id
-                            self.var_dim_record[self.scope][item.target.id] = [dim1, dim2]
+                        elif ann == 'pvec': 
+                            # build init for List of pvecs
+                            for i in range(len(dim_list)):
+                                self.statement([], '\n', 'object->', item.target.id, '[', str(i),'] = c_pmt_create_pvec(', str(dim_list[i][0]), ');')
+                        # else: do nothing (no init required for "memoryless" objects)
+                # pmat[<n>,<m>] or pvec[<n>]
+                elif ann in ['pmat', 'pvec']:
+                    if ann == 'pmat':
+                        if item.value.func.id != 'pmat':
+                            raise Exception('pmat objects need to be declared calling',
+                                'the pmat(<n>, <m>) constructor\n.')
+                        dim1 = Num_or_Name(item.value.args[0])
+                        dim2 = Num_or_Name(item.value.args[1])
+                        self.var_dim_record[self.scope][item.target.id] = [dim1, dim2]
+                    else:
+                        # pvec
+                        if item.value.func.id != 'pvec':
+                            raise Exception('pvec objects need to be declared calling', 
+                                'the pvec(<n>, <m>) constructor\n.')
+                        dim1 = Num_or_Name(item.value.args[0])
+                        ann = item.annotation.value.id
+                        self.var_dim_record[self.scope][item.target.id] = [dim1]
+                    # add variable to typed record
+                    self.typed_record[self.scope][item.target.id] = ann
+                    print('typed_record = \n', self.typed_record, '\n\n')
+                    print('var_dim_record = \n', self.var_dim_record, '\n\n')
+                    if  ann in prmt_temp_types:
+                        c_ann = prmt_temp_types[ann]
+                        # self.statement(item, c_ann, ' ', item.target.id)
+                    else:
+                        raise Exception ('Usage of non existing type {}'.format(ann))
+                    if item.value != None:
+                        if hasattr(item.value, 'value') is False:
+                            self.conditional_write('\n', 'object->', item.target, ' = ', item.value, ';', dest = 'src')
                         else:
-                            # pvec
-                            if node.value.func.id != 'pvec':
-                                raise Exception('pvec objects need to be declared calling the pvec(<n>, <m>) constructor\n.')
-                            dim1 = Num_or_Name(node.value.args[0])
-                            ann = item.annotation.value.id
-                            self.var_dim_record[self.scope][item.target.id] = [dim1]
-                        # add variable to typed record
-                        self.typed_record[self.scope][item.target.id] = ann
-                        print('typed_record = \n', self.typed_record, '\n\n')
-                        print('var_dim_record = \n', self.var_dim_record, '\n\n')
-                        if  ann in prmt_temp_types:
-                            c_ann = prmt_temp_types[ann]
-                            # self.statement(item, c_ann, ' ', item.target.id)
-                        else:
-                            raise Exception ('Usage of non existing type {}'.format(ann))
-                        if item.value != None:
-                            if hasattr(item.value, 'value') is False:
+                            if item.value.value != None:
                                 self.conditional_write('\n', 'object->', item.target, ' = ', item.value, ';', dest = 'src')
-                            else:
-                                if item.value.value != None:
-                                    self.conditional_write('\n', 'object->', item.target, ' = ', item.value, ';', dest = 'src')
-                        else:
-                            raise Exception('Cannot declare attribute without initialization\n')
+                    else:
+                        raise Exception('Cannot declare attribute without initialization\n')
                 else:
                     if item.value != None:
                         if hasattr(item.value, 'value') is False:

@@ -72,8 +72,6 @@ def main() -> None:
     A[0,1] = 0.1
     A[1,0] = 0.0
     A[1,1] = 0.8
-    # x = SX.sym('x', 2, 1)
-    # a = mtimes(A, x)
 
     B: pmat = pmat(nx, nu)
     B[0,0] = 1.0  
