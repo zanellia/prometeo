@@ -29,32 +29,22 @@ class qp_data:
         BA: pmat = pmat(nx, nxu)
         BAtP: pmat = pmat(nxu, nx)
         pmat_copy(self.Q[N-1], self.P[N-1])
+
         for i in range(1, N):
             pmat_hcat(self.B[N-i], self.A[N-i], BA)
             pmt_gemm_tn(BA, self.P[N-i], BAtP, BAtP)
 
             pmat_copy(self.Q[N-i], Q)
             pmat_copy(self.R[N-i], R)
-            for j in range(nu):
-                for k in range(nu):
-                    M[j,k] = R[j,k]
-            for j in range(nx):
-                for k in range(nx):
-                    M[nu+j,nu+k] = Q[j,k]
+            M[0:nu,0:nu] = R
+            M[nu:nu+nx,nu:nu+nx] = Q
 
             pmt_gemm_nn(BAtP, BA, M, M)
-            for j in range(nu):
-                for k in range(nu):
-                    Mu[j,k] = M[j,k]
+            Mu[0:nu, 0:nu] = M[0:nu, 0:nu]
             pmt_potrf(Mu, Lu)
 
-            for j in range(nx):
-                for k in range(nx):
-                    Mxut[k,nu+j] = M[j,k]
-
-            for j in range(nx):
-                for k in range(nx):
-                    Mxx[k,j] = M[nu+j,nu+k]
+            Mxut[0:nx, nu:nu+nx] = M[0:nx, 0:nx]
+            Mxx[0:nx, 0:nx] = M[nu:nu+nx, nu:nu+nx]
 
             pmt_potrsm(Lu, Mxut)
             pmat_tran(Mxut, Mxu)

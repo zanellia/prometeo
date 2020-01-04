@@ -203,6 +203,12 @@ void c_pmt_pmat_set_el(struct pmat *A, int i, int j, double fill_value) {
     blasfeo_dgein1(fill_value, A->bmat, i, j);
 }
 
+void c_pmt_gecp(int m, int n, struct pmat *A, int ai, int aj, struct pmat *B, int bi, int bj) {
+    struct blasfeo_dmat *bA = A->bmat;
+    struct blasfeo_dmat *bB = B->bmat;
+    blasfeo_dgecp(m, n, bA, ai, aj, bB, bi, bj);
+}
+
 double c_pmt_pmat_get_el(struct pmat *A, int i, int j) {
 
     blasfeo_dgeex1(A->bmat, i, j);
@@ -275,3 +281,4 @@ void c_pmt_pmat_print(struct pmat *A) {
 
     blasfeo_print_dmat(m, n, A->bmat, 0, 0);
 }
+

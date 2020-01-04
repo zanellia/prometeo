@@ -808,46 +808,72 @@ class SourceGenerator(ExplicitNodeVisitor):
                 if target in self.typed_record[scope]: 
                     # map subscript for pmats to blasfeo el assign
                     if self.typed_record[scope][target] == 'pmat':
-                        if not isinstance(node.targets[0].slice.value, ast.Tuple):
-                            ap.pprint(node)
-                            raise Exception('Subscript to a pmat object must be of type Tuple.')
-                        print(self.typed_record[scope][target])
-                        # # slice is either ast.Name or ast.Num
-                        # first_index  = Num_or_Name(node.targets[0].slice.value.elts[0])
-                        # second_index = Num_or_Name(node.targets[0].slice.value.elts[1])
-
-                        # unparse slice expression
-                        first_index = astu.unparse(node.targets[0].slice.value.elts[0]).strip('\n') 
-                        second_index = astu.unparse(node.targets[0].slice.value.elts[1]).strip('\n') 
-
-                        # check if subscripted expression is used in the value
-                        if type(node.value) == ast.Subscript:
-                            # if value is a pmat
-                            value = node.value.value.id
-                            if value in self.typed_record[scope]:
-                                if self.typed_record[scope][value] == 'pmat':
-                                    first_index_value = astu.unparse(node.value.slice.value.elts[0]).strip('\n')
-                                    second_index_value = astu.unparse(node.value.slice.value.elts[1]).strip('\n')
-
-                                    value_expr = 'c_pmt_pmat_get_el(' + value + ', {}, {})'.format(first_index_value, second_index_value) 
-                                    self.statement([], 'c_pmt_pmat_set_el(', target, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value_expr), ');')
-                                elif self.typed_record[scope][value] == 'pvec':
-                                    # if value is a pvec
-                                    sub_type = type(node.value.slice.value)
-                                    if sub_type == ast.Num: 
-                                        index_value = node.value.slice.value.n
-                                    elif sub_type == ast.Name: 
-                                        index_value = node.value.slice.value.id
-                                    else:
-                                        raise Exception("Subscripting with value of type {} not implemented".format(sub_type))
-
-                                    value_expr = 'c_pmt_pvec_get_el(' + value + ', {})'.format(index_value) 
-                                    self.statement([], 'c_pmt_pmat_set_el(', target, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value_expr), ');')
-                            else: 
-                                raise Exception('Undefined variable {}.'.format(value))
+                        # check for ExtSlices
+                        if isinstance(node.targets[0].slice, ast.ExtSlice):
+                            first_index_l  = astu.unparse(node.targets[0].slice.dims[0].lower).strip('\n')
+                            first_index_u  = astu.unparse(node.targets[0].slice.dims[0].upper).strip('\n')
+                            second_index_l = astu.unparse(node.targets[0].slice.dims[1].lower).strip('\n')
+                            second_index_u = astu.unparse(node.targets[0].slice.dims[1].upper).strip('\n')
+                            # check if subscripted expression is used in the value
+                            if hasattr(node.value, 'slice'):
+                                first_index_value_l  = astu.unparse(node.value.slice.dims[0].lower).strip('\n')
+                                first_index_value_u  = astu.unparse(node.value.slice.dims[0].upper).strip('\n')
+                                second_index_value_l = astu.unparse(node.value.slice.dims[1].lower).strip('\n')
+                                second_index_value_u = astu.unparse(node.value.slice.dims[1].upper).strip('\n')
+                                ai = first_index_value_l
+                                aj = first_index_value_l
+                                value = node.value.value.id
+                            else:
+                                ai = '0'
+                                aj = '0'
+                                value = node.value.id
+                            m = first_index_u + '-' + first_index_l
+                            n = second_index_u + '-' + second_index_l
+                            bi = second_index_l
+                            bj = second_index_l
+                            self.statement([], 'c_pmt_gecp(', m, ', ', n, ', ', value, \
+                                ', ', ai, ', ', aj, ', ', target, ', ', bi, ', ', bj, ');')
                         else:
-                            value = Num_or_Name(node.value)
-                            self.statement([], 'c_pmt_pmat_set_el(', target, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value), ');')
+                            if not isinstance(node.targets[0].slice.value, ast.Tuple):
+                                ap.pprint(node)
+                                raise Exception('Subscript to a pmat object must be of type Tuple.')
+                            print(self.typed_record[scope][target])
+                            # # slice is either ast.Name or ast.Num
+                            # first_index  = Num_or_Name(node.targets[0].slice.value.elts[0])
+                            # second_index = Num_or_Name(node.targets[0].slice.value.elts[1])
+
+                            # unparse slice expression
+                            first_index = astu.unparse(node.targets[0].slice.value.elts[0]).strip('\n') 
+                            second_index = astu.unparse(node.targets[0].slice.value.elts[1]).strip('\n') 
+
+                            # check if subscripted expression is used in the value
+                            if isinstance(node.value, ast.Subscript):
+                                # if value is a pmat
+                                value = node.value.value.id
+                                if value in self.typed_record[scope]:
+                                    if self.typed_record[scope][value] == 'pmat':
+                                        first_index_value = astu.unparse(node.value.slice.value.elts[0]).strip('\n')
+                                        second_index_value = astu.unparse(node.value.slice.value.elts[1]).strip('\n')
+
+                                        value_expr = 'c_pmt_pmat_get_el(' + value + ', {}, {})'.format(first_index_value, second_index_value) 
+                                        self.statement([], 'c_pmt_pmat_set_el(', target, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value_expr), ');')
+                                    elif self.typed_record[scope][value] == 'pvec':
+                                        # if value is a pvec
+                                        sub_type = type(node.value.slice.value)
+                                        if sub_type == ast.Num: 
+                                            index_value = node.value.slice.value.n
+                                        elif sub_type == ast.Name: 
+                                            index_value = node.value.slice.value.id
+                                        else:
+                                            raise Exception("Subscripting with value of type {} not implemented".format(sub_type))
+
+                                        value_expr = 'c_pmt_pvec_get_el(' + value + ', {})'.format(index_value) 
+                                        self.statement([], 'c_pmt_pmat_set_el(', target, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value_expr), ');')
+                                else: 
+                                    raise Exception('Undefined variable {}.'.format(value))
+                            else:
+                                value = Num_or_Name(node.value)
+                                self.statement([], 'c_pmt_pmat_set_el(', target, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value), ');')
                         return
 
     # old double subscripting
