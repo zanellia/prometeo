@@ -77,7 +77,7 @@ void c_pmt_gemm_nn(struct pmat *A, struct pmat *B, struct pmat *C, struct pmat *
     // blasfeo_print_dmat(mA, nA, C->bmat, 0, 0);
     // blasfeo_print_dmat(mA, nA, D->bmat, 0, 0);
 
-    blasfeo_dgemm_nn(mA, nA, nB, 1.0, bA, 0, 0, bB, 0, 0, 1, bC, 0, 0, bD, 0, 0);
+    blasfeo_dgemm_nn(mA, nB, nA, 1.0, bA, 0, 0, bB, 0, 0, 1, bC, 0, 0, bD, 0, 0);
 }
 
 void c_pmt_gemm_tn(struct pmat *A, struct pmat *B, struct pmat *C, struct pmat *D) {
@@ -95,7 +95,7 @@ void c_pmt_gemm_tn(struct pmat *A, struct pmat *B, struct pmat *C, struct pmat *
     // blasfeo_print_dmat(mA, nA, C->bmat, 0, 0);
     // blasfeo_print_dmat(mA, nA, D->bmat, 0, 0);
 
-    blasfeo_dgemm_tn(nA, mA, nB, 1.0, bA, 0, 0, bB, 0, 0, 1, bC, 0, 0, bD, 0, 0);
+    blasfeo_dgemm_tn(nA, nB, mA, 1.0, bA, 0, 0, bB, 0, 0, 1, bC, 0, 0, bD, 0, 0);
 }
 void c_pmt_getrf(struct pmat *A, struct pmat *fact, int *ipiv) {
     int mA = A->bmat->m; 
