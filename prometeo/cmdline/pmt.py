@@ -7,6 +7,10 @@ import prometeo
 import os
 from strip_hints import strip_file_to_string
 
+size_of_pointer = 8
+size_of_int = 4
+size_of_double = 8
+
 makefile_template = '''
 CC = gcc
 CFLAGS += -g -fPIC
@@ -62,7 +66,10 @@ def pmt_main(script_path, stdout, stderr, args = None):
 
         result  = prometeo.cgen.code_gen_c.to_source(tree, filename_, \
                 main=True, ___c_pmt_8_heap_size=10000, \
-                ___c_pmt_64_heap_size=1000000 )
+                ___c_pmt_64_heap_size=1000000, \
+                size_of_pointer = size_of_pointer, \
+                size_of_int = size_of_int, \
+                size_of_double = size_of_double)
 
         dest_file = open(filename_ + '.c', 'w')
         dest_file.write(prometeo.cgen.source_repr.pretty_source(result.source))

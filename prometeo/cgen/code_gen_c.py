@@ -68,7 +68,8 @@ usr_temp_types = {}
 
 def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False,
               pretty_string=pretty_string, pretty_source=pretty_source,
-              main=False, ___c_pmt_8_heap_size=None, ___c_pmt_64_heap_size=None):
+              main=False, ___c_pmt_8_heap_size=None, ___c_pmt_64_heap_size=None, 
+              size_of_pointer=8, size_of_int=4, size_of_double=8):
 
     """This function can convert a node tree back into python sourcecode.
     This is useful for debugging purposes, especially if you're dealing with
@@ -92,7 +93,8 @@ def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False
         error('Need to pass heap_sizes! Exiting.')
 
     generator = SourceGenerator(indent_with, ___c_pmt_8_heap_size,
-                                ___c_pmt_64_heap_size, add_line_information,
+                                ___c_pmt_64_heap_size, size_of_pointer, size_of_int, size_of_double,
+                                add_line_information,
                                 pretty_string,
                                 )
     
@@ -113,14 +115,7 @@ def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False
     if set(generator.result.header[0]) == set('\n'):
         generator.result.header[0] = ''
 
-    # if main==True:
-    #     generator.result.source.append('')
-    #     generator.result.source.append('}')
-    #     generator.result.source.append('\n')
-    #     generator.result.source.append('')
-    
     # dump meta-data to JSON file
-
     pmt_cache_dir = '__pmt_cache__'
     if not os.path.exists(pmt_cache_dir):
         os.mkdir(pmt_cache_dir)
@@ -135,6 +130,12 @@ def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False
     json_file = 'usr_types.json'
     with open(json_file, 'w') as f:
         json.dump(usr_temp_types, f, indent=4, sort_keys=True)
+    json_file = 'heap8.json'
+    with open(json_file, 'w') as f:
+        json.dump(generator.heap8_record, f, indent=4, sort_keys=True)
+    json_file = 'heap64.json'
+    with open(json_file, 'w') as f:
+        json.dump(generator.heap64_record, f, indent=4, sort_keys=True)
     os.chdir('..')
 
     return generator.result
@@ -241,7 +242,8 @@ class SourceGenerator(ExplicitNodeVisitor):
     """
     using_unicode_literals = False
     
-    def __init__(self, indent_with,  ___c_pmt_8_heap_size, ___c_pmt_64_heap_size, 
+    def __init__(self, indent_with,  ___c_pmt_8_heap_size, ___c_pmt_64_heap_size,
+                size_of_pointer, size_of_int, size_of_double,
                 add_line_information=False,pretty_string=pretty_string,
                  # constants
                  len=len, isinstance=isinstance, callable=callable):
@@ -266,10 +268,15 @@ class SourceGenerator(ExplicitNodeVisitor):
         append_src = result.source.append
         append_hdr = result.header.append
     
+        self.size_of_pointer = size_of_pointer
+        self.size_of_int = size_of_int
+        self.size_of_double = size_of_double
         self.heap8_size  = ___c_pmt_8_heap_size 
         self.heap64_size = ___c_pmt_64_heap_size 
 
         self.typed_record = {'global': dict()}
+        self.heap8_record = {'global': dict()}
+        self.heap64_record = {'global': dict()}
         self.scope = 'global'
         self.var_dim_record = {'global': dict()}
         self.dim_record = dict()
@@ -659,6 +666,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                 self.scope = self.scope + '@' + item.name
                 self.typed_record[self.scope] = dict()
                 self.var_dim_record[self.scope] = dict()
+                self.heap8_record[self.scope] = 0
+                self.heap64_record[self.scope] = 0
                 self.visit_arguments(item.args, 'src')
                 self.write(') {\n', dest = 'src')
                 # store current pmt_heap value (and restore before returning)
@@ -667,6 +676,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 self.body(item.body)
                 self.newline(1)
                 self.write('}', dest = 'src')
+                self.scope = descope(self.scope, '@' + item.name)
 
                 if not self.indentation:
                     self.newline(extra=2)
@@ -1168,6 +1178,9 @@ class SourceGenerator(ExplicitNodeVisitor):
             node.annotation.id = pmt_temp_types[ann]
             self.statement(node, node.annotation, ' ', node.target)
             self.conditional_write(' = ', node.value, '', dest = 'src')
+            # increment scoped heap usage (3 pointers and 6 ints for pmats)
+            self.heap8_record[self.scope] = self.heap8_record[self.scope] + 3*self.size_of_pointer
+            self.heap8_record[self.scope] = self.heap8_record[self.scope] + 6*self.size_of_int
         # or pvec[<n>]
         elif ann == 'pvec':
             if node.value.func.id != 'pvec':
@@ -1264,6 +1277,8 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.scope = self.scope + '@' + node.name
         self.typed_record[self.scope] = dict()
         self.var_dim_record[self.scope] = dict()
+        self.heap8_record[self.scope] = 0
+        self.heap64_record[self.scope] = 0
         prefix = 'is_async ' if is_async else ''
         self.decorators(node, 1 if self.indentation else 2)
         # self.write()
@@ -1318,6 +1333,8 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.scope = self.scope + '@' + node.name
         self.typed_record[self.scope] = dict()
         self.var_dim_record[self.scope] = dict()
+        self.heap8_record[self.scope] = 0 
+        self.heap64_record[self.scope] = 0 
         have_args = []
 
         def paren_or_comma():
