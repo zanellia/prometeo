@@ -1,15 +1,15 @@
 #include "pvec_blasfeo_wrapper.h"
-#include "prmt_heap.h"
+#include "pmt_heap.h"
 #include <assert.h>
 #include <blasfeo_common.h>
 
 struct pvec * c_pmt_create_pvec(int m) {	
     // assign current address of global heap to pvec pointer
-    struct pvec *pvec = (struct pvec *) ___c_prmt_8_heap;
-    void *pvec_address = ___c_prmt_8_heap;
+    struct pvec *pvec = (struct pvec *) ___c_pmt_8_heap;
+    void *pvec_address = ___c_pmt_8_heap;
     
     // advance global heap address
-    ___c_prmt_8_heap += sizeof(struct pvec);
+    ___c_pmt_8_heap += sizeof(struct pvec);
     
     
     // create (zeroed) blasfeo_dvec and advance global heap
@@ -30,23 +30,23 @@ static int align_char_to(int num, char **c_ptr)
 
 void c_pmt_assign_and_advance_blasfeo_dvec(int m, struct blasfeo_dvec **bvec) {
     // assign current address of global heap to blasfeo dvec pointer
-    assert((size_t) ___c_prmt_8_heap % 8 == 0 && "pointer not 8-byte aligned!");
-    *bvec = (struct blasfeo_dvec *) ___c_prmt_8_heap;
+    assert((size_t) ___c_pmt_8_heap % 8 == 0 && "pointer not 8-byte aligned!");
+    *bvec = (struct blasfeo_dvec *) ___c_pmt_8_heap;
     //
     // advance global heap address
-    ___c_prmt_8_heap += sizeof(struct blasfeo_dvec);
+    ___c_pmt_8_heap += sizeof(struct blasfeo_dvec);
 
     // assign current address of global heap to memory in blasfeo dvec
-    char *pmem_ptr = (char *)___c_prmt_64_heap; 
+    char *pmem_ptr = (char *)___c_pmt_64_heap; 
     align_char_to(64, &pmem_ptr);
-    ___c_prmt_64_heap = pmem_ptr;
-    assert((size_t) ___c_prmt_64_heap % 64 == 0 && "dvec not 64-byte aligned!");
-    blasfeo_create_dvec(m, *bvec, ___c_prmt_64_heap);
+    ___c_pmt_64_heap = pmem_ptr;
+    assert((size_t) ___c_pmt_64_heap % 64 == 0 && "dvec not 64-byte aligned!");
+    blasfeo_create_dvec(m, *bvec, ___c_pmt_64_heap);
 
     // advance global heap address
     int memsize = (*bvec)->memsize;
     // make_int_multiple_of(64, memsize);
-    ___c_prmt_64_heap += memsize;	
+    ___c_pmt_64_heap += memsize;	
 
     // zero allocated memory
 	int i;

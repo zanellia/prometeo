@@ -1,6 +1,6 @@
 #include "pmat_blasfeo_wrapper.h"
 #include "pvec_blasfeo_wrapper.h"
-#include "prmt_heap.h"
+#include "pmt_heap.h"
 #include <assert.h>
 #include <blasfeo_common.h>
 
@@ -16,11 +16,11 @@ int align_char_to(int num, char **c_ptr)
 
 struct pmat * c_pmt_create_pmat(int m, int n) {	
     // assign current address of global heap to pmat pointer
-    struct pmat *pmat = (struct pmat *) ___c_prmt_8_heap;
-    void *pmat_address = ___c_prmt_8_heap;
+    struct pmat *pmat = (struct pmat *) ___c_pmt_8_heap;
+    void *pmat_address = ___c_pmt_8_heap;
     
     // advance global heap address
-    ___c_prmt_8_heap += sizeof(struct pmat);
+    ___c_pmt_8_heap += sizeof(struct pmat);
     
     
     // create (zeroed) blasfeo_dmat and advance global heap
@@ -31,23 +31,23 @@ struct pmat * c_pmt_create_pmat(int m, int n) {
 
 void c_pmt_assign_and_advance_blasfeo_dmat(int m, int n, struct blasfeo_dmat **bmat) {
     // assign current address of global heap to blasfeo dmat pointer
-    assert((size_t) ___c_prmt_8_heap % 8 == 0 && "pointer not 8-byte aligned!");
-    *bmat = (struct blasfeo_dmat *) ___c_prmt_8_heap;
+    assert((size_t) ___c_pmt_8_heap % 8 == 0 && "pointer not 8-byte aligned!");
+    *bmat = (struct blasfeo_dmat *) ___c_pmt_8_heap;
     //
     // advance global heap address
-    ___c_prmt_8_heap += sizeof(struct blasfeo_dmat);
+    ___c_pmt_8_heap += sizeof(struct blasfeo_dmat);
 
     // assign current address of global heap to memory in blasfeo dmat
-    char *pmem_ptr = (char *)___c_prmt_64_heap;
+    char *pmem_ptr = (char *)___c_pmt_64_heap;
     align_char_to(64, &pmem_ptr);
-    ___c_prmt_64_heap = pmem_ptr;
-    assert((size_t) ___c_prmt_64_heap % 64 == 0 && "dmat not 64-byte aligned!");
-    blasfeo_create_dmat(m, n, *bmat, ___c_prmt_64_heap);
+    ___c_pmt_64_heap = pmem_ptr;
+    assert((size_t) ___c_pmt_64_heap % 64 == 0 && "dmat not 64-byte aligned!");
+    blasfeo_create_dmat(m, n, *bmat, ___c_pmt_64_heap);
 
     // advance global heap address
     int memsize = (*bmat)->memsize;
     // make_int_multiple_of(64, memsize);
-    ___c_prmt_64_heap += memsize;	
+    ___c_pmt_64_heap += memsize;	
 
     // zero allocated memory
 	int i;

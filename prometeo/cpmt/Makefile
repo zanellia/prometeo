@@ -10,12 +10,12 @@ all: $(SRCS)
 	$(CC) -c $(CFLAGS) $(SRCS) 
 
 shared: all
-	$(CC) -shared -o libcprmt.so *.o
+	$(CC) -shared -o libcpmt.so *.o
 
 install_shared: all shared
 	mkdir -p $(PREFIX)/prometeo
 	mkdir -p $(PREFIX)/prometeo/lib
-	cp -f ./libcprmt.so $(PREFIX)/prometeo/lib/
+	cp -f ./libcpmt.so $(PREFIX)/prometeo/lib/
 	mkdir -p $(PREFIX)/prometeo/include
 	cp -f ./*.h $(PREFIX)/prometeo/include/
 

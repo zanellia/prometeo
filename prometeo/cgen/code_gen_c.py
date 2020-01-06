@@ -30,7 +30,7 @@ import astpretty as ap
 import os
 import json
 
-prmt_temp_functions = {\
+pmt_temp_functions = {\
         "pmat": "c_pmt_create_pmat", \
         "pvec": "c_pmt_create_pvec", \
         "pmt_gemm_nn": "c_pmt_gemm_nn", \
@@ -52,7 +52,7 @@ prmt_temp_functions = {\
         "pvec_copy": "c_pmt_pvec_copy", \
         "pvec_print": "c_pmt_pvec_print"}
 
-prmt_temp_types = {\
+pmt_temp_types = {\
         "pmat": "struct pmat *", \
         "pvec": "struct pvec *", \
         "None": "void", \
@@ -68,7 +68,7 @@ usr_temp_types = {}
 
 def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False,
               pretty_string=pretty_string, pretty_source=pretty_source,
-              main=False, ___c_prmt_8_heap_size=None, ___c_prmt_64_heap_size=None):
+              main=False, ___c_pmt_8_heap_size=None, ___c_pmt_64_heap_size=None):
 
     """This function can convert a node tree back into python sourcecode.
     This is useful for debugging purposes, especially if you're dealing with
@@ -88,18 +88,18 @@ def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False
     number information of statement nodes.
 
     """
-    if ___c_prmt_8_heap_size is None or ___c_prmt_64_heap_size is None :
+    if ___c_pmt_8_heap_size is None or ___c_pmt_64_heap_size is None :
         error('Need to pass heap_sizes! Exiting.')
 
-    generator = SourceGenerator(indent_with, ___c_prmt_8_heap_size,
-                                ___c_prmt_64_heap_size, add_line_information,
+    generator = SourceGenerator(indent_with, ___c_pmt_8_heap_size,
+                                ___c_pmt_64_heap_size, add_line_information,
                                 pretty_string,
                                 )
     
     generator.result.source.append('#include "stdlib.h"\n')
     # generator.result.source.append('#include "pmat_blasfeo_wrapper.h"\n')
     # generator.result.source.append('#include "pvec_blasfeo_wrapper.h"\n')
-    # generator.result.source.append('#include "prmt_heap.h"\n')
+    # generator.result.source.append('#include "pmt_heap.h"\n')
     generator.result.source.append('#include "%s.h"\n' %(module_name))
     generator.result.header.append('#include "prometeo.h"\n')
 
@@ -241,7 +241,7 @@ class SourceGenerator(ExplicitNodeVisitor):
     """
     using_unicode_literals = False
     
-    def __init__(self, indent_with,  ___c_prmt_8_heap_size, ___c_prmt_64_heap_size, 
+    def __init__(self, indent_with,  ___c_pmt_8_heap_size, ___c_pmt_64_heap_size, 
                 add_line_information=False,pretty_string=pretty_string,
                  # constants
                  len=len, isinstance=isinstance, callable=callable):
@@ -266,8 +266,8 @@ class SourceGenerator(ExplicitNodeVisitor):
         append_src = result.source.append
         append_hdr = result.header.append
     
-        self.heap8_size  = ___c_prmt_8_heap_size 
-        self.heap64_size = ___c_prmt_64_heap_size 
+        self.heap8_size  = ___c_pmt_8_heap_size 
+        self.heap64_size = ___c_pmt_64_heap_size 
 
         self.typed_record = {'global': dict()}
         self.scope = 'global'
@@ -389,8 +389,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                             self.typed_record[self.scope][item.target.id] = \
                                 'List[' + ann + ', ' + str(dims) + ']'
 
-                        if  ann in prmt_temp_types:
-                            ann = prmt_temp_types[ann]
+                        if  ann in pmt_temp_types:
+                            ann = pmt_temp_types[ann]
                         else:
                             raise Exception ('Usage of non existing type {}'.format(ann))
                         # check is dims is not a numerical value
@@ -401,13 +401,13 @@ class SourceGenerator(ExplicitNodeVisitor):
                             # self.statement([], ann, ' ', item.target, '[', array_size, '];')
                         self.write('%s' %ann, ' ', '%s' %item.target.id, '[%s' %array_size, '];\n', dest = 'hdr')
                 else:
-                    type_c = prmt_temp_types[type_py]
+                    type_c = pmt_temp_types[type_py]
                     self.write('%s' %type_c, ' ', '%s' %item.target.id, ';\n', dest = 'hdr')
                     # self.conditional_write(' = ', item.value, ';')
                     self.typed_record[self.scope][item.target.id] = type_py
                 # else:
                 #     type_py = annotation.id
-                #     type_c = prmt_temp_types[type_py]
+                #     type_c = pmt_temp_types[type_py]
                 #     self.write('%s' %type_c, ' ', '%s' %item.target.id, ';\n', dest = 'hdr')
                 #     # self.conditional_write(' = ', item.value, ';')
                 #     self.typed_record[self.scope][item.target.id] = type_py
@@ -434,8 +434,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                 if ret_type is None: 
                     ret_type = 'None'
 
-                if  ret_type in prmt_temp_types:
-                    ret_type = prmt_temp_types[ret_type]
+                if  ret_type in pmt_temp_types:
+                    ret_type = pmt_temp_types[ret_type]
                 else:
                     raise Exception ('Usage of non existing type {}'.format(ret_type))
 
@@ -481,8 +481,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                 if ret_type is None: 
                     ret_type = 'None'
 
-                if  ret_type in prmt_temp_types:
-                    ret_type = prmt_temp_types[ret_type]
+                if  ret_type in pmt_temp_types:
+                    ret_type = pmt_temp_types[ret_type]
                 else:
                     raise Exception ('Usage of non existing type {}'.format(ret_type))
 
@@ -565,8 +565,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                     self.typed_record[self.scope][item.target.id] = ann
                     print('typed_record = \n', self.typed_record, '\n\n')
                     print('var_dim_record = \n', self.var_dim_record, '\n\n')
-                    if  ann in prmt_temp_types:
-                        c_ann = prmt_temp_types[ann]
+                    if  ann in pmt_temp_types:
+                        c_ann = pmt_temp_types[ann]
                         # self.statement(item, c_ann, ' ', item.target.id)
                     else:
                         raise Exception ('Usage of non existing type {}'.format(ann))
@@ -644,8 +644,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                 if ret_type is None: 
                     ret_type = 'None'
 
-                if  ret_type in prmt_temp_types:
-                    ret_type = prmt_temp_types[ret_type]
+                if  ret_type in pmt_temp_types:
+                    ret_type = pmt_temp_types[ret_type]
                 else:
                     raise Exception ('Usage of non existing type {}'.format(ret_type))
 
@@ -662,8 +662,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                 self.visit_arguments(item.args, 'src')
                 self.write(') {\n', dest = 'src')
                 # store current pmt_heap value (and restore before returning)
-                self.write('\tvoid *callee_prmt_8_heap = ___c_prmt_8_heap;\n', dest = 'src')
-                self.write('\tvoid *callee_prmt_64_heap = ___c_prmt_64_heap;\n', dest = 'src')
+                self.write('\tvoid *callee_pmt_8_heap = ___c_pmt_8_heap;\n', dest = 'src')
+                self.write('\tvoid *callee_pmt_64_heap = ___c_pmt_64_heap;\n', dest = 'src')
                 self.body(item.body)
                 self.newline(1)
                 self.write('}', dest = 'src')
@@ -711,7 +711,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 else:
                     arg_type_py = arg.annotation.id
 
-                arg_type_c = prmt_temp_types[arg_type_py]
+                arg_type_c = pmt_temp_types[arg_type_py]
                 self.write(write_comma, arg_type_c,' ',arg.arg, dest = dest_in)
 
                 # add variable to typed record
@@ -1128,8 +1128,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                 self.typed_record[self.scope][node.target.id] = 'List[' + lann + ', ' + dims + ']'
             else:
                 self.typed_record[self.scope][node.target.id] = 'List[' + lann + ', ' + str(dims) + ']'
-            if  lann in prmt_temp_types:
-                lann = prmt_temp_types[lann]
+            if  lann in pmt_temp_types:
+                lann = pmt_temp_types[lann]
             else:
                 raise Exception ('Usage of non existing type {}'.format(lann))
             # check is dims is not a numerical value
@@ -1165,7 +1165,7 @@ class SourceGenerator(ExplicitNodeVisitor):
             dim1 = Num_or_Name(node.value.args[0])
             dim2 = Num_or_Name(node.value.args[1])
             self.var_dim_record[self.scope][node.target.id] = [dim1, dim2]
-            node.annotation.id = prmt_temp_types[ann]
+            node.annotation.id = pmt_temp_types[ann]
             self.statement(node, node.annotation, ' ', node.target)
             self.conditional_write(' = ', node.value, '', dest = 'src')
         # or pvec[<n>]
@@ -1174,7 +1174,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 raise Exception('pvec objects need to be declared calling the pvec(<n>, <m>) constructor\n.')
             dim1 = Num_or_Name(node.value.args[0])
             self.var_dim_record[self.scope][node.target.id] = [dim1]
-            node.annotation.id = prmt_temp_types[ann]
+            node.annotation.id = pmt_temp_types[ann]
             self.statement(node, node.annotation, ' ', node.target)
             self.conditional_write(' = ', node.value, '', dest = 'src')
 
@@ -1203,8 +1203,8 @@ class SourceGenerator(ExplicitNodeVisitor):
             self.statement(node, node.annotation, ' ', node.target, '= &', node.target, '___;')
             self.statement([], class_name, '_init(', node.target, '); //')
         else:
-            if  ann in prmt_temp_types:
-                c_ann = prmt_temp_types[ann]
+            if  ann in pmt_temp_types:
+                c_ann = pmt_temp_types[ann]
                 self.statement(node, c_ann, ' ', node.target.id)
                 self.conditional_write(' = ', node.value, ';', dest = 'src')
             else:
@@ -1271,40 +1271,40 @@ class SourceGenerator(ExplicitNodeVisitor):
         return_type_py = returns.value
 
         if node.name == 'main':
-            self.write('void *___c_prmt_8_heap; \n', dest = 'src')
-            self.write('void *___c_prmt_64_heap; \n', dest = 'src')
-            self.write('void *___c_prmt_8_heap_head; \n', dest = 'src')
-            self.write('void *___c_prmt_64_heap_head; \n', dest = 'src')
+            self.write('void *___c_pmt_8_heap; \n', dest = 'src')
+            self.write('void *___c_pmt_64_heap; \n', dest = 'src')
+            self.write('void *___c_pmt_8_heap_head; \n', dest = 'src')
+            self.write('void *___c_pmt_64_heap_head; \n', dest = 'src')
 
         print(return_type_py)
-        return_type_c = prmt_temp_types[return_type_py.__class__.__name__]
+        return_type_c = pmt_temp_types[return_type_py.__class__.__name__]
         # self.statement(node, self.get_returns(node), '%s %s' % (prefix, node.name), '(')
         self.write(return_type_c, ' %s' %(node.name), '(', dest = 'src')
         self.visit_arguments(node.args, 'src')
         self.write(') {\n', dest = 'src')
         if node.name == 'main':
-            self.write('    ___c_prmt_8_heap = malloc(%s); \n' %(self.heap8_size), dest = 'src')
-            self.write('    ___c_prmt_8_heap_head = ___c_prmt_8_heap;\n', dest = 'src')
-            self.write('    char *pmem_ptr = (char *)___c_prmt_8_heap;\n', dest = 'src')
+            self.write('    ___c_pmt_8_heap = malloc(%s); \n' %(self.heap8_size), dest = 'src')
+            self.write('    ___c_pmt_8_heap_head = ___c_pmt_8_heap;\n', dest = 'src')
+            self.write('    char *pmem_ptr = (char *)___c_pmt_8_heap;\n', dest = 'src')
             self.write('    align_char_to(8, &pmem_ptr);\n', dest = 'src')
-            self.write('    ___c_prmt_8_heap = pmem_ptr;\n', dest = 'src')
+            self.write('    ___c_pmt_8_heap = pmem_ptr;\n', dest = 'src')
             
-            self.write('    ___c_prmt_64_heap = malloc(%s);\n' %(self.heap64_size), dest = 'src')
-            self.write('    ___c_prmt_64_heap_head = ___c_prmt_64_heap;\n', dest = 'src')
-            self.write('    pmem_ptr = (char *)___c_prmt_64_heap;\n', dest = 'src')
+            self.write('    ___c_pmt_64_heap = malloc(%s);\n' %(self.heap64_size), dest = 'src')
+            self.write('    ___c_pmt_64_heap_head = ___c_pmt_64_heap;\n', dest = 'src')
+            self.write('    pmem_ptr = (char *)___c_pmt_64_heap;\n', dest = 'src')
             self.write('    align_char_to(64, &pmem_ptr);\n', dest = 'src')
-            self.write('    ___c_prmt_64_heap = pmem_ptr;\n', dest = 'src')
+            self.write('    ___c_pmt_64_heap = pmem_ptr;\n', dest = 'src')
         else:
             # store current pmt_heap value (and restore before returning)
-            self.write('\tvoid *callee_prmt_8_heap = ___c_prmt_8_heap;\n', dest = 'src')
-            self.write('\tvoid *callee_prmt_64_heap = ___c_prmt_64_heap;\n', dest = 'src')
+            self.write('\tvoid *callee_pmt_8_heap = ___c_pmt_8_heap;\n', dest = 'src')
+            self.write('\tvoid *callee_pmt_64_heap = ___c_pmt_64_heap;\n', dest = 'src')
 
         # self.write(':')
         self.body(node.body)
         self.newline(1)
         if node.name == 'main':
-            self.write('free(___c_prmt_8_heap_head);\n', dest='src')
-            self.write('free(___c_prmt_64_heap_head);\n', dest='src')
+            self.write('free(___c_pmt_8_heap_head);\n', dest='src')
+            self.write('free(___c_pmt_64_heap_head);\n', dest='src')
         self.write('}', dest='src')
         if not self.indentation:
             self.newline(extra=2)
@@ -1487,8 +1487,8 @@ class SourceGenerator(ExplicitNodeVisitor):
         set_precedence(node, node.value)
 
         # restore pmt_heap values 
-        self.write('\t___c_prmt_8_heap = callee_prmt_8_heap;\n', dest = 'src')
-        self.write('\t___c_prmt_64_heap = callee_prmt_64_heap;\n', dest = 'src')
+        self.write('\t___c_pmt_8_heap = callee_pmt_8_heap;\n', dest = 'src')
+        self.write('\t___c_pmt_64_heap = callee_pmt_64_heap;\n', dest = 'src')
         self.statement(node, 'return')
         self.conditional_write('', node.value, ';', dest = 'src')
 
@@ -1542,9 +1542,9 @@ class SourceGenerator(ExplicitNodeVisitor):
         set_precedence(p, *args)
 
         if type(node.func) == ast.Name: 
-            if  node.func.id in prmt_temp_functions:
+            if  node.func.id in pmt_temp_functions:
                 func_name = node.func.id
-                node.func.id = prmt_temp_functions[func_name]
+                node.func.id = pmt_temp_functions[func_name]
         elif type(node.func) == ast.Attribute: 
             # calling a method of a user-defined class
             func_name = node.func.attr

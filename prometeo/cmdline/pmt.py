@@ -17,7 +17,7 @@ CFLAGS+=-I$(INSTALL_DIR)/include -I/opt/blasfeo/include
 LIBPATH+=-L$(INSTALL_DIR)/lib -L/opt/blasfeo/lib 
 
 all: $(SRCS) 
-	$(CC) $(LIBPATH) -o {{ filename }} $(CFLAGS)  $(SRCS)  -lcprmt -lblasfeo -lm
+	$(CC) $(LIBPATH) -o {{ filename }} $(CFLAGS)  $(SRCS)  -lcpmt -lblasfeo -lm
 
 clean:
 	rm -f *.o {{ filename }}
@@ -61,8 +61,8 @@ def pmt_main(script_path, stdout, stderr, args = None):
         # import pdb; pdb.set_trace()
 
         result  = prometeo.cgen.code_gen_c.to_source(tree, filename_, \
-                main=True, ___c_prmt_8_heap_size=10000, \
-                ___c_prmt_64_heap_size=1000000 )
+                main=True, ___c_pmt_8_heap_size=10000, \
+                ___c_pmt_64_heap_size=1000000 )
 
         dest_file = open(filename_ + '.c', 'w')
         dest_file.write(prometeo.cgen.source_repr.pretty_source(result.source))

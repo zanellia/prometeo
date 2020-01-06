@@ -3,6 +3,6 @@
 
 #include "pmat_blasfeo_wrapper.h"
 #include "pvec_blasfeo_wrapper.h"
-#include "prmt_heap.h"
+#include "pmt_heap.h"
 
 #endif // PROMETEO_H_
