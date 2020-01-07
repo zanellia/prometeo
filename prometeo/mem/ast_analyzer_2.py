@@ -29,9 +29,18 @@ def precedence_setter(AST=ast.AST, get_op_precedence=get_op_precedence,
 
 set_precedence = precedence_setter()
 
+def descope(current_scope, pop):
+    pop = '@' + pop
+    if current_scope.endswith(pop):
+        return current_scope[:-len(pop)]
+    return current_scope
+
 class ast_visitor(ExplicitNodeVisitor):
     def __init__(self):
-        self.callees = [] 
+        self.callees = dict() 
+        self.caller_scope = 'global'
+        self.callee_scope = 'global'
+        self.in_call = False
         visit = self.visit
 
         def visit_ast(*params):
@@ -72,12 +81,16 @@ class ast_visitor(ExplicitNodeVisitor):
         return
 
     def visit_FunctionDef(self, node):
-        print('in FunctionDef')
+        self.caller_scope = self.caller_scope + '@' + node.name
+        self.callees[self.caller_scope] = []
         # self.visit_ast(node)
         self.body(node.body)
+        self.caller_scope = descope(self.caller_scope, node.name)
 
     def visit_ClassDef(self, node):
+        self.caller_scope = self.caller_scope + '@' + node.name
         self.body(node.body)
+        descope(self.caller_scope, node.name)
 
     def visit_Expr(self, node):
         set_precedence(node, node.value)
@@ -88,7 +101,16 @@ class ast_visitor(ExplicitNodeVisitor):
         self.visit(node.body)
 
     def visit_Call(self, node, len=len):
-        self.visit(node.func)
+        ap.pprint(node)
+        if isinstance(node.func, ast.Name):
+            self.callees[self.caller_scope].append(self.callee_scope + '@' + node.func.id)
+        elif isinstance(node.func, ast.Attribute):
+            self.in_call = True 
+            self.visit(node.func)
+            self.callees[self.caller_scope].append(self.callee_scope)
+            self.in_call = False
+
+
 
     def visit_Name(self, node):
         return
@@ -111,9 +133,14 @@ class ast_visitor(ExplicitNodeVisitor):
         self.generic_visit(node)
 
     def visit_Attribute(self, node):
-        return 
         self.visit_ast(node.value)
-        self.visit_ast(node.attr)
+        if self.in_call:
+            if isinstance(node.value, ast.Name):
+                self.callee_scope = self.callee_scope + '@' + node.value.id + '@' + node.attr
+            else:
+                self.callee_scope = self.callee_scope + '@' + node.attr
+        return 
+        # self.visit_ast(node.attr)
 
     def visit_JoinedStr(self, node):
         return
