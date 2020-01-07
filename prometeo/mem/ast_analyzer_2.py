@@ -81,7 +81,8 @@ class ast_visitor(ExplicitNodeVisitor):
         return
 
     def visit_FunctionDef(self, node):
-        self.caller_scope = self.caller_scope + '@' + node.name
+        if node.name != '__init__':
+            self.caller_scope = self.caller_scope + '@' + node.name
         self.callees[self.caller_scope] = []
         # self.visit_ast(node)
         self.body(node.body)

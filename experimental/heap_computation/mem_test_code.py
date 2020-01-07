@@ -37,6 +37,7 @@ class class1:
 
 def main():
     class_instance = class1()
-    class1.class2.class3.method_1()
+    # class1.class2.class3.method_1()
+    class1.method_1()
     for i in range(2):
         a = 1
