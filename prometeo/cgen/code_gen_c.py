@@ -127,6 +127,9 @@ def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False
     json_file = 'var_dim_record.json'
     with open(json_file, 'w') as f:
         json.dump(generator.var_dim_record, f, indent=4, sort_keys=True)
+    json_file = 'dim_record.json'
+    with open(json_file, 'w') as f:
+        json.dump(generator.dim_record, f, indent=4, sort_keys=True)
     json_file = 'usr_types.json'
     with open(json_file, 'w') as f:
         json.dump(usr_temp_types, f, indent=4, sort_keys=True)
@@ -234,8 +237,8 @@ class Delimit(object):
 
 
 class SourceGenerator(ExplicitNodeVisitor):
-    """This visitor is able to transform a well formed syntax tree into Python
-    sourcecode.
+    """This visitor is able to transform a well formed syntax tree into C
+    source code.
 
     For more details have a look at the docstring of the `node_to_source`
     function.
@@ -1181,6 +1184,12 @@ class SourceGenerator(ExplicitNodeVisitor):
             # increment scoped heap usage (3 pointers and 6 ints for pmats)
             self.heap8_record[self.scope] = self.heap8_record[self.scope] + 3*self.size_of_pointer
             self.heap8_record[self.scope] = self.heap8_record[self.scope] + 6*self.size_of_int
+            # check is dims is not a numerical value
+            if isinstance(dim1, str):
+                dim1 = self.dim_record[dim1]
+            if isinstance(dim2, str):
+                dim2 = self.dim_record[dim2]
+            self.heap64_record[self.scope] = self.heap64_record[self.scope] + int(dim1)*int(dim2)*self.size_of_double
         # or pvec[<n>]
         elif ann == 'pvec':
             if node.value.func.id != 'pvec':
@@ -1502,6 +1511,8 @@ class SourceGenerator(ExplicitNodeVisitor):
 
     def visit_Return(self, node):
         set_precedence(node, node.value)
+        # TODO(andrea): this probably does not support 
+        # stuff like `return foo()`
 
         # restore pmt_heap values 
         self.write('\t___c_pmt_8_heap = callee_pmt_8_heap;\n', dest = 'src')

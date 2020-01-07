@@ -24,6 +24,7 @@ from .op_util import get_op_symbol, get_op_precedence, Precedence
 from .node_util import ExplicitNodeVisitor
 from .string_repr import pretty_string
 from .source_repr import pretty_source
+import astpretty as ap
 
 
 def to_source(node, indent_with=' ' * 4, add_line_information=False,
