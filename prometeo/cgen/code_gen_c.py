@@ -836,7 +836,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                                 second_index_value_l = astu.unparse(node.value.slice.dims[1].lower).strip('\n')
                                 second_index_value_u = astu.unparse(node.value.slice.dims[1].upper).strip('\n')
                                 ai = first_index_value_l
-                                aj = first_index_value_l
+                                aj = second_index_value_l
                                 value = node.value.value.id
                             else:
                                 ai = '0'

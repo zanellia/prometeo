@@ -200,7 +200,7 @@ class ast_visitor(ExplicitNodeVisitor):
         return
 
 def compute_reach_graph(call_graph, typed_record):
-    # resolve calls
+    # get unresolved calls
     methods = list(call_graph.keys())
     calls = list(call_graph.values())
     unresolved_calls = []
@@ -208,9 +208,21 @@ def compute_reach_graph(call_graph, typed_record):
         for call in subcalls:
             if call not in methods and call != []:
                 unresolved_calls.append(call)
-    reach_map = {}
+    # resolve calls
+    for call in unresolved_calls:
+        scopes = call.split('@')
+        curr_scope = scopes[0]
+        import pdb; pdb.set_trace()
+        for i in range(len(scopes)):
+            if curr_scope + '@' + scopes[i+1] in typed_record:
+                curr_scope = curr_scope + '@' + scopes[i+1]
+            else: 
+                # try to resolve class name
+                if scopes[i] in typed_record[curr_scope]:
+                    scopes[i] = typed_record[curr_scope][scopes[i]]
     import pdb; pdb.set_trace()
-    for curr_node in nodes:
+    reach_map = {}
+    for curr_node in methods:
         reach_map[curr_node] = get_reach_nodes(call_graph, curr_node, curr_node, [], 1) 
     return reach_map
 

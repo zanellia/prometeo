@@ -57,17 +57,17 @@ def c_pmt_dgemm_nn(A, B, C, D):
     bC = C.blasfeo_dmat
     bD = D.blasfeo_dmat
 
-    bw.blasfeo_dgemm_nn(bA.m, bA.n, bB.n, 1.0, byref(bA), 0, 0, byref(bB), 0, 0, 1, byref(bC), 0, 0, byref(bD), 0, 0)
+    bw.blasfeo_dgemm_nn(bA.m, bB.n, bA.n, 1.0, byref(bA), 0, 0, byref(bB), 0, 0, 1, byref(bC), 0, 0, byref(bD), 0, 0)
     return
 
-def c_pmt_dgemm_nt(A, B, C, D):
-    bA = A.blasfeo_dmat
-    bB = B.blasfeo_dmat
-    bC = C.blasfeo_dmat
-    bD = D.blasfeo_dmat
+# def c_pmt_dgemm_nt(A, B, C, D):
+#     bA = A.blasfeo_dmat
+#     bB = B.blasfeo_dmat
+#     bC = C.blasfeo_dmat
+#     bD = D.blasfeo_dmat
 
-    bw.blasfeo_dgemm_nt(bA.m, bA.n, bB.n, 1.0, byref(bA), 0, 0, byref(bB), 0, 0, 1, byref(bC), 0, 0, byref(bD), 0, 0)
-    return
+#     bw.blasfeo_dgemm_nt(bA.m, bA.n, bB.n, 1.0, byref(bA), 0, 0, byref(bB), 0, 0, 1, byref(bC), 0, 0, byref(bD), 0, 0)
+#     return
 
 def c_pmt_dgemm_tn(A, B, C, D):
     bA = A.blasfeo_dmat
@@ -75,17 +75,17 @@ def c_pmt_dgemm_tn(A, B, C, D):
     bC = C.blasfeo_dmat
     bD = D.blasfeo_dmat
 
-    bw.blasfeo_dgemm_tn(bA.m, bA.n, bB.n, 1.0, byref(bA), 0, 0, byref(bB), 0, 0, 1, byref(bC), 0, 0, byref(bD), 0, 0)
+    bw.blasfeo_dgemm_tn(bA.n, bB.n, bA.m, 1.0, byref(bA), 0, 0, byref(bB), 0, 0, 1, byref(bC), 0, 0, byref(bD), 0, 0)
     return
 
-def c_pmt_dgemm_tt(A, B, C, D):
-    bA = A.blasfeo_dmat
-    bB = B.blasfeo_dmat
-    bC = C.blasfeo_dmat
-    bD = D.blasfeo_dmat
+# def c_pmt_dgemm_tt(A, B, C, D):
+#     bA = A.blasfeo_dmat
+#     bB = B.blasfeo_dmat
+#     bC = C.blasfeo_dmat
+#     bD = D.blasfeo_dmat
 
-    bw.blasfeo_dgemm_tt(bA.m, bA.n, bB.n, 1.0, byref(bA), 0, 0, byref(bB), 0, 0, 1, byref(bC), 0, 0, byref(bD), 0, 0)
-    return
+#     bw.blasfeo_dgemm_tt(bA.m, bA.n, bB.n, 1.0, byref(bA), 0, 0, byref(bB), 0, 0, 1, byref(bC), 0, 0, byref(bD), 0, 0)
+#     return
 
 def c_pmt_dgead(alpha, A, B):
     bA = A.blasfeo_dmat
@@ -99,15 +99,17 @@ def c_pmt_drowpe(m, ipiv, A):
     bw.blasfeo_drowpe(m, ipiv, byref(bA));
     return
 
-def c_pmt_getrf(A, ipiv):
+def c_pmt_getrf(A, fact, ipiv):
     bA = A.blasfeo_dmat
-    bw.blasfeo_dgetrf_rp(bA.m, bA.m, byref(bA), 0, 0, byref(bA), 0, 0, ipiv)
+    bfact = fact.blasfeo_dmat
+    bw.blasfeo_dgetrf_rp(bA.m, bA.m, byref(bA), 0, 0, byref(bfact), 0, 0, ipiv)
     return
 
-def c_pmt_potrf(A):
+def c_pmt_potrf(A, fact):
     bA = A.blasfeo_dmat
+    bfact = fact.blasfeo_dmat
 
-    bw.blasfeo_dpotrf_l(bA.m, byref(bA), 0, 0, byref(bA), 0, 0)
+    bw.blasfeo_dpotrf_l(bA.m, byref(bA), 0, 0, byref(bfact), 0, 0)
     return
 
 def c_pmt_trsm_llnu(A, B):

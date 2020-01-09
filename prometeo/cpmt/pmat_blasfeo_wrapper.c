@@ -140,14 +140,15 @@ void c_pmt_getrsm(struct pmat *fact, int *ipiv, struct pmat *rhs) {
 }
 
 void c_pmt_potrsm(struct pmat *fact, struct pmat *rhs) {
-    int mfact = fact->bmat->m; 
+    int mrhs = rhs->bmat->m; 
+    int nrhs = rhs->bmat->n; 
     struct blasfeo_dmat *bfact = fact->bmat;
     struct blasfeo_dmat *brhs  = rhs->bmat;
     // struct blasfeo_dmat *bout  = out->bmat;
 
     // triangular solves 
-    blasfeo_dtrsm_llnu(mfact, mfact, 1.0, bfact, 0, 0, brhs, 0, 0, brhs, 0, 0);
-    blasfeo_dtrsm_lunn(mfact, mfact, 1.0, bfact, 0, 0, brhs, 0, 0, brhs, 0, 0);
+    blasfeo_dtrsm_llnu(mrhs, nrhs, 1.0, bfact, 0, 0, brhs, 0, 0, brhs, 0, 0);
+    blasfeo_dtrsm_lunn(mrhs, nrhs, 1.0, bfact, 0, 0, brhs, 0, 0, brhs, 0, 0);
 }
 
 void c_pmt_potrsv(struct pmat *fact, struct pvec *rhs) {

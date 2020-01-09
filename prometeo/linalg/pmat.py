@@ -13,20 +13,64 @@ class pmat(pmat_):
 
     def __init__(self, m: int, n: int):
         self.blasfeo_dmat = c_pmt_create_blasfeo_dmat(m, n)  
+        self.m = m  
+        self.n = n  
 
     def __getitem__(self, index):
         if isinstance(index, tuple):
-            if len(index) == 2:
+            if len(index) != 2:
+                raise Exception ('pmat subscript should be a 2-dimensional tuples, \
+                        you have: {}\n. Exiting'.format(index))
+            if isinstance(index[0], int) and isinstance(index[1], int):
+                if index[0] < 0 or index[0] > self.m or \
+                        index[1] < 0 or index[1] > self.n:
+                    raise Exception('Invalid subscripting values. Exiting. \n')
                 el = pmat_get(self, index[0], index[1])
                 return el
+            elif isinstance(index[0], slice) and isinstance(index[1], slice):
+                if index[0].start < 0 or index[0].stop > self.m or \
+                    index[1].start < 0 or index[1].stop > self.n:
+                        raise Exception('Invalid subscripting values. Exiting. \n')
+                m_value = index[0].stop - index[0].start
+                n_value = index[1].stop - index[1].start
+                submatrix = pmat(m_value, n_value)
+                # TODO(andrea): there might be better performing implementations of this.
+                # print(index[0].start)
+                # import pdb; pdb.set_trace()
+                for i in range(m_value):
+                    for j in range(n_value):
+                        # print(i,j)
+                        submatrix[i,j] = self[index[0].start+i, index[1].start+j]
+                # print('\n\n')
+                # pmat_print(submatrix)
+                # print('\n\n')
+                return submatrix
         else:
             raise Exception ('pmat subscript should be a 2-dimensional tuples, \
                     you have: {}\n. Exiting'.format(index))
 
     def __setitem__(self, index, value):
         if isinstance(index, tuple):
-            if len(index) == 2:
+            if len(index) != 2:
+                raise Exception ('pmat subscript should be a 2-dimensional tuples, \
+                        you have: {}\n. Exiting'.format(index))
+            if isinstance(index[0], int) and isinstance(index[1], int):
                 pmat_set(self, value, index[0], index[1]) 
+            elif isinstance(index[0], slice) and isinstance(index[1], slice):
+                m_target = index[0].stop - index[0].start
+                n_target = index[1].stop - index[1].start
+                if m_target != value.m or n_target != value.n:
+                    raise Exception('Dimension mismatch: ({},{}) <- ({},{}). Exiting.'.format(m_target, n_target, value.m, value.n))
+                if index[0].start < 0 or index[0].stop > self.m or \
+                    index[1].start < 0 or index[1].stop > self.n:
+                        raise Exception('Invalid subscripting values. Exiting. \n')
+                # TODO(andrea): there might be better performing implementations of this.
+                for i in range(m_target):
+                    for j in range(n_target):
+                        self[index[0].start+i,index[1].start+j] = value[i,j]
+            else:
+                raise Exception ('pmat subscripts must be 2-dimensional tuples, \
+                        you have: {}\n. Exiting'.format(index))
         else:
             raise Exception ('pmat subscripts must be 2-dimensional tuples, \
                     you have: {}\n. Exiting'.format(index))
@@ -66,7 +110,6 @@ class pmat(pmat_):
 #         self._i = None
 #         self._j = None
 #         return el 
-    
     
     # TODO(andrea): ideally one would have three levels:
     # 1) high-level
@@ -274,19 +317,17 @@ def pmt_trsv_lunn(A: pmat, b: pvec):
     return
 
 def pmt_getrf(A: pmat, fact: pmat, ipiv: list):
-    pmat_copy(A, fact)
     # create permutation vector
     c_ipiv = cast(create_string_buffer(sizeof(c_int)*A.blasfeo_dmat.m), POINTER(c_int))
     # factorize
-    c_pmt_getrf(fact, c_ipiv)
+    c_pmt_getrf(A, fact, c_ipiv)
     for i in range(A.blasfeo_dmat.n):
         ipiv[i] = c_ipiv[i]
     return 
 
 def pmt_potrf(A: pmat, fact: pmat):
-    pmat_copy(A, fact)
     # factorize
-    c_pmt_potrf(fact)
+    c_pmt_potrf(A, fact)
     return 
 
 def pmt_gemv_n(A: pmat, b: pvec, c: pvec, d: pvec):

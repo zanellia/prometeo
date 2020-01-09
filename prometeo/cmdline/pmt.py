@@ -98,19 +98,19 @@ def pmt_main(script_path, stdout, stderr, args = None):
         dest_file.write(makefile_code)
         dest_file.close()
 
-        # compute heap usage
-        visitor = ast_visitor()
-        # import pdb; pdb.set_trace()
-        visitor.visit(tree_copy) 
-        call_graph = visitor.callees
-        typed_record = visitor.typed_record
-        print(call_graph)
+        # # compute heap usage
+        # visitor = ast_visitor()
+        # # import pdb; pdb.set_trace()
+        # visitor.visit(tree_copy) 
+        # call_graph = visitor.callees
+        # typed_record = visitor.typed_record
+        # print(call_graph)
 
-        # to_source(tree)
-        # print('call graph:\n', call_graph)
-        # import pdb; pdb.set_trace()
-        reach_map = compute_reach_graph(call_graph, typed_record)
-        print('reach_map:\n', reach_map)
+        # # to_source(tree)
+        # # print('call graph:\n', call_graph)
+        # # import pdb; pdb.set_trace()
+        # reach_map = compute_reach_graph(call_graph, typed_record)
+        # print('reach_map:\n', reach_map)
 
         os.system('make clean')
         os.system('make')
