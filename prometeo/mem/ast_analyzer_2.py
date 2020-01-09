@@ -4,6 +4,22 @@ from ..cgen.node_util import ExplicitNodeVisitor
 import astpretty as ap
 from ..cgen.op_util import get_op_symbol, get_op_precedence, Precedence
 
+pmt_functions = {\
+    'global@pmat_copy': [], \
+    'global@pmat_print': [], \
+    'global@pmat_fill': [], \
+    'global@pmat_tran': [], \
+    'global@pmat_hcat': [], \
+    'global@pmat_vcat': [], \
+    'global@pmt_gemm_nn': [], \
+    'global@pmt_gemm_tn': [], \
+    'global@pmt_gead': [], \
+    'global@pmt_potrf': [], \
+    'global@pmt_potrsm': [], \
+    'global@pmt_getrf': [], \
+    'global@pmt_getrsm': [], \
+    } 
+
 def precedence_setter(AST=ast.AST, get_op_precedence=get_op_precedence,
                       isinstance=isinstance, list=list):
     """ This only uses a closure for performance reasons,
@@ -26,7 +42,6 @@ def precedence_setter(AST=ast.AST, get_op_precedence=get_op_precedence,
 
     return set_precedence
 
-
 set_precedence = precedence_setter()
 
 def descope(current_scope, pop):
@@ -37,7 +52,7 @@ def descope(current_scope, pop):
 
 class ast_visitor(ExplicitNodeVisitor):
     def __init__(self):
-        self.callees = dict() 
+        self.callees = pmt_functions 
         self.caller_scope = 'global'
         self.callee_scope = 'global'
         self.in_call = False
@@ -111,8 +126,6 @@ class ast_visitor(ExplicitNodeVisitor):
             self.callees[self.caller_scope].append(self.callee_scope)
             self.in_call = False
 
-
-
     def visit_Name(self, node):
         return
         # self.generic_visit(node)
@@ -159,30 +172,18 @@ class ast_visitor(ExplicitNodeVisitor):
 
     def visit_For(self, node, is_async=False):
         self.body_or_else(node)
-    # def get_call_graph(tree):
-    # def visit_Call(self, node):
-    #     self.callees.append(node.func.id)
-    #     self.generic_visit(node)
-# class ast_visitor(ast.NodeVisitor):
-#     def __init__(self):
-#         self.callees = [] 
 
-#     def visit_Call(self, node):
-#         self.callees.append(node.func.id)
-#         self.generic_visit(node)
+    def visit_ImportFrom(self, node):
+        return
 
+    def visit_Import(self, node):
+        return
 
-# def get_call_graph(tree):
-#     call_graph = {}
-#     for node in ast.walk(tree):
-#         print(node)
-#         import pdb; pdb.set_trace()
-#         if isinstance(node, ast.FunctionDef):
-#             visitor = ast_visitor()
-#             visitor.visit(node)
-#             call_graph[node.name] = visitor.callees
+    def visit_AnnAssign(self, node):
+        return
 
-#     return call_graph 
+    def visit_Subscript(self, node):
+        return
 
 def compute_reach_graph(tree):
     nodes = tree.keys()

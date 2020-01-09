@@ -7,6 +7,10 @@ import prometeo
 import os
 from strip_hints import strip_file_to_string
 
+from prometeo.mem.ast_analyzer import compute_reach_graph
+from prometeo.mem.ast_analyzer_2 import ast_visitor
+from prometeo.mem.ast_analyzer_2 import compute_reach_graph
+
 size_of_pointer = 8
 size_of_int = 4
 size_of_double = 8
@@ -63,6 +67,19 @@ def pmt_main(script_path, stdout, stderr, args = None):
         tree = ast.parse(''.join(open(filename)))
         # astpretty.pprint(tree)
         # import pdb; pdb.set_trace()
+
+        # compute heap usage
+        visitor = ast_visitor()
+        # import pdb; pdb.set_trace()
+        visitor.visit(tree) 
+        call_graph = visitor.callees
+        print(call_graph)
+
+        # to_source(tree)
+        # print('call graph:\n', call_graph)
+        # import pdb; pdb.set_trace()
+        reach_map = compute_reach_graph(call_graph)
+        print('reach_map:\n', reach_map)
 
         result  = prometeo.cgen.code_gen_c.to_source(tree, filename_, \
                 main=True, ___c_pmt_8_heap_size=10000, \

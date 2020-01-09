@@ -2,7 +2,7 @@
 from prometeo.mem.ast_analyzer import compute_reach_graph
 from prometeo.mem.ast_analyzer_2 import ast_visitor
 from prometeo.mem.ast_analyzer_2 import compute_reach_graph
-from prometeo.cgen.code_gen import to_source
+# from prometeo.cgen.code_gen import to_source
 import ast
 if __name__ == '__main__':
     import argparse
