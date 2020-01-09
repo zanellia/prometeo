@@ -3,6 +3,8 @@ from collections import defaultdict
 from ..cgen.node_util import ExplicitNodeVisitor
 import astpretty as ap
 from ..cgen.op_util import get_op_symbol, get_op_precedence, Precedence
+import json
+from collections import Iterable
 
 pmt_functions = {\
     'global@pmat_copy': [], \
@@ -45,10 +47,18 @@ def precedence_setter(AST=ast.AST, get_op_precedence=get_op_precedence,
 set_precedence = precedence_setter()
 
 def descope(current_scope, pop):
-    pop = '@' + pop
     if current_scope.endswith(pop):
         return current_scope[:-len(pop)]
-    return current_scope
+    else:
+        raise Exception('Attempt to descope {}, which is not the current scope'.format(pop))
+
+def flatten(coll):
+    for i in coll:
+            if isinstance(i, Iterable) and not isinstance(i, str):
+                for subc in flatten(i):
+                    yield subc
+            else:
+                yield i
 
 class ast_visitor(ExplicitNodeVisitor):
     def __init__(self):
@@ -56,6 +66,10 @@ class ast_visitor(ExplicitNodeVisitor):
         self.caller_scope = 'global'
         self.callee_scope = 'global'
         self.in_call = False
+        # load local typed_record
+
+        with open('__pmt_cache__/typed_record.json', 'r') as f:
+            self.typed_record = json.load(f)
         visit = self.visit
 
         def visit_ast(*params):
@@ -101,12 +115,12 @@ class ast_visitor(ExplicitNodeVisitor):
         self.callees[self.caller_scope] = []
         # self.visit_ast(node)
         self.body(node.body)
-        self.caller_scope = descope(self.caller_scope, node.name)
+        self.caller_scope = descope(self.caller_scope, '@' + node.name)
 
     def visit_ClassDef(self, node):
         self.caller_scope = self.caller_scope + '@' + node.name
         self.body(node.body)
-        descope(self.caller_scope, node.name)
+        self.caller_scope = descope(self.caller_scope, '@' + node.name)
 
     def visit_Expr(self, node):
         set_precedence(node, node.value)
@@ -185,11 +199,19 @@ class ast_visitor(ExplicitNodeVisitor):
     def visit_Subscript(self, node):
         return
 
-def compute_reach_graph(tree):
-    nodes = tree.keys()
+def compute_reach_graph(call_graph, typed_record):
+    # resolve calls
+    methods = list(call_graph.keys())
+    calls = list(call_graph.values())
+    unresolved_calls = []
+    for subcalls in calls:
+        for call in subcalls:
+            if call not in methods and call != []:
+                unresolved_calls.append(call)
     reach_map = {}
+    import pdb; pdb.set_trace()
     for curr_node in nodes:
-        reach_map[curr_node] = get_reach_nodes(tree, curr_node, curr_node, [], 1) 
+        reach_map[curr_node] = get_reach_nodes(call_graph, curr_node, curr_node, [], 1) 
     return reach_map
 
 def get_reach_nodes(call_graph, curr_call, root, reach_nodes_h, root_flag):

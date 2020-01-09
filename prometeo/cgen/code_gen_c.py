@@ -170,9 +170,11 @@ def precedence_setter(AST=ast.AST, get_op_precedence=get_op_precedence,
 set_precedence = precedence_setter()
 
 def descope(current_scope, pop):
-  if current_scope.endswith(pop):
-    return current_scope[:-len(pop)]
-  return current_scope
+    if current_scope.endswith(pop):
+        return current_scope[:-len(pop)]
+    else:
+        import pdb; pdb.set_trace()
+        raise Exception('Attempt to descope {}, which is not the current scope'.format(pop))
 
 def Num_or_Name(node):
     if isinstance(node, ast.Num):

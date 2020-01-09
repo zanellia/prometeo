@@ -11,6 +11,8 @@ from prometeo.mem.ast_analyzer import compute_reach_graph
 from prometeo.mem.ast_analyzer_2 import ast_visitor
 from prometeo.mem.ast_analyzer_2 import compute_reach_graph
 
+from copy import deepcopy
+
 size_of_pointer = 8
 size_of_int = 4
 size_of_double = 8
@@ -65,21 +67,12 @@ def pmt_main(script_path, stdout, stderr, args = None):
         # os.system(cmd)
         filename_ = filename.split('.')[0]
         tree = ast.parse(''.join(open(filename)))
+        # tree will be slightly modified by 
+        # to source(). Store a copy, for heap usage 
+        # analysis:
+        tree_copy = deepcopy(tree)
         # astpretty.pprint(tree)
         # import pdb; pdb.set_trace()
-
-        # compute heap usage
-        visitor = ast_visitor()
-        # import pdb; pdb.set_trace()
-        visitor.visit(tree) 
-        call_graph = visitor.callees
-        print(call_graph)
-
-        # to_source(tree)
-        # print('call graph:\n', call_graph)
-        # import pdb; pdb.set_trace()
-        reach_map = compute_reach_graph(call_graph)
-        print('reach_map:\n', reach_map)
 
         result  = prometeo.cgen.code_gen_c.to_source(tree, filename_, \
                 main=True, ___c_pmt_8_heap_size=10000, \
@@ -104,6 +97,20 @@ def pmt_main(script_path, stdout, stderr, args = None):
         dest_file = open('Makefile', 'w+')
         dest_file.write(makefile_code)
         dest_file.close()
+
+        # compute heap usage
+        visitor = ast_visitor()
+        # import pdb; pdb.set_trace()
+        visitor.visit(tree_copy) 
+        call_graph = visitor.callees
+        typed_record = visitor.typed_record
+        print(call_graph)
+
+        # to_source(tree)
+        # print('call graph:\n', call_graph)
+        # import pdb; pdb.set_trace()
+        reach_map = compute_reach_graph(call_graph, typed_record)
+        print('reach_map:\n', reach_map)
 
         os.system('make clean')
         os.system('make')
