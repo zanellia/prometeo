@@ -1,4 +1,5 @@
 CC = gcc
+# CC = clang
 CFLAGS += -fPIC -std=c99
 PREFIX = /opt
 

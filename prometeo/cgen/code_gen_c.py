@@ -1300,7 +1300,12 @@ class SourceGenerator(ExplicitNodeVisitor):
         if returns is None: 
             raise Exception('Function {} does not have a return type hint.')
 
-        return_type_py = returns.value
+        if isinstance(returns, ast.NameConstant):
+            return_type_py = returns.value
+        elif isinstance(returns, ast.Name):
+            return_type_py = returns.id
+        else:
+            raise Exception('Unknown return object {}'.format(returns))
 
         if node.name == 'main':
             self.write('void *___c_pmt_8_heap; \n', dest = 'src')
@@ -1309,7 +1314,7 @@ class SourceGenerator(ExplicitNodeVisitor):
             self.write('void *___c_pmt_64_heap_head; \n', dest = 'src')
 
         print(return_type_py)
-        return_type_c = pmt_temp_types[return_type_py.__class__.__name__]
+        return_type_c = pmt_temp_types[return_type_py]
         # self.statement(node, self.get_returns(node), '%s %s' % (prefix, node.name), '(')
         self.write(return_type_c, ' %s' %(node.name), '(', dest = 'src')
         self.visit_arguments(node.args, 'src')
@@ -1326,10 +1331,10 @@ class SourceGenerator(ExplicitNodeVisitor):
             self.write('    pmem_ptr = (char *)___c_pmt_64_heap;\n', dest = 'src')
             self.write('    align_char_to(64, &pmem_ptr);\n', dest = 'src')
             self.write('    ___c_pmt_64_heap = pmem_ptr;\n', dest = 'src')
-        else:
-            # store current pmt_heap value (and restore before returning)
-            self.write('\tvoid *callee_pmt_8_heap = ___c_pmt_8_heap;\n', dest = 'src')
-            self.write('\tvoid *callee_pmt_64_heap = ___c_pmt_64_heap;\n', dest = 'src')
+
+        # store current pmt_heap value (and restore before returning)
+        self.write('\tvoid *callee_pmt_8_heap = ___c_pmt_8_heap;\n', dest = 'src')
+        self.write('\tvoid *callee_pmt_64_heap = ___c_pmt_64_heap;\n', dest = 'src')
 
         # self.write(':')
         self.body(node.body)
@@ -1525,7 +1530,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         # restore pmt_heap values 
         self.write('\t___c_pmt_8_heap = callee_pmt_8_heap;\n', dest = 'src')
         self.write('\t___c_pmt_64_heap = callee_pmt_64_heap;\n', dest = 'src')
-        self.statement(node, 'return')
+        self.statement(node, 'return ')
         self.conditional_write('', node.value, ';', dest = 'src')
 
     def visit_Break(self, node):
