@@ -19,7 +19,7 @@ size_of_double = 8
 
 makefile_template = '''
 CC = gcc
-CFLAGS += -g -fPIC
+CFLAGS += -fPIC -std=c99
 
 INSTALL_DIR = /opt/prometeo
 SRCS += {{ filename }}.c 
