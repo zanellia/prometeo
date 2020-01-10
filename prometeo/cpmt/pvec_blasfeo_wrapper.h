@@ -9,6 +9,10 @@
 #include <blasfeo_d_kernel.h>
 #include <blasfeo_d_blas.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // (dummy) pvec wrapper to blasfeo_dvec
 struct pvec {
     struct blasfeo_dvec *bvec;
@@ -27,6 +31,10 @@ void c_pmt_pvec_set_el(struct pvec *a, int i, double value);
 double c_pmt_pvec_get_el(struct pvec *a, int i);
 void c_pmt_pvec_copy(struct pvec *a, struct pvec *b);
 void c_pmt_pvec_print(struct pvec *a);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // PROMETEO_PRMT_VEC_BLASFEO_WRAPPER_H_
 

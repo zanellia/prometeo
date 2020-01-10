@@ -104,6 +104,7 @@ def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False
     # generator.result.source.append('#include "pmt_heap.h"\n')
     generator.result.source.append('#include "%s.h"\n' %(module_name))
     generator.result.header.append('#include "prometeo.h"\n')
+    generator.result.header.append('#ifdef __cplusplus\nextern "C" {\n#endif\n\n')
 
     generator.visit(node)
     
@@ -111,6 +112,8 @@ def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False
     if set(generator.result.source[0]) == set('\n'):
         generator.result.source[0] = ''
     
+
+    generator.result.header.append('#ifdef __cplusplus\n}\n#endif\n\n')
     generator.result.header.append('\n')
     if set(generator.result.header[0]) == set('\n'):
         generator.result.header[0] = ''

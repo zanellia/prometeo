@@ -11,6 +11,10 @@
 #include "pmat_blasfeo_wrapper.h"
 #include "pvec_blasfeo_wrapper.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // (dummy) pmat wrapper to blasfeo_dmat
 struct pmat {
     struct blasfeo_dmat *bmat;
@@ -41,6 +45,10 @@ void c_pmt_pmat_tran(struct pmat *A, struct pmat *B);
 void c_pmt_pmat_vcat(struct pmat *A, struct pmat *B, struct pmat *res);
 void c_pmt_pmat_hcat(struct pmat *A, struct pmat *B, struct pmat *res);
 void c_pmt_pmat_print(struct pmat *A);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // PROMETEO_PRMT_MAT_BLASFEO_WRAPPER_H_
 
