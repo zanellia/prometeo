@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS += -g -fPIC
+CFLAGS += -fPIC -std=c99
 PREFIX = /opt
 
 SRCS += pmat_blasfeo_wrapper.c
