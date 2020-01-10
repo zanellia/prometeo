@@ -5,8 +5,12 @@ import astpretty as ap
 from ..cgen.op_util import get_op_symbol, get_op_precedence, Precedence
 import json
 from collections import Iterable
+from copy import deepcopy
 
 pmt_functions = {\
+    'global@pmat': [], \
+    'global@pvec': [], \
+    'global@plist': [], \
     'global@pmat_copy': [], \
     'global@pmat_print': [], \
     'global@pmat_fill': [], \
@@ -112,13 +116,14 @@ class ast_visitor(ExplicitNodeVisitor):
     def visit_FunctionDef(self, node):
         if node.name != '__init__':
             self.caller_scope = self.caller_scope + '@' + node.name
-        self.callees[self.caller_scope] = []
+        self.callees[self.caller_scope] = set([])
         # self.visit_ast(node)
         self.body(node.body)
         self.caller_scope = descope(self.caller_scope, '@' + node.name)
 
     def visit_ClassDef(self, node):
         self.caller_scope = self.caller_scope + '@' + node.name
+        self.callees[self.caller_scope] = set([])
         self.body(node.body)
         self.caller_scope = descope(self.caller_scope, '@' + node.name)
 
@@ -133,11 +138,11 @@ class ast_visitor(ExplicitNodeVisitor):
     def visit_Call(self, node, len=len):
         ap.pprint(node)
         if isinstance(node.func, ast.Name):
-            self.callees[self.caller_scope].append(self.callee_scope + '@' + node.func.id)
+            self.callees[self.caller_scope].add(self.callee_scope + '@' + node.func.id)
         elif isinstance(node.func, ast.Attribute):
             self.in_call = True 
             self.visit(node.func)
-            self.callees[self.caller_scope].append(self.callee_scope)
+            self.callees[self.caller_scope].add(self.callee_scope)
             self.in_call = False
 
     def visit_Name(self, node):
@@ -194,35 +199,85 @@ class ast_visitor(ExplicitNodeVisitor):
         return
 
     def visit_AnnAssign(self, node):
+        self.visit(node.value)
         return
 
     def visit_Subscript(self, node):
         return
 
+    def visit_List(self, node):
+        return
+
 def compute_reach_graph(call_graph, typed_record):
     # get unresolved calls
-    methods = list(call_graph.keys())
-    calls = list(call_graph.values())
-    unresolved_calls = []
-    for subcalls in calls:
-        for call in subcalls:
-            if call not in methods and call != []:
-                unresolved_calls.append(call)
+    all_methods = list(call_graph.keys())
+    # calls = list(call_graph.values())
+    unresolved_calls = set([])
+    unresolved_callers = dict()
+    for method in call_graph:
+        unresolved_callers[method] = set([])
+        graph_copy = deepcopy(call_graph)
+        for call in call_graph[method]:
+            if call not in all_methods and call != set([]):
+                # add call to dictionary of unresolved calls
+                unresolved_callers[method].add(call)
+                # remove call from call graph
+                graph_copy[method].remove(call)
+
+    call_graph = deepcopy(graph_copy)
+    # strip empty calls
+    r_unresolved_callers = dict()
+    for caller in unresolved_callers:
+        if unresolved_callers[caller] != set([]):
+            r_unresolved_callers[caller] = unresolved_callers[caller]
+
     # resolve calls
-    for call in unresolved_calls:
-        scopes = call.split('@')
-        curr_scope = scopes[0]
-        import pdb; pdb.set_trace()
-        for i in range(len(scopes)):
-            if curr_scope + '@' + scopes[i+1] in typed_record:
-                curr_scope = curr_scope + '@' + scopes[i+1]
-            else: 
-                # try to resolve class name
-                if scopes[i] in typed_record[curr_scope]:
-                    scopes[i] = typed_record[curr_scope][scopes[i]]
-    import pdb; pdb.set_trace()
+    for caller in r_unresolved_callers:
+        for call in r_unresolved_callers[caller]:
+            scopes = call.split('@')
+            curr_scope = scopes[0]
+            for j in range(len(scopes)-1):
+                if curr_scope + '@' + scopes[j+1] in typed_record:
+                    curr_scope = curr_scope + '@' + scopes[j+1]
+                else: 
+                    # try to resolve class name
+                    if scopes[j] in typed_record[caller]:
+                        scopes[j] = typed_record[caller][scopes[j]]
+                    t_call = '@'.join(scopes)
+                    if t_call in all_methods:
+                        r_unresolved_callers[caller].remove(call)
+                        r_unresolved_callers[caller].add(t_call)
+                        break
+
+    # update call_graph
+    call_graph.update(r_unresolved_callers)
+
+    # check that there are no unresolved calls
+    # TODO(andrea): this is a bit ugly
+    unresolved_calls = set([])
+    unresolved_callers = dict()
+    for method in call_graph:
+        unresolved_callers[method] = set([])
+        graph_copy = deepcopy(call_graph)
+        for call in call_graph[method]:
+            if call not in all_methods and call != set([]):
+                # add call to dictionary of unresolved calls
+                unresolved_callers[method].add(call)
+                # remove call from call graph
+                graph_copy[method].remove(call)
+
+    call_graph = deepcopy(graph_copy)
+    # strip empty calls
+    r_unresolved_callers = dict()
+    for caller in unresolved_callers:
+        if unresolved_callers[caller] != set([]):
+            r_unresolved_callers[caller] = unresolved_callers[caller]
+
+    if r_unresolved_callers != dict():
+        raise Exception('Could not resolve the following calls {}'.format(r_unresolved_callers))
+
     reach_map = {}
-    for curr_node in methods:
+    for curr_node in call_graph:
         reach_map[curr_node] = get_reach_nodes(call_graph, curr_node, curr_node, [], 1) 
     return reach_map
 
