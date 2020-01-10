@@ -1301,7 +1301,7 @@ class SourceGenerator(ExplicitNodeVisitor):
             raise Exception('Function {} does not have a return type hint.')
 
         if isinstance(returns, ast.NameConstant):
-            return_type_py = returns.value
+            return_type_py = str(returns.value)
         elif isinstance(returns, ast.Name):
             return_type_py = returns.id
         else:

@@ -112,7 +112,6 @@ def pmt_main(script_path, stdout, stderr, args = None):
         # check that there are no cycles containing memory allocations
         for method in reach_map:
             if '*' in reach_map[method] and typed_record[method] != dict():
-                import pdb; pdb.set_trace()
                 raise Exception('\n\nDetected cycle {} containing memory allocation.\n'.format(reach_map[method]))
 
         os.system('make clean')
