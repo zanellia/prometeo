@@ -78,7 +78,7 @@ class ast_visitor(ExplicitNodeVisitor):
 
         def visit_ast(*params):
             for item in params:
-                ap.pprint(item)
+                # ap.pprint(item)
                 if isinstance(item, ast.AST):
                     visit(item)
                 elif callable(item):
@@ -136,7 +136,7 @@ class ast_visitor(ExplicitNodeVisitor):
         self.visit(node.body)
 
     def visit_Call(self, node, len=len):
-        ap.pprint(node)
+        # ap.pprint(node)
         if isinstance(node.func, ast.Name):
             self.callees[self.caller_scope].add(self.callee_scope + '@' + node.func.id)
         elif isinstance(node.func, ast.Attribute):

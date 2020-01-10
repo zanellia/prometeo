@@ -575,8 +575,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                         self.var_dim_record[self.scope][item.target.id] = [dim1]
                     # add variable to typed record
                     self.typed_record[self.scope][item.target.id] = ann
-                    print('typed_record = \n', self.typed_record, '\n\n')
-                    print('var_dim_record = \n', self.var_dim_record, '\n\n')
+                    # print('typed_record = \n', self.typed_record, '\n\n')
+                    # print('var_dim_record = \n', self.var_dim_record, '\n\n')
                     if  ann in pmt_temp_types:
                         c_ann = pmt_temp_types[ann]
                         # self.statement(item, c_ann, ' ', item.target.id)
@@ -850,9 +850,9 @@ class SourceGenerator(ExplicitNodeVisitor):
                                 ', ', ai, ', ', aj, ', ', target, ', ', bi, ', ', bj, ');')
                         else:
                             if not isinstance(node.targets[0].slice.value, ast.Tuple):
-                                ap.pprint(node)
+                                # ap.pprint(node)
                                 raise Exception('Subscript to a pmat object must be of type Tuple.')
-                            print(self.typed_record[scope][target])
+                            # print(self.typed_record[scope][target])
                             # # slice is either ast.Name or ast.Num
                             # first_index  = Num_or_Name(node.targets[0].slice.value.elts[0])
                             # second_index = Num_or_Name(node.targets[0].slice.value.elts[1])
@@ -953,7 +953,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                     # check for pvec
                     elif self.typed_record[self.scope][target] in ('pvec'):
                         if type(node.targets[0].slice.value) not in (ast.Num, ast.Name):
-                            ap.pprint(node)
+                            # ap.pprint(node)
                             raise Exception('Subscript to a pvec must object must be of type Num or Name.')
                         target = node.targets[0].value.id
                         if target in self.typed_record[self.scope]: 
@@ -1117,7 +1117,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                        node.value)
 
     def visit_AnnAssign(self, node):
-        ap.pprint(node)
+        # ap.pprint(node)
         set_precedence(node, node.target, node.annotation)
         set_precedence(Precedence.Comma, node.value)
         need_parens = isinstance(node.target, ast.Name) and not node.simple
@@ -1234,8 +1234,8 @@ class SourceGenerator(ExplicitNodeVisitor):
             else:
                 raise Exception ('Usage of non existing type {}'.format(ann))
 
-        print('typed_record = \n', self.typed_record, '\n\n')
-        print('var_dim_record = \n', self.var_dim_record, '\n\n')
+        # print('typed_record = \n', self.typed_record, '\n\n')
+        # print('var_dim_record = \n', self.var_dim_record, '\n\n')
         self.typed_record[self.scope][node.target.id] = ann
 
         # switch to avoid double ';'
@@ -1284,7 +1284,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.generic_visit(node)
 
     def visit_FunctionDef(self, node, is_async=False):
-        ap.pprint(node)
+        # ap.pprint(node)
         self.scope = self.scope + '@' + node.name
         self.typed_record[self.scope] = dict()
         self.var_dim_record[self.scope] = dict()
