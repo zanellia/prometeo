@@ -1294,6 +1294,9 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.decorators(node, 1 if self.indentation else 2)
         # self.write()
         returns = self.get_returns(node)
+        if returns is None: 
+            raise Exception('Function {} does not have a return type hint.')
+
         return_type_py = returns.value
 
         if node.name == 'main':

@@ -104,13 +104,16 @@ def pmt_main(script_path, stdout, stderr, args = None):
         visitor.visit(tree_copy) 
         call_graph = visitor.callees
         typed_record = visitor.typed_record
-        print(call_graph)
+        print('\ncall graph:\n\n', call_graph, '\n\n')
 
-        # to_source(tree)
-        # print('call graph:\n', call_graph)
-        # import pdb; pdb.set_trace()
         reach_map = compute_reach_graph(call_graph, typed_record)
-        print('reach_map:\n', reach_map)
+        print('reach_map:\n\n', reach_map, '\n\n')
+
+        # check that there are no cycles containing memory allocations
+        for method in reach_map:
+            if '*' in reach_map[method] and typed_record[method] != dict():
+                import pdb; pdb.set_trace()
+                raise Exception('\n\nDetected cycle {} containing memory allocation.\n'.format(reach_map[method]))
 
         os.system('make clean')
         os.system('make')
