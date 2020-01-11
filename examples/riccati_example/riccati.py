@@ -62,7 +62,6 @@ class qp_data:
         return
 
 def main() -> int:
-# def main() -> None:
 
     A: pmat = pmat(nx, nx)
     A[0,0] = 0.8

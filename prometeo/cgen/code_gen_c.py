@@ -294,6 +294,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.scope = 'global'
         self.var_dim_record = {'global': dict()}
         self.dim_record = dict()
+        self.in_main = False
         
         def write(*params, dest):
             """ self.write is a closure for performance (to reduce the number
@@ -1293,6 +1294,8 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.generic_visit(node)
 
     def visit_FunctionDef(self, node, is_async=False):
+        if node.name == 'main':
+            self.in_main = True
         # ap.pprint(node)
         self.scope = self.scope + '@' + node.name
         self.typed_record[self.scope] = dict()
@@ -1346,10 +1349,12 @@ class SourceGenerator(ExplicitNodeVisitor):
         if node.name == 'main':
             self.write('\tfree(___c_pmt_8_heap_head);\n', dest='src')
             self.write('\tfree(___c_pmt_64_heap_head);\n', dest='src')
+            self.write('\treturn 0;\n', dest='src')
         self.write('}', dest='src')
         if not self.indentation:
             self.newline(extra=2)
         self.scope = descope(self.scope, '@' + node.name)
+        self.in_main = False
 
     # introduced in Python 3.5
     def visit_AsyncFunctionDef(self, node):
@@ -1535,8 +1540,9 @@ class SourceGenerator(ExplicitNodeVisitor):
         # restore pmt_heap values 
         self.write('\n\t___c_pmt_8_heap = callee_pmt_8_heap;\n', dest = 'src')
         self.write('\t___c_pmt_64_heap = callee_pmt_64_heap;\n', dest = 'src')
-        self.statement(node, 'return ')
-        self.conditional_write('', node.value, ';', dest = 'src')
+        if self.in_main is False:
+            self.statement(node, 'return ')
+            self.conditional_write('', node.value, ';', dest = 'src')
 
     def visit_Break(self, node):
         self.statement(node, 'break')
