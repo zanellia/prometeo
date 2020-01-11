@@ -551,7 +551,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                         if ann == 'pmat': 
                             # build init for List of pmats
                             for i in range(len(dim_list)):
-                                self.statement([], '\n', 'object->', \
+                                self.statement([], 'object->', \
                                     item.target.id, \
                                     '[', str(i),'] = c_pmt_create_pmat(', \
                                     str(dim_list[i][0]), ', ', \
@@ -560,7 +560,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                         elif ann == 'pvec': 
                             # build init for List of pvecs
                             for i in range(len(dim_list)):
-                                self.statement([], '\n', 'object->', \
+                                self.statement([], 'object->', \
                                     item.target.id, \
                                     '[', str(i),'] = c_pmt_create_pvec(', \
                                     str(dim_list[i][0]), ');')
@@ -1168,7 +1168,7 @@ class SourceGenerator(ExplicitNodeVisitor):
             if lann == 'struct pmat *': 
                 # build init for List of pmats
                 for i in range(len(dim_list)):
-                    self.statement([], '\n', node.target.id, \
+                    self.statement([], node.target.id, \
                         '[', str(i),'] = c_pmt_create_pmat(', \
                         str(dim_list[i][0]), ', ', \
                         str(dim_list[i][1]), ');')
@@ -1176,7 +1176,7 @@ class SourceGenerator(ExplicitNodeVisitor):
             elif lann == 'struct pvec *': 
                 # build init for List of pvecs
                 for i in range(len(dim_list)):
-                    self.statement([], '\n', node.target.id, \
+                    self.statement([], node.target.id, \
                         '[', str(i),'] = c_pmt_create_pvec(', \
                         str(dim_list[i][0]), ');')
             # self.conditional_write(' = ', node.value, '', dest = 'src')
