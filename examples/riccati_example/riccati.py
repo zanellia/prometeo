@@ -6,14 +6,14 @@ nxu: dims = 4
 nu: dims  = 2
 N:  dims  = 5
 
-# def function1() -> None:
-#     # M: pmat = pmat(nxu, nxu)
-#     function2()
-#     return
+def function1() -> None:
+    # M: pmat = pmat(nxu, nxu)
+    function2()
+    return
                         
-# def function2() -> None:
-#     function1()
-#     return
+def function2() -> None:
+    function1()
+    return
 
 class qp_data:
     A: List = plist(pmat, sizes)

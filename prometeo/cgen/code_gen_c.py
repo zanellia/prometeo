@@ -103,6 +103,11 @@ def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False
     # generator.result.source.append('#include "pvec_blasfeo_wrapper.h"\n')
     # generator.result.source.append('#include "pmt_heap.h"\n')
     generator.result.source.append('#include "%s.h"\n' %(module_name))
+
+    generator.result.source.append('void * ___c_pmt_8_heap;\n')
+    generator.result.source.append('void * ___c_pmt_64_heap;\n')
+    generator.result.source.append('void * ___c_pmt_8_heap_head;\n')
+    generator.result.source.append('void * ___c_pmt_64_heap_head;\n')
     generator.result.header.append('#include "prometeo.h"\n')
     generator.result.header.append('#include "pmt_aux.h"\n')
     generator.result.header.append('#ifdef __cplusplus\nextern "C" {\n#endif\n\n')
@@ -1265,7 +1270,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         if node.names[0].name is not '*':
             raise Exception('Can only transpile imports of the form: `from <...> import *`. Exiting.') 
         self.statement(node, '#include "', 
-                       include or '', '.h"')
+                       include or '', '.h"\n')
 
     def visit_Import(self, node):
         raise Exception('Unsupported import statement. Use instead from `<...> import *` Exiting.') 
@@ -1308,22 +1313,20 @@ class SourceGenerator(ExplicitNodeVisitor):
         else:
             raise Exception('Unknown return object {}'.format(returns))
 
-        if node.name == 'main':
-            self.write('void *___c_pmt_8_heap; \n', dest = 'src')
-            self.write('void *___c_pmt_64_heap; \n', dest = 'src')
-            self.write('void *___c_pmt_8_heap_head; \n', dest = 'src')
-            self.write('void *___c_pmt_64_heap_head; \n', dest = 'src')
-
         print(return_type_py)
         return_type_c = pmt_temp_types[return_type_py]
-        # self.statement(node, self.get_returns(node), '%s %s' % (prefix, node.name), '(')
+        # function declaration
+        self.write(return_type_c, ' %s' %(node.name), '(', dest = 'hdr')
+        self.visit_arguments(node.args, 'hdr')
+        self.write(');\n', dest = 'hdr')
+        # function definition
         self.write(return_type_c, ' %s' %(node.name), '(', dest = 'src')
         self.visit_arguments(node.args, 'src')
         self.write(') {\n', dest = 'src')
         if node.name == 'main':
             self.write('    ___c_pmt_8_heap = malloc(%s); \n' %(self.heap8_size), dest = 'src')
             self.write('    ___c_pmt_8_heap_head = ___c_pmt_8_heap;\n', dest = 'src')
-            self.write('    char *pmem_ptr = (char *)___c_pmt_8_heap;\n', dest = 'src')
+            self.write('    char * pmem_ptr = (char *)___c_pmt_8_heap;\n', dest = 'src')
             self.write('    align_char_to(8, &pmem_ptr);\n', dest = 'src')
             self.write('    ___c_pmt_8_heap = pmem_ptr;\n', dest = 'src')
             
@@ -1341,8 +1344,8 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.body(node.body)
         self.newline(1)
         if node.name == 'main':
-            self.write('free(___c_pmt_8_heap_head);\n', dest='src')
-            self.write('free(___c_pmt_64_heap_head);\n', dest='src')
+            self.write('\tfree(___c_pmt_8_heap_head);\n', dest='src')
+            self.write('\tfree(___c_pmt_64_heap_head);\n', dest='src')
         self.write('}', dest='src')
         if not self.indentation:
             self.newline(extra=2)
@@ -1618,7 +1621,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         # 3.5 no longer has these
         self.conditional_write(write_comma, '*', starargs, dest = 'src')
         self.conditional_write(write_comma, '**', kwargs, dest = 'src')
-        write(');', dest = 'src')
+        write(');\n', dest = 'src')
 
     def visit_Name(self, node):
         self.write(node.id, dest = 'src')
