@@ -1247,7 +1247,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         # print('var_dim_record = \n', self.var_dim_record, '\n\n')
         self.typed_record[self.scope][node.target.id] = ann
 
-        # switch to avoid double ';'
+        # # switch to avoid double ';'
         # if type(node.value) != ast.Call:
         #     if node.value is not None:
         #         self.conditional_write(' = ', node.value, ';', dest = 'src')
@@ -1533,7 +1533,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         # TODO(andrea): need to check type of return!!
 
         # restore pmt_heap values 
-        self.write('\t___c_pmt_8_heap = callee_pmt_8_heap;\n', dest = 'src')
+        self.write('\n\t___c_pmt_8_heap = callee_pmt_8_heap;\n', dest = 'src')
         self.write('\t___c_pmt_64_heap = callee_pmt_64_heap;\n', dest = 'src')
         self.statement(node, 'return ')
         self.conditional_write('', node.value, ';', dest = 'src')
@@ -1621,7 +1621,8 @@ class SourceGenerator(ExplicitNodeVisitor):
         # 3.5 no longer has these
         self.conditional_write(write_comma, '*', starargs, dest = 'src')
         self.conditional_write(write_comma, '**', kwargs, dest = 'src')
-        write(');\n', dest = 'src')
+        # write(');\n', dest = 'src')
+        write(');', dest = 'src')
 
     def visit_Name(self, node):
         self.write(node.id, dest = 'src')
