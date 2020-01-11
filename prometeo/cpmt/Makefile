@@ -1,10 +1,13 @@
 CC = gcc
+# CC = g++
 # CC = clang
-CFLAGS += -fPIC -std=c99
+CFLAGS = -std=c99
+CFLAGS += -fPIC
 PREFIX = /opt
 
 SRCS += pmat_blasfeo_wrapper.c
 SRCS += pvec_blasfeo_wrapper.c
+SRCS += pmt_aux.c
 CFLAGS+=-I../../external/blasfeo/include/
 
 all: $(SRCS) 

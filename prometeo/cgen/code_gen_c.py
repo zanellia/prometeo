@@ -104,6 +104,7 @@ def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False
     # generator.result.source.append('#include "pmt_heap.h"\n')
     generator.result.source.append('#include "%s.h"\n' %(module_name))
     generator.result.header.append('#include "prometeo.h"\n')
+    generator.result.header.append('#include "pmt_aux.h"\n')
     generator.result.header.append('#ifdef __cplusplus\nextern "C" {\n#endif\n\n')
 
     generator.visit(node)
@@ -1526,6 +1527,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         set_precedence(node, node.value)
         # TODO(andrea): this probably does not support 
         # stuff like `return foo()`
+        # TODO(andrea): need to check type of return!!
 
         # restore pmt_heap values 
         self.write('\t___c_pmt_8_heap = callee_pmt_8_heap;\n', dest = 'src')

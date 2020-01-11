@@ -1,18 +1,11 @@
 #include "pmat_blasfeo_wrapper.h"
 #include "pvec_blasfeo_wrapper.h"
 #include "pmt_heap.h"
+#include "pmt_aux.h"
 #include <assert.h>
 #include <blasfeo_common.h>
 
 void make_int_multiple_of(int num, int *size) { *size = (*size + num - 1) / num * num; }
-int align_char_to(int num, char **c_ptr)
-{
-    size_t s_ptr = (size_t) *c_ptr;
-    s_ptr = (s_ptr + num - 1) / num * num;
-    int offset = num - (int) (s_ptr - (size_t)(*c_ptr));
-    *c_ptr = (char *) s_ptr;
-    return offset;
-}
 
 struct pmat * c_pmt_create_pmat(int m, int n) {	
     // assign current address of global heap to pmat pointer

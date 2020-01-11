@@ -1,5 +1,6 @@
 #include "pvec_blasfeo_wrapper.h"
 #include "pmt_heap.h"
+#include "pmt_aux.h"
 #include <assert.h>
 #include <blasfeo_common.h>
 
@@ -18,15 +19,6 @@ struct pvec * c_pmt_create_pvec(int m) {
 	return (struct pvec *)(pvec_address);
 }
 
-
-static int align_char_to(int num, char **c_ptr)
-{
-    size_t s_ptr = (size_t) *c_ptr;
-    s_ptr = (s_ptr + num - 1) / num * num;
-    int offset = num - (int) (s_ptr - (size_t)(*c_ptr));
-    *c_ptr = (char *) s_ptr;
-    return offset;
-}
 
 void c_pmt_assign_and_advance_blasfeo_dvec(int m, struct blasfeo_dvec **bvec) {
     // assign current address of global heap to blasfeo dvec pointer
