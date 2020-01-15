@@ -161,7 +161,7 @@ def c_pmt_dgemv_n(A, b, c, d):
 
 # auxiliary functions
 def c_pmt_print_blasfeo_dmat(A):
-    bw.blasfeo_print_dmat(A.blasfeo_dmat.m, A.blasfeo_dmat.n, byref(A.blasfeo_dmat), 0, 0)
+    bw.blasfeo_print_dmat(A.m, A.n, byref(A.blasfeo_dmat), 0, 0)
     return
 
        

@@ -13,8 +13,16 @@ class pmat(pmat_):
 
     def __init__(self, m: int, n: int):
         self.blasfeo_dmat = c_pmt_create_blasfeo_dmat(m, n)  
-        self.m = m  
-        self.n = n  
+        self._m = m  
+        self._n = n  
+
+    @property
+    def m(self):
+        return self._m
+
+    @property
+    def n(self):
+        return self._n
 
     def __getitem__(self, index):
         if isinstance(index, tuple):
@@ -119,127 +127,127 @@ class pmat(pmat_):
     # high-level linear algebra
     @dispatch(pmat_)
     def __mul__(self, other):
-        if self.blasfeo_dmat.n != other.blasfeo_dmat.m:
+        if self.n != other.m:
             raise Exception('__mul__: mismatching dimensions:' 
-                ' ({}, {}) x ({}, {})'.format(self.blasfeo_dmat.m, \
-                self.blasfeo_dmat.n, other.blasfeo_dmat.m, \
-                other.blasfeo_dmat.n))
+                ' ({}, {}) x ({}, {})'.format(self.m, \
+                self.n, other.m, \
+                other.n))
 
-        res = pmat(self.blasfeo_dmat.m, other.blasfeo_dmat.n)
+        res = pmat(self.m, other.n)
         pmat_fill(res, 0.0)
-        zero_mat = pmat(self.blasfeo_dmat.m, other.blasfeo_dmat.n)
+        zero_mat = pmat(self.m, other.n)
         pmat_fill(zero_mat, 0.0)
         pmt_gemm_nn(self, other, zero_mat, res)
         return res
 
     @dispatch(pvec_)
     def __mul__(self, other):
-        if self.blasfeo_dmat.n != other.blasfeo_dvec.m:
+        if self.n != other.blasfeo_dvec.m:
             raise Exception('__mul__: mismatching dimensions:' 
-                ' ({}, {}) x ({},)'.format(self.blasfeo_dmat.m, \
-                self.blasfeo_dmat.n, other.blasfeo_dvec.m))
+                ' ({}, {}) x ({},)'.format(self.m, \
+                self.n, other.blasfeo_dvec.m))
 
-        res = pvec(self.blasfeo_dmat.m)
+        res = pvec(self.m)
         res.fill(0.0)
-        zero_vec = pvec(self.blasfeo_dmat.m)
+        zero_vec = pvec(self.m)
         zero_vec.fill(0.0)
         pmt_gemv_n(self, other, zero_vec, res)
         return res
 
     @dispatch(pmat_)
     def __add__(self, other):
-        if self.blasfeo_dmat.m != other.blasfeo_dmat.m \
-                or self.blasfeo_dmat.n != other.blasfeo_dmat.n:
+        if self.m != other.m \
+                or self.n != other.n:
             raise Exception('__add__: mismatching dimensions:' 
-                ' ({}, {}) + ({}, {})'.format(self.blasfeo_dmat.m, \
-                self.blasfeo_dmat.n, other.blasfeo_dmat.m, \
-                other.blasfeo_dmat.n))
-        res = pmat(self.blasfeo_dmat.m, self.blasfeo_dmat.n)
+                ' ({}, {}) + ({}, {})'.format(self.m, \
+                self.n, other.m, \
+                other.n))
+        res = pmat(self.m, self.n)
         pmat_copy(other, res)
         pmt_gead(1.0, self, res)
         return res 
 
     def __sub__(self, other):
-        if self.blasfeo_dmat.m != other.blasfeo_dmat.m \
-                or self.blasfeo_dmat.n != other.blasfeo_dmat.n:
+        if self.m != other.m \
+                or self.n != other.n:
             raise Exception('__sub__: mismatching dimensions:' 
-                ' ({}, {}) + ({}, {})'.format(self.blasfeo_dmat.m, \
-                self.blasfeo_dmat.n, other.blasfeo_dmat.m, \
-                other.blasfeo_dmat.n))
-        res = pmat(self.blasfeo_dmat.m, self.blasfeo_dmat.n)
+                ' ({}, {}) + ({}, {})'.format(self.m, \
+                self.n, other.m, \
+                other.n))
+        res = pmat(self.m, self.n)
         pmat_copy(self, res)
         pmt_gead(-1.0, other, res)
         return res 
 
 def pmat_fill(A: pmat, value):
-    for i in range(A.blasfeo_dmat.m):
-        for j in range(A.blasfeo_dmat.n):
+    for i in range(A.m):
+        for j in range(A.n):
             A[i,j] = value
     return
 
 def pmat_copy(A: pmat, B: pmat):
-    if A.blasfeo_dmat.m != B.blasfeo_dmat.m \
-            or A.blasfeo_dmat.n != B.blasfeo_dmat.n:
+    if A.m != B.m \
+            or A.n != B.n:
         raise Exception('__copy__: mismatching dimensions:' 
-            ' ({}, {}) -> ({}, {})'.format(A.blasfeo_dmat.m, \
-            A.blasfeo_dmat.n, B.blasfeo_dmat.m, \
-            B.blasfeo_dmat.n))
-    for i in range(A.blasfeo_dmat.m):
-        for j in range(A.blasfeo_dmat.n):
+            ' ({}, {}) -> ({}, {})'.format(A.m, \
+            A.n, B.m, \
+            B.n))
+    for i in range(A.m):
+        for j in range(A.n):
             B[i,j] = A[i,j]
     return
 
 def pmat_tran(A: pmat, B: pmat):
-    if A.blasfeo_dmat.m != B.blasfeo_dmat.n \
-            or A.blasfeo_dmat.n != B.blasfeo_dmat.m:
+    if A.m != B.n \
+            or A.n != B.m:
         raise Exception('__tran__: mismatching dimensions:' 
-            ' ({}, {}) -> ({}, {})'.format(A.blasfeo_dmat.m, \
-            A.blasfeo_dmat.n, B.blasfeo_dmat.m, \
-            B.blasfeo_dmat.n))
-    for i in range(A.blasfeo_dmat.m):
-        for j in range(A.blasfeo_dmat.n):
+            ' ({}, {}) -> ({}, {})'.format(A.m, \
+            A.n, B.m, \
+            B.n))
+    for i in range(A.m):
+        for j in range(A.n):
             B[j,i] = A[i,j]
  
 def pmat_vcat(A: pmat, B: pmat, res: pmat):
-    if A.blasfeo_dmat.n != B.blasfeo_dmat.n \
-            or A.blasfeo_dmat.n != res.blasfeo_dmat.n \
-            or A.blasfeo_dmat.m + B.blasfeo_dmat.m != res.blasfeo_dmat.m:
+    if A.n != B.n \
+            or A.n != res.n \
+            or A.m + B.m != res.m:
         raise Exception('__vcat__: mismatching dimensions:' 
-            ' ({}, {}) + ({}, {})'.format(A.blasfeo_dmat.m, \
-            A.blasfeo_dmat.n, B.blasfeo_dmat.m, \
-            B.blasfeo_dmat.n))
-    for i in range(A.blasfeo_dmat.m):
-        for j in range(A.blasfeo_dmat.n):
+            ' ({}, {}) + ({}, {})'.format(A.m, \
+            A.n, B.m, \
+            B.n))
+    for i in range(A.m):
+        for j in range(A.n):
             res[i,j] = A[i,j]
-    for i in range(B.blasfeo_dmat.m):
-        for j in range(B.blasfeo_dmat.n):
-            res[A.blasfeo_dmat.m + i,j] = B[i,j]
+    for i in range(B.m):
+        for j in range(B.n):
+            res[A.m + i,j] = B[i,j]
  
 def pmat_hcat(A: pmat, B: pmat, res: pmat):
-    if A.blasfeo_dmat.m != B.blasfeo_dmat.m \
-            or A.blasfeo_dmat.m != res.blasfeo_dmat.m \
-            or A.blasfeo_dmat.n + B.blasfeo_dmat.n != res.blasfeo_dmat.n:
+    if A.m != B.m \
+            or A.m != res.m \
+            or A.n + B.n != res.n:
         raise Exception('__vcat__: mismatching dimensions:' 
-            ' ({}, {}) + ({}, {})'.format(A.blasfeo_dmat.m, \
-            A.blasfeo_dmat.n, B.blasfeo_dmat.m, \
-            B.blasfeo_dmat.n))
-    for i in range(A.blasfeo_dmat.m):
-        for j in range(A.blasfeo_dmat.n):
+            ' ({}, {}) + ({}, {})'.format(A.m, \
+            A.n, B.m, \
+            B.n))
+    for i in range(A.m):
+        for j in range(A.n):
             res[i,j] = A[i,j]
-    for i in range(B.blasfeo_dmat.m):
-        for j in range(B.blasfeo_dmat.n):
-            res[i,A.blasfeo_dmat.n + j] = B[i,j]
+    for i in range(B.m):
+        for j in range(B.n):
+            res[i,A.n + j] = B[i,j]
  
 def pmt_getrsm(A: pmat, B: pmat, fact: pmat, ipiv: list, res: pmat):
     # create permutation vector
-    c_ipiv = cast(create_string_buffer(sizeof(c_int)*A.blasfeo_dmat.m), POINTER(c_int))
-    for i in range(A.blasfeo_dmat.n):
+    c_ipiv = cast(create_string_buffer(sizeof(c_int)*A.m), POINTER(c_int))
+    for i in range(A.n):
         c_ipiv[i] = ipiv[i]
-    res  = pmat(A.blasfeo_dmat.m, B.blasfeo_dmat.n)
+    res  = pmat(A.m, B.n)
     # create permuted rhs
-    # pB = pmat(B.blasfeo_dmat.m, B.blasfeo_dmat.n)
+    # pB = pmat(B.m, B.n)
     pmat_copy(B, res)
-    pmt_rowpe(B.blasfeo_dmat.m, c_ipiv, res)
+    pmt_rowpe(B.m, c_ipiv, res)
     # solve
     pmt_trsm_llnu(A, res)
     pmt_trsm_lunn(A, res)
@@ -247,8 +255,8 @@ def pmt_getrsm(A: pmat, B: pmat, fact: pmat, ipiv: list, res: pmat):
 
 def pmt_getrsv(fact: pmat, ipiv: list, rhs: pvec):
     # create permutation vector
-    c_ipiv = cast(create_string_buffer(sizeof(c_int)*fact.blasfeo_dmat.m), POINTER(c_int))
-    for i in range(fact.blasfeo_dmat.n):
+    c_ipiv = cast(create_string_buffer(sizeof(c_int)*fact.m), POINTER(c_int))
+    for i in range(fact.n):
         c_ipiv[i] = ipiv[i]
     # permuted rhs
     pvec_copy(b, res)
@@ -261,11 +269,9 @@ def pmt_getrsv(fact: pmat, ipiv: list, rhs: pvec):
 def pmt_potrsm(fact: pmat, rhs: pmat):
     # solve
     pmt_trsm_llnn(fact, rhs)
-    fact_tran = pmat(fact.blasfeo_dmat.m, fact.blasfeo_dmat.n)
+    fact_tran = pmat(fact.m, fact.n)
     pmat_tran(fact, fact_tran)
     pmt_trsm_lunn(fact_tran, rhs)
-    # pmt_trsm_llnu(fact, rhs)
-    # pmt_trsm_lunn(fact, rhs)
     return 
 
 def pmt_potrsv(fact: pmat, rhs: pvec):
@@ -326,10 +332,10 @@ def pmt_trsv_lunn(A: pmat, b: pvec):
 
 def pmt_getrf(A: pmat, fact: pmat, ipiv: list):
     # create permutation vector
-    c_ipiv = cast(create_string_buffer(sizeof(c_int)*A.blasfeo_dmat.m), POINTER(c_int))
+    c_ipiv = cast(create_string_buffer(sizeof(c_int)*A.m), POINTER(c_int))
     # factorize
     c_pmt_getrf(A, fact, c_ipiv)
-    for i in range(A.blasfeo_dmat.n):
+    for i in range(A.n):
         ipiv[i] = c_ipiv[i]
     return 
 
