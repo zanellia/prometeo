@@ -4,7 +4,7 @@ from scipy import linalg
 nx = 2
 nu = 2
 nxu = 4
-N = 2
+N = 5
 
 A = array([[0.8, 0.1], [0.3, 0.8]])
 B = array([[1.0, 0.0], [0.0, 1.0]])
