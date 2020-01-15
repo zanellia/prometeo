@@ -170,7 +170,7 @@ class pmat(pmat_):
         pmt_gead(-1.0, other, res)
         return res
 
-def pmat_fill(A: pmat, value):
+def pmat_fill(A: pmat, value: float):
     for i in range(A.m):
         for j in range(A.n):
             A[i,j] = value
