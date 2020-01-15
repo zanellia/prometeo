@@ -112,6 +112,13 @@ def c_pmt_potrf(A, fact):
     bw.blasfeo_dpotrf_l(bA.m, byref(bA), 0, 0, byref(bfact), 0, 0)
     return
 
+def c_pmt_trsm_llnn(A, B):
+    bA = A.blasfeo_dmat
+    bB = B.blasfeo_dmat
+    
+    bw.blasfeo_dtrsm_llnn(bB.m, bB.n, 1.0, byref(bA), 0, 0, byref(bB), 0, 0, byref(bB), 0, 0)
+    return
+
 def c_pmt_trsm_llnu(A, B):
     bA = A.blasfeo_dmat
     bB = B.blasfeo_dmat

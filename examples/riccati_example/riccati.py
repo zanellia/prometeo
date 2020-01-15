@@ -27,9 +27,10 @@ class qp_data:
     def factorize(self) -> None:
         M: pmat = pmat(nxu, nxu)
         Mu: pmat = pmat(nu, nu)
-        Mxut: pmat = pmat(nu, nxu)
+        Mux: pmat = pmat(nu, nx)
+        Mxu: pmat = pmat(nx, nu)
         Mxx: pmat = pmat(nx, nx)
-        Mxu: pmat = pmat(nxu, nu)
+        Mxx2: pmat = pmat(nx, nx)
         Lu: pmat = pmat(nu, nu)
         Q: pmat = pmat(nx, nx)
         R: pmat = pmat(nu, nu)
@@ -39,10 +40,12 @@ class qp_data:
 
         for i in range(1, N):
             pmat_hcat(self.B[N-i], self.A[N-i], BA)
+            pmat_fill(BAtP, 0.0)
             pmt_gemm_tn(BA, self.P[N-i], BAtP, BAtP)
 
             pmat_copy(self.Q[N-i], Q)
             pmat_copy(self.R[N-i], R)
+            pmat_fill(M, 0.0)
             M[0:nu,0:nu] = R
             M[nu:nu+nx,nu:nu+nx] = Q
 
@@ -50,13 +53,16 @@ class qp_data:
             Mu[0:nu, 0:nu] = M[0:nu, 0:nu]
             pmt_potrf(Mu, Lu)
 
-            Mxut[0:nx, 0:nx] = M[0:nx, nu:nu+nx]
+            Mux[0:nu, 0:nx] = M[0:nu, nu:nu+nx]
             Mxu[0:nx, 0:nu] = M[nu:nu+nx, 0:nu]
+            Mxx[0:nx, 0:nx] = M[nu:nu+nx, nu:nu+nx]
 
-            pmt_potrsm(Lu, Mxut)
-            pmt_gemm_nn(Mxu, Mxut, self.P[N-i-1], Mxx)
-            pmt_gead(-1.0, self.P[N-i-1], Mxx)
+            pmt_potrsm(Lu, Mux)
+            pmat_fill(Mxx2, 0.0)
+            pmt_gemm_nn(Mxu, Mux, Mxx2, Mxx2)
+            pmt_gead(-1.0, Mxx2, Mxx)
             pmat_copy(Mxx, self.P[N-i-1])
+            pmt_gead(1.0, Q, self.P[N-i-1])
             pmat_print(self.P[N-i-1])
 
         return

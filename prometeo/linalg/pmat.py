@@ -260,8 +260,12 @@ def pmt_getrsv(fact: pmat, ipiv: list, rhs: pvec):
 
 def pmt_potrsm(fact: pmat, rhs: pmat):
     # solve
-    pmt_trsm_llnu(fact, rhs)
-    pmt_trsm_lunn(fact, rhs)
+    pmt_trsm_llnn(fact, rhs)
+    fact_tran = pmat(fact.blasfeo_dmat.m, fact.blasfeo_dmat.n)
+    pmat_tran(fact, fact_tran)
+    pmt_trsm_lunn(fact_tran, rhs)
+    # pmt_trsm_llnu(fact, rhs)
+    # pmt_trsm_lunn(fact, rhs)
     return 
 
 def pmt_potrsv(fact: pmat, rhs: pvec):
@@ -306,6 +310,10 @@ def pmt_trsm_llnu(A: pmat, B: pmat):
 
 def pmt_trsm_lunn(A: pmat, B: pmat):
     c_pmt_trsm_lunn(A, B)
+    return
+
+def pmt_trsm_llnn(A: pmat, B: pmat):
+    c_pmt_trsm_llnn(A, B)
     return
 
 def pmt_trsv_llnu(A: pmat, b: pvec):
