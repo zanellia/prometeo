@@ -6,12 +6,8 @@ to high-performance self-contained C code easily deployable on embedded devices.
 ### installation
 In order to install prometeo, simply install the Python package running `pip install .`. Additionally,
 in order to be able to successfully generate and run C code, you will have to compile and install the 
-shared library associated with the C back end running `make shared && sudo make install_shared` from 
-`<prometeo_root>/prometeo/cprmt`. Notice that the default installation path is `/opt/prometeo`. Make sure that 
-this location is added to your `LD_LIBRARY_PATH` when you want to run the generated code. Since prometeo relies 
-on BLASFEO, make sure that you have cloned the submodule (`git submodule init && git submodule update`) and that 
-you have compiled and installed BLASFEO: run `make static_library && make shared_library && sudo make install_shared` 
-from `<prometeo_root>/external/blasfeo/`. 
+shared library associated with the C back end running `make install_shared` from `<prometeo_root>/prometeo/cpmt`. Notice that the default installation path is `<prometeo_root>/prometeo/cpmt/install`. Make sure that `<prometeo_root>/prometeo/cpmt/install/prometeo/lib` and `<prometeo_root>/prometeo/cpmt/install/blasfeo/lib` are added to your `LD_LIBRARY_PATH` when you want to run the generated code. Since prometeo relies 
+on BLASFEO, make sure that you have cloned the submodule (`git submodule init && git submodule update`). 
 
 Finally, you can run the examples in `<root>/examples` with `pmt <example_name>.py --cgen=<True/False>`, where the `--cgen` flag determines whether the code is executed by the Python intereter or C code is generated compiled and run.
 
