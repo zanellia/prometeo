@@ -13,7 +13,10 @@ python:
 cache: pip
 
 install:
-  - pip3 install .
+
+  - virtualenv --python=python3.5 pmtenv
+  - source pmtenv/bin/activate
+  - pip install .
 
 script: 
   - pmt examples/simple_example/simple_example.py --cgen=True
