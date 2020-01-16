@@ -192,6 +192,9 @@ class ast_visitor(ExplicitNodeVisitor):
     def visit_For(self, node, is_async=False):
         self.body_or_else(node)
 
+    def visit_While(self, node, is_async=False):
+        self.body_or_else(node)
+
     def visit_ImportFrom(self, node):
         return
 
@@ -209,6 +212,9 @@ class ast_visitor(ExplicitNodeVisitor):
         return
 
     def visit_BinOp(self, node):
+        return
+
+    def visit_UnaryOp(self, node):
         return
 
 def compute_reach_graph(call_graph, typed_record):

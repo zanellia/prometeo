@@ -1,6 +1,7 @@
 from prometeo import *
 
 sizes: dimv = [[2,2], [2,2], [2,2]]
+n: dims = 10
 class p_class:
     attr_1: int = 1
     attr_2: float = 3.0
@@ -32,7 +33,6 @@ def main() -> None:
     while j > 0:
         j = j - 1
 
-    n: int = 10
     A: pmat = pmat(n, n)
     A[0,2] = -2.0
 
@@ -86,16 +86,16 @@ def main() -> None:
     c = A * a
     pvec_print(c)
 
-    # test LU solve
-    ipiv: List = plist(int, 2) 
+    # # test LU solve
+    # ipiv: List = plist(int, 2) 
     fact : pmat = pmat(2, 2)
     M : pmat = pmat(2,2)
-    pmt_getrf(M, fact, ipiv)
+    # pmt_getrf(M, fact, ipiv)
     res: pvec = pvec(2)
-    rhs: pvec = pvec(2)
-    rhs[0] = 1.0
-    rhs[1] = -3.0
-    pmt_getrsv(fact, ipiv, rhs)
+    # rhs: pvec = pvec(2)
+    # rhs[0] = 1.0
+    # rhs[1] = -3.0
+    # pmt_getrsv(fact, ipiv, rhs)
 
     # test Cholesky solve
     M[0,0] = 1.0
@@ -103,7 +103,7 @@ def main() -> None:
     M[1,0] = 0.1
     M[1,1] = 1.0
     pmt_potrf(M, fact)
-    pmt_potrsv(fact, rhs)
+    # pmt_potrsv(fact, rhs)
 
 # UNCOMMENT THESE LINES TO EXECUTE 
 # if __name__ == "__main__":

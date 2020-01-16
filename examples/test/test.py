@@ -5,6 +5,7 @@ nx: dims  = 2
 nxu: dims = 4
 nu: dims  = 2
 N:  dims  = 5
+n: dims = 10
 
 class qp_data:
     A: List = plist(pmat, sizes)
@@ -74,7 +75,6 @@ class qp_data:
 def main() -> None:
 
     # test assignments
-    n: int = 10
     M: pmat = pmat(n, n)
 
     a : pvec = pvec(10)
