@@ -1,6 +1,5 @@
 language: python
 
-os: linux
 
 sudo: required
 
@@ -12,6 +11,11 @@ python:
   - "3.7"
 
 cache: pip
+
+jobs: 
+  include: 
+    - os: linux
+    - os: osx
 
 install:
   - virtualenv --python=python3.7 pmtenv
