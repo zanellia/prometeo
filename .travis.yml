@@ -17,9 +17,9 @@ jobs:
       os: linux
       dist: xenial
 
-    - name: MacOS Build
+    - name: macOS Build
       os: osx
-      osx_image: xcode10.2
+      osx_image: xcode11.2
 
 install:
   - virtualenv --python=python3.7 pmtenv
