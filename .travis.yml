@@ -1,8 +1,6 @@
 language: python
 
-
 sudo: required
-
 
 group: travis_latest
 
@@ -27,6 +25,11 @@ install:
   - source pmtenv/bin/activate
   - pip install .
   - pushd prometeo/cpmt
+  - if [ "$TRAVIS_OS_NAME" = "osx" ]; then 
+      make install_shared -DTARGET_GENERIC; 
+    else
+      make install_shared; 
+    fi
   - make install_shared
   - popd
   - export LD_LIBRARY_PATH=$(pwd)/prometeo/cpmt/install/blasfeo/lib:$LD_LIBRARY_PATH
