@@ -30,6 +30,8 @@ install:
       popd;
       export DYLD_LIBRARY_PATH=$(pwd)/prometeo/cpmt/install/blasfeo/lib:$DYLD_LIBRARY_PATH;
       export DYLD_LIBRARY_PATH=$(pwd)/prometeo/cpmt/install/prometeo/lib:$DYLD_LIBRARY_PATH;
+      export LD_LIBRARY_PATH=$(pwd)/prometeo/cpmt/install/blasfeo/lib:$LD_LIBRARY_PATH;
+      export LD_LIBRARY_PATH=$(pwd)/prometeo/cpmt/install/prometeo/lib:$LD_LIBRARY_PATH;
     else
       pushd prometeo/cpmt;
       make install_shared; 
