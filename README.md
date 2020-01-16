@@ -5,10 +5,9 @@ to high-performance self-contained C code easily deployable on embedded devices.
 
 ### installation
 - Run `git submodule update --init` to clone the submodules
-- Run `make install_shared` from `<prometeo_root>/prometeo/cpmt` to compile and install the shared library associated with the C backend
-Notice that the default installation path is `<prometeo_root>/prometeo/cpmt/install`
+- Run `make install_shared` from `<prometeo_root>/prometeo/cpmt` to compile and install the shared library associated with the C backend. Notice that the default installation path is `<prometeo_root>/prometeo/cpmt/install`
 - You need Python 3.7. or later
-- Optional: setup a virtual environment with `virtualenv --python=<path_to_python3.7 <path_to_new_virtualenv>`, to keep things clean you can
+- Optional: to keep things clean you can setup a virtual environment with `virtualenv --python=<path_to_python3.7 <path_to_new_virtualenv>` 
 - Run `pip install -e .` from `<prometeo_root>` to install the Python package.
 
 Finally, you can run the examples in `<root>/examples` with `pmt <example_name>.py --cgen=<True/False>`, where the `--cgen` flag determines whether the code is executed by the Python intereter or C code is generated compiled and run.
