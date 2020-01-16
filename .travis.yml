@@ -3,7 +3,6 @@ language: python
 
 sudo: required
 
-dist: xenial
 
 group: travis_latest
 
@@ -14,8 +13,13 @@ cache: pip
 
 jobs: 
   include: 
-    - os: linux
-    - os: osx
+    - name: Linux Build
+      os: linux
+      dist: xenial
+
+    - name: MacOS Build
+      os: osx
+      osx_image: xcode10.2
 
 install:
   - virtualenv --python=python3.7 pmtenv
