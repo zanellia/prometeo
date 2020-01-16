@@ -26,11 +26,10 @@ install:
   - pip install .
   - pushd prometeo/cpmt
   - if [ "$TRAVIS_OS_NAME" = "osx" ]; then 
-      make install_shared TARGET=GENERIC OPT_LD_FLAGS=-Wl,-undefined,dynamic_lookup; 
+      make install_shared CC=clang TARGET=GENERIC OPT_LD_FLAGS=-Wl,-undefined,dynamic_lookup; 
     else
       make install_shared; 
     fi
-  - make install_shared
   - popd
   - export LD_LIBRARY_PATH=$(pwd)/prometeo/cpmt/install/blasfeo/lib:$LD_LIBRARY_PATH
   - export LD_LIBRARY_PATH=$(pwd)/prometeo/cpmt/install/prometeo/lib:$LD_LIBRARY_PATH
