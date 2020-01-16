@@ -24,17 +24,19 @@ install:
   - virtualenv --python=python3.7 pmtenv
   - source pmtenv/bin/activate
   - pip install .
-  - pushd prometeo/cpmt
   - if [ "$TRAVIS_OS_NAME" = "osx" ]; then 
+      pushd prometeo/cpmt;
       make install_shared CC=clang TARGET=GENERIC OPT_LD_FLAGS=-Wl,-undefined,dynamic_lookup; 
+      popd;
       export DYLD_LIBRARY_PATH=$(pwd)/prometeo/cpmt/install/blasfeo/lib:$DYLD_LIBRARY_PATH;
       export DYLD_LIBRARY_PATH=$(pwd)/prometeo/cpmt/install/prometeo/lib:$DYLD_LIBRARY_PATH;
     else
+      pushd prometeo/cpmt;
       make install_shared; 
+      popd;
       export LD_LIBRARY_PATH=$(pwd)/prometeo/cpmt/install/blasfeo/lib:$LD_LIBRARY_PATH;
       export LD_LIBRARY_PATH=$(pwd)/prometeo/cpmt/install/prometeo/lib:$LD_LIBRARY_PATH;
     fi
-  - popd
 
 script: 
   - pushd examples/simple_example
