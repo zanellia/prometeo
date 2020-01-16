@@ -13,7 +13,7 @@ python:
 cache: pip
 
 install:
-  - pip install .
+  - pip3 install .
 
 script: 
   - pmt examples/simple_example/simple_example.py --cgen=True
