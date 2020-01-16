@@ -208,6 +208,9 @@ class ast_visitor(ExplicitNodeVisitor):
     def visit_List(self, node):
         return
 
+    def visit_BinOp(self, node):
+        return
+
 def compute_reach_graph(call_graph, typed_record):
     # get unresolved calls
     all_methods = list(call_graph.keys())

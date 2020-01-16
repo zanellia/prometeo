@@ -1221,9 +1221,15 @@ class SourceGenerator(ExplicitNodeVisitor):
             self.heap8_record[self.scope] = self.heap8_record[self.scope] + 6*self.size_of_int
             # check is dims is not a numerical value
             if isinstance(dim1, str):
-                dim1 = self.dim_record[dim1]
+                if dim1 in self.dim_record:
+                    dim1 = self.dim_record[dim1]
+                else:
+                    raise Exception('Undefined variable {} of type dims.'.format(dim1))
             if isinstance(dim2, str):
-                dim2 = self.dim_record[dim2]
+                if dim2 in self.dim_record:
+                    dim2 = self.dim_record[dim2]
+                else:
+                    raise Exception('Undefined variable {} of type dims.'.format(dim2))
             self.heap64_record[self.scope] = self.heap64_record[self.scope] + int(dim1)*int(dim2)*self.size_of_double
         # or pvec[<n>]
         elif ann == 'pvec':

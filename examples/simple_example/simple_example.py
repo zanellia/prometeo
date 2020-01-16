@@ -1,8 +1,9 @@
 from prometeo import *
 
+n : dims = 10
+
 def main() -> None:
 
-    n: int = 10
     A: pmat = pmat(n, n)
     for i in range(10):
         for j in range(10):
