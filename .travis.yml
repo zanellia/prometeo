@@ -14,8 +14,8 @@ python:
 
 cache: pip
 
-before_install:
-    - choco install python --version 3.7.0
+# before_install:
+#     - choco install python --version 3.7.0
 
 install:
   # - sudo apt-get install python3.7
