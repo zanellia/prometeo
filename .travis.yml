@@ -40,6 +40,6 @@ script:
   - pmt test.py --cgen=True
   - popd
 
-  - pushd examples/riccati
+  - pushd examples/riccati_example
   - pmt riccati.py --cgen=True
   - popd
