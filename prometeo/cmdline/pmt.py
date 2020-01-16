@@ -116,6 +116,10 @@ def pmt_main(script_path, stdout, stderr, args = None):
 
         os.system('make clean')
         os.system('make')
-        # import pdb; pdb.set_trace()
-        cmd = './' + filename_
-        sys.exit(os.system(cmd))
+        if sys.platform == 'darwin':
+            DYLD_LIBRARY_PATH = os.getenv('DYLD_LIBRARY_PATH')
+            cmd = './' + filename_
+            sys.exit(os.system('export DYLD_LIBRARY_PATH={} && '.format(DYLD_LIBRARY_PATH) + cmd))
+        else:
+            cmd = './' + filename_
+            sys.exit(os.system(cmd))
