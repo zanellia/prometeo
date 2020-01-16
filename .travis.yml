@@ -3,6 +3,8 @@ language: c
 
 os: linux
 
+sudo: required
+
 dist: xenial
 
 group: travis_latest
@@ -13,6 +15,7 @@ python:
 cache: pip
 
 install:
+  - sudo apt-get install python3.7
   - virtualenv --python=python3.7 pmtenv
   - source pmtenv/bin/activate
   - pip install .
