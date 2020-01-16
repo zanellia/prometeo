@@ -27,12 +27,14 @@ install:
   - pushd prometeo/cpmt
   - if [ "$TRAVIS_OS_NAME" = "osx" ]; then 
       make install_shared CC=clang TARGET=GENERIC OPT_LD_FLAGS=-Wl,-undefined,dynamic_lookup; 
+      export DYLD_LIBRARY_PATH=$(pwd)/prometeo/cpmt/install/blasfeo/lib:$DYLD_LIBRARY_PATH
+      export DYLD_LIBRARY_PATH=$(pwd)/prometeo/cpmt/install/prometeo/lib:$DYLD_LIBRARY_PATH
     else
       make install_shared; 
+      export LD_LIBRARY_PATH=$(pwd)/prometeo/cpmt/install/blasfeo/lib:$LD_LIBRARY_PATH
+      export LD_LIBRARY_PATH=$(pwd)/prometeo/cpmt/install/prometeo/lib:$LD_LIBRARY_PATH
     fi
   - popd
-  - export LD_LIBRARY_PATH=$(pwd)/prometeo/cpmt/install/blasfeo/lib:$LD_LIBRARY_PATH
-  - export LD_LIBRARY_PATH=$(pwd)/prometeo/cpmt/install/prometeo/lib:$LD_LIBRARY_PATH
 
 script: 
   - pushd examples/simple_example
