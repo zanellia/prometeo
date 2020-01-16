@@ -14,10 +14,10 @@ jobs:
       os: linux
       dist: xenial
 
-    # - name: macOS Build + examples
-    #   os: osx
-    #   osx_image: xcode10.2
-    #   language: shell
+    - name: macOS Build + examples
+      os: osx
+      osx_image: xcode10.2
+      language: shell
 
 install:
   - pip install virtualenv
