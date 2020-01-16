@@ -22,6 +22,7 @@ jobs:
       language: shell
 
 install:
+  - pip install virtualenv
   - virtualenv --python=python3.7 pmtenv
   - source pmtenv/bin/activate
   - pip install .
