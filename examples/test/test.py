@@ -72,7 +72,7 @@ class qp_data:
 
         return
 
-def main() -> None:
+def main() -> int:
 
     # test assignments
     M: pmat = pmat(n, n)
@@ -153,3 +153,4 @@ def main() -> None:
         qp.R[i] = R
 
     qp.factorize()
+    return 0

@@ -1,14 +1,15 @@
 CC = gcc
 # CC = g++
 # CC = clang
-CFLAGS = -std=c99 -undefined,dynamic_lookup
+CFLAGS = -std=c99
 CFLAGS += -fPIC
 PREFIX = ./install
 
 SRCS += pmat_blasfeo_wrapper.c
 SRCS += pvec_blasfeo_wrapper.c
 SRCS += pmt_aux.c
-CFLAGS+=-I../../external/blasfeo/include/
+CFLAGS +=-I../../external/blasfeo/include/
+OPT_LD_FLAGS = 
 
 all: $(SRCS) 
 	$(CC) -c $(CFLAGS) $(SRCS) 
@@ -17,7 +18,7 @@ blasfeo:
 	( cd ../../external/blasfeo; $(MAKE) static_library -j4 && $(MAKE) shared_library )
 
 shared: all
-	$(CC) -shared -o libcpmt.so *.o
+	$(CC) $(OPT_LD_FLAGS) -shared -o libcpmt.so *.o
 
 install_shared: blasfeo all shared
 	mkdir -p $(PREFIX)/blasfeo/lib

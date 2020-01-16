@@ -2,7 +2,7 @@ from prometeo import *
 
 n : dims = 10
 
-def main() -> None:
+def main() -> int:
 
     A: pmat = pmat(n, n)
     for i in range(10):
@@ -17,4 +17,5 @@ def main() -> None:
 
     C = A * B
     pmat_print(C)
+    return 0
 
