@@ -32,3 +32,6 @@ install_shared: blasfeo all shared
 clean:
 	rm -f *.o
 	rm -f *.so
+	
+clean_all: clean
+	( cd ../../external/blasfeo; $(MAKE) deep_clean )
