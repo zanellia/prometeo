@@ -13,8 +13,7 @@ python:
 cache: pip
 
 install:
-
-  - virtualenv --python=python3.5 pmtenv
+  - virtualenv --python=python3.7 pmtenv
   - source pmtenv/bin/activate
   - pip install .
 
