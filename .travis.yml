@@ -21,8 +21,8 @@ install:
   - pushd prometeo/cpmt
   - make install_shared
   - popd
-  - export LD_LIBRARY_PATH=~/prometeo/prometeo/cpmt/install/blasfeo/lib:$LD_LIBRARY_PATH
-  - export LD_LIBRARY_PATH=~/prometeo/prometeo/cpmt/install/proemeteo/lib:$LD_LIBRARY_PATH
+  - export LD_LIBRARY_PATH=$(pwd)/prometeo/cpmt/install/blasfeo/lib:$LD_LIBRARY_PATH
+  - export LD_LIBRARY_PATH=$(pwd)/prometeo/cpmt/install/proemeteo/lib:$LD_LIBRARY_PATH
 
 script: 
   - pmt examples/simple_example/simple_example.py --cgen=True
