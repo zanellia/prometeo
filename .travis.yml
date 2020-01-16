@@ -35,3 +35,11 @@ script:
   - pushd examples/simple_example
   - pmt simple_example.py --cgen=True
   - popd
+
+  - pushd examples/test
+  - pmt test.py --cgen=True
+  - popd
+
+  - pushd examples/riccati
+  - pmt riccati.py --cgen=True
+  - popd
