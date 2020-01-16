@@ -12,11 +12,11 @@ cache: pip
 
 jobs: 
   include: 
-    - name: Linux Build
+    - name: Linux Build + examples
       os: linux
       dist: xenial
 
-    - name: macOS Build
+    - name: macOS Build + examples
       os: osx
       osx_image: xcode10.2
       language: shell
@@ -34,12 +34,15 @@ install:
 script: 
   - pushd examples/simple_example
   - pmt simple_example.py --cgen=True
+  - pmt simple_example.py --cgen=False
   - popd
 
   - pushd examples/test
   - pmt test.py --cgen=True
+  - pmt test.py --cgen=False
   - popd
 
   - pushd examples/riccati_example
   - pmt riccati.py --cgen=True
+  - pmt riccati.py --cgen=False
   - popd
