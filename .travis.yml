@@ -18,8 +18,8 @@ jobs:
 
     - name: macOS Build
       os: osx
-      osx_image: xcode11.2
-      language: generic
+      osx_image: xcode10.2
+      language: shell
 
 install:
   - virtualenv --python=python3.7 pmtenv
