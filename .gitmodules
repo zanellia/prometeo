@@ -3,5 +3,5 @@
 	url = https://github.com/zanellia/mypy
 [submodule "external/blasfeo"]
 	path = external/blasfeo
-	url = git@github.com:zanellia/blasfeo.git
+	url = https://github.com/zanellia/blasfeo
 	branch = master
