@@ -1,7 +1,7 @@
 CC = gcc
 # CC = g++
 # CC = clang
-CFLAGS = -std=c99
+CFLAGS = -std=c99 -undefined,dynamic_lookup
 CFLAGS += -fPIC
 PREFIX = ./install
 
