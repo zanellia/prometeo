@@ -147,7 +147,7 @@ equation = (ident + assignop).setParseAction(_assignVar) + expr + StringEnd()
 vprefix = "pvec_"
 # vprefix = "m3_"
 vplen = len(vprefix)
-mprefix = "pmat_"
+mprefix = "@pmat@"
 # mprefix = "v3_"
 mplen = len(mprefix)
 
@@ -162,17 +162,20 @@ class UnaryUnsupportedError(Exception):
 #     else:
 #         return ident[0:vplen] == vprefix
 
+def preprocess_var_name(ident, typed_record):
+    if ident in typed_record:
+        if typed_record[ident] == 'pmat':
+            return '@pmat@' + ident 
+        else:
+            raise Exception('Undefined variable {}'.format(ident))
+    else:
+        return ident
 
-def _ismat(ident, typed_record):
-    if typed_record[ident] == 'pmat':
-        return True
-    else: 
-        return False
-    # if ident[0] == "-" and ident[1 : mplen + 1] == mprefix:
-    #     raise UnaryUnsupportedError
-    # else:
-    #     return ident[0:mplen] == mprefix
-
+def _ismat(ident):
+    if ident[0] == "-" and ident[1 : mplen + 1] == mprefix:
+        raise UnaryUnsupportedError
+    else:
+        return ident[0:mplen] == mprefix
 
 # def _isscalar(ident, typed_record):
 #     return not (_isvec(ident) or _ismat(ident))
@@ -192,29 +195,36 @@ def _ismat(ident, typed_record):
 
 
 def _addfunc(a, b, typed_record):
+    a = preprocess_var_name(a, typed_record)
+    b = preprocess_var_name(b, typed_record)
     # if _isscalar(a) and _isscalar(b):
     #     return "(%s+%s)" % (a, b)
     # if _isvec(a) and _isvec(b):
     #     return "%svAdd(%s,%s)" % (vprefix, a[vplen:], b[vplen:])
-    if _ismat(a, typed_record) and _ismat(b, typed_record):
-        return "%s_pmt_gead(1.0, %s,%s)" % (mprefix, a, b)
+    if _ismat(a) and _ismat(b):
+        return "%s_pmt_gead(1.0, %s,%s)" % (mprefix, a[mplen:], b[mplen:])
     else:
         raise TypeError
 
 
 def _subfunc(a, b, typed_record):
+    a = preprocess_var_name(a, typed_record)
+    b = preprocess_var_name(b, typed_record)
     # if _isscalar(a) and _isscalar(b):
     #     return "(%s-%s)" % (a, b)
     # if _isvec(a) and _isvec(b):
     #     return "%svSubtract(%s,%s)" % (vprefix, a[vplen:], b[vplen:])
-    if _ismat(a, typed_record) and _ismat(b, typed_record):
+    if _ismat(a) and _ismat(b):
         return "%s_pmt_gead(-1.0, %s,%s)" % (mprefix, a[mplen:], b[mplen:])
     else:
         raise TypeError
 
 
 def _mulfunc(a, b, typed_record):
-    if _ismat(a, typed_record) and _ismat(b, typed_record):
+    a = preprocess_var_name(a, typed_record)
+    b = preprocess_var_name(b, typed_record)
+    if _ismat(a) and _ismat(b):
+        import pdb; pdb.set_trace()
         return "%s_pmt_gemm(%s,%s)" % (mprefix, a[mplen:], b[mplen:])
     # if _isscalar(a) and _isscalar(b):
     #     return "%s*%s" % (a, b)
@@ -231,7 +241,9 @@ def _mulfunc(a, b, typed_record):
 
 
 def _solvefunc(a, b, typed_record):
-    if _ismat(a, typed_record) and _ismat(b, typed_record):
+    a = preprocess_var_name(a, typed_record)
+    b = preprocess_var_name(b, typed_record)
+    if _ismat(a) and _ismat(b):
         return "%s_pmt_getrsm(%s,%s)" % (mprefix, a[mplen:], b[mplen:])
     else:
         raise TypeError
@@ -239,6 +251,8 @@ def _solvefunc(a, b, typed_record):
 
 
 def _outermulfunc(a, b, typed_record):
+    a = preprocess_var_name(a, typed_record)
+    b = preprocess_var_name(b, typed_record)
     ## The '@' operator is used for the vector outer product.
     if _isvec(a) and _isvec(b):
         return "%svOuterProduct(%s,%s)" % (mprefix, a[vplen:], b[vplen:])
@@ -247,6 +261,8 @@ def _outermulfunc(a, b, typed_record):
 
 
 def _divfunc(a, b, typed_record):
+    a = preprocess_var_name(a, typed_record)
+    b = preprocess_var_name(b, typed_record)
     ## The '/' operator is used only for scalar division
     if _isscalar(a, typed_record) and _isscalar(b, typed_record):
         return "%s/%s" % (a, b)
@@ -255,17 +271,19 @@ def _divfunc(a, b, typed_record):
 
 
 def _expfunc(a, b, typed_record):
+    a = preprocess_var_name(a, typed_record)
+    b = preprocess_var_name(b, typed_record)
     ## The '^' operator is used for exponentiation on scalars and
     ## as a marker for unary operations on vectors and matrices.
     if _isscalar(a) and _isscalar(b):
         return "pow(%s,%s)" % (str(a), str(b))
-    if _ismat(a, typed_record) and b == "-1 * ":
+    if _ismat(a) and b == "-1 * ":
         return "mSolveLS(%s)" % (a)
-    if _ismat(a, typed_record) and b == "-1":
+    if _ismat(a) and b == "-1":
         return "mInverse(%s)" % (a)
-    if _ismat(a, typed_record) and b == "T":
+    if _ismat(a) and b == "T":
         return "mTranspose(%s)" % (a)
-    if _ismat(a, typed_record) and b == "Det":
+    if _ismat(a) and b == "Det":
         return "mDeterminant(%s)" % (a)
     if _isvec(a, typed_record) and b == "Mag":
         return "sqrt(vMagnitude2(%s))" % (a[vplen:])
@@ -276,13 +294,15 @@ def _expfunc(a, b, typed_record):
 
 
 def _assignfunc(a, b, typed_record):
+    a = preprocess_var_name(a, typed_record)
+    b = preprocess_var_name(b, typed_record)
     ## The '=' operator is used for assignment
     # if _isscalar(a) and _isscalar(b):
     #     return "%s=%s" % (a, b)
     # if _isvec(a) and _isvec(b):
     #     return "vCopy(%s,%s)" % (a[vplen:], b[vplen:])
-    if _ismat(a, typed_record) and _ismat(b, typed_record):
-        return "_pmt_pmat_copy(%s,%s)" % (b, a)
+    if _ismat(a) and _ismat(b):
+        return "_pmt_pmat_copy(%s,%s)" % (b[mplen:], a[mplen:])
     else:
         raise TypeError
 
