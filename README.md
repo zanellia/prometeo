@@ -18,25 +18,26 @@ Finally, you can run the examples in `<root>/examples` with `pmt <example_name>.
 
 The Python code
 ```python
-from prometeo *
+from prometeo import *
 
-def main() -> None:
+n : dims = 10
 
-    n: int = 10
+def main() -> int:
+
     A: pmat = pmat(n, n)
     for i in range(10):
         for j in range(10):
-            A[i,j] = 1.0
+            A[i, j] = 1.0
 
     B: pmat = pmat(n, n)
     for i in range(10):
-        B[0,i] = 2.0
+        B[0, i] = 2.0
+
 
     C: pmat = pmat(n, n)
-
     C = A * B
     pmat_print(C)
-
+    return 0
 ```
 can be run by the standard Python interpreter (version >3.6 required) and it 
 will perform the described linear algebra operations using the command `pmt simple_example.py --cgen=False`. 
@@ -45,27 +46,26 @@ to generate the following high-performance C code:
 ```c
 #include "stdlib.h"
 #include "simple_example.h"
+void * ___c_pmt_8_heap;
+void * ___c_pmt_64_heap;
+void * ___c_pmt_8_heap_head;
+void * ___c_pmt_64_heap_head;
 
 #include "prometeo.h"
-
-
-void *___c_prmt_8_heap; 
-void *___c_prmt_64_heap; 
-void *___c_prmt_8_heap_head; 
-void *___c_prmt_64_heap_head; 
-void main() {
-    ___c_prmt_8_heap = malloc(10000); 
-    ___c_prmt_8_heap_head = ___c_prmt_8_heap;
-    char *pmem_ptr = (char *)___c_prmt_8_heap;
+int main() {
+    ___c_pmt_8_heap = malloc(10000); 
+    ___c_pmt_8_heap_head = ___c_pmt_8_heap;
+    char * pmem_ptr = (char *)___c_pmt_8_heap;
     align_char_to(8, &pmem_ptr);
-    ___c_prmt_8_heap = pmem_ptr;
-    ___c_prmt_64_heap = malloc(1000000);
-    ___c_prmt_64_heap_head = ___c_prmt_64_heap;
-    pmem_ptr = (char *)___c_prmt_64_heap;
+    ___c_pmt_8_heap = pmem_ptr;
+    ___c_pmt_64_heap = malloc(1000000);
+    ___c_pmt_64_heap_head = ___c_pmt_64_heap;
+    pmem_ptr = (char *)___c_pmt_64_heap;
     align_char_to(64, &pmem_ptr);
-    ___c_prmt_64_heap = pmem_ptr;
+    ___c_pmt_64_heap = pmem_ptr;
+	void *callee_pmt_8_heap = ___c_pmt_8_heap;
+	void *callee_pmt_64_heap = ___c_pmt_64_heap;
 
-    int n = 10;
     struct pmat * A = c_pmt_create_pmat(n, n);
     for(int i = 0; i < 10; i++) {
         for(int j = 0; j < 10; j++) {
@@ -83,8 +83,12 @@ void main() {
     c_pmt_pmat_fill(C, 0.0);
     c_pmt_gemm_nn(A, B, C, C);
     c_pmt_pmat_print(C);
-	free(___c_prmt_8_heap_head);
-	free(___c_prmt_64_heap_head);
+	___c_pmt_8_heap = callee_pmt_8_heap;
+	___c_pmt_64_heap = callee_pmt_64_heap;
+
+	free(___c_pmt_8_heap_head);
+	free(___c_pmt_64_heap_head);
+	return 0;
 }
 ```
 which relies on the high-performance linear algebra package BLASFEO. The generated code will be readily compiled and run with when running `pmt simple_example.py --cgen=True`.
@@ -99,6 +103,15 @@ nxu: dims = 4
 nu: dims  = 2
 N:  dims  = 5
 
+def function1() -> None:
+    # M: pmat = pmat(nxu, nxu)
+    function2()
+    return
+                        
+def function2() -> None:
+    function1()
+    return
+
 class qp_data:
     A: List = plist(pmat, sizes)
     B: List = plist(pmat, sizes)
@@ -111,9 +124,10 @@ class qp_data:
     def factorize(self) -> None:
         M: pmat = pmat(nxu, nxu)
         Mu: pmat = pmat(nu, nu)
-        Mxut: pmat = pmat(nu, nxu)
+        Mux: pmat = pmat(nu, nx)
+        Mxu: pmat = pmat(nx, nu)
         Mxx: pmat = pmat(nx, nx)
-        Mxu: pmat = pmat(nxu, nu)
+        Mxx2: pmat = pmat(nx, nx)
         Lu: pmat = pmat(nu, nu)
         Q: pmat = pmat(nx, nx)
         R: pmat = pmat(nu, nu)
@@ -123,10 +137,12 @@ class qp_data:
 
         for i in range(1, N):
             pmat_hcat(self.B[N-i], self.A[N-i], BA)
+            pmat_fill(BAtP, 0.0)
             pmt_gemm_tn(BA, self.P[N-i], BAtP, BAtP)
 
             pmat_copy(self.Q[N-i], Q)
             pmat_copy(self.R[N-i], R)
+            pmat_fill(M, 0.0)
             M[0:nu,0:nu] = R
             M[nu:nu+nx,nu:nu+nx] = Q
 
@@ -134,18 +150,21 @@ class qp_data:
             Mu[0:nu, 0:nu] = M[0:nu, 0:nu]
             pmt_potrf(Mu, Lu)
 
-            Mxut[0:nx, 0:nx] = M[0:nx, nu:nu+nx]
+            Mux[0:nu, 0:nx] = M[0:nu, nu:nu+nx]
             Mxu[0:nx, 0:nu] = M[nu:nu+nx, 0:nu]
+            Mxx[0:nx, 0:nx] = M[nu:nu+nx, nu:nu+nx]
 
-            pmt_potrsm(Lu, Mxut)
-            pmt_gemm_nn(Mxu, Mxut, self.P[N-i-1], Mxx)
-            pmt_gead(-1.0, self.P[N-i-1], Mxx)
+            pmt_potrsm(Lu, Mux)
+            pmat_fill(Mxx2, 0.0)
+            pmt_gemm_nn(Mxu, Mux, Mxx2, Mxx2)
+            pmt_gead(-1.0, Mxx2, Mxx)
             pmat_copy(Mxx, self.P[N-i-1])
+            pmt_gead(1.0, Q, self.P[N-i-1])
             pmat_print(self.P[N-i-1])
 
         return
 
-def main() -> None:
+def main() -> int:
 
     A: pmat = pmat(nx, nx)
     A[0,0] = 0.8
@@ -186,13 +205,38 @@ def main() -> None:
         qp.R[i] = R
 
     qp.factorize()
+    
+    return 0
 ```
 Similarly, the code above can be run by the standard Python interpreter using the command `pmt dgemm.py --cgen=False` and prometeo can generate compile and run the following high-performance C code using instead `pmt dgemm.py --cgen=True`:
 ```c
 #include "stdlib.h"
 #include "riccati.h"
+void * ___c_pmt_8_heap;
+void * ___c_pmt_64_heap;
+void * ___c_pmt_8_heap_head;
+void * ___c_pmt_64_heap_head;
 
 #include "prometeo.h"
+void function1() {
+	void *callee_pmt_8_heap = ___c_pmt_8_heap;
+	void *callee_pmt_64_heap = ___c_pmt_64_heap;
+
+    function2();
+	___c_pmt_8_heap = callee_pmt_8_heap;
+	___c_pmt_64_heap = callee_pmt_64_heap;
+
+    return ;
+}void function2() {
+	void *callee_pmt_8_heap = ___c_pmt_8_heap;
+	void *callee_pmt_64_heap = ___c_pmt_64_heap;
+
+    function1();
+	___c_pmt_8_heap = callee_pmt_8_heap;
+	___c_pmt_64_heap = callee_pmt_64_heap;
+
+    return ;
+}
 void qp_data_init(struct qp_data *object){
     object->A[0] = c_pmt_create_pmat(2, 2);
     object->A[1] = c_pmt_create_pmat(2, 2);
@@ -230,14 +274,15 @@ void qp_data_init(struct qp_data *object){
 
 
 void _Z9factorizeqp_data_impl(qp_data *self) {
-	void *callee_prmt_8_heap = ___c_prmt_8_heap;
-	void *callee_prmt_64_heap = ___c_prmt_64_heap;
+	void *callee_pmt_8_heap = ___c_pmt_8_heap;
+	void *callee_pmt_64_heap = ___c_pmt_64_heap;
 
     struct pmat * M = c_pmt_create_pmat(nxu, nxu);
     struct pmat * Mu = c_pmt_create_pmat(nu, nu);
-    struct pmat * Mxut = c_pmt_create_pmat(nu, nxu);
+    struct pmat * Mux = c_pmt_create_pmat(nu, nx);
+    struct pmat * Mxu = c_pmt_create_pmat(nx, nu);
     struct pmat * Mxx = c_pmt_create_pmat(nx, nx);
-    struct pmat * Mxu = c_pmt_create_pmat(nxu, nu);
+    struct pmat * Mxx2 = c_pmt_create_pmat(nx, nx);
     struct pmat * Lu = c_pmt_create_pmat(nu, nu);
     struct pmat * Q = c_pmt_create_pmat(nx, nx);
     struct pmat * R = c_pmt_create_pmat(nu, nu);
@@ -246,49 +291,45 @@ void _Z9factorizeqp_data_impl(qp_data *self) {
     c_pmt_pmat_copy(self->Q[N - 1], self->P[N - 1]);
     for(int i = 1; i < N; i+=1) {
         c_pmt_pmat_hcat(self->B[N - i], self->A[N - i], BA);
+        c_pmt_pmat_fill(BAtP, 0.0);
         c_pmt_gemm_tn(BA, self->P[N - i], BAtP, BAtP);
-        c_pmt_pmat_print(BAtP);
         c_pmt_pmat_copy(self->Q[N - i], Q);
         c_pmt_pmat_copy(self->R[N - i], R);
+        c_pmt_pmat_fill(M, 0.0);
         c_pmt_gecp(nu-0, nu-0, R, 0, 0, M, 0, 0);
         c_pmt_gecp((nu + nx)-nu, (nu + nx)-nu, Q, 0, 0, M, nu, nu);
         c_pmt_gemm_nn(BAtP, BA, M, M);
-        c_pmt_pmat_print(BAtP);
-        c_pmt_pmat_print(BA);
-        c_pmt_pmat_print(M);
         c_pmt_gecp(nu-0, nu-0, M, 0, 0, Mu, 0, 0);
         c_pmt_potrf(Mu, Lu);
-        c_pmt_gecp(nx-0, (nu + nx)-nu, M, 0, 0, Mxut, nu, nu);
-        c_pmt_pmat_print(Mxut);
-        c_pmt_gecp(nx-0, nu-0, M, nu, nu, Mxu, 0, 0);
-        c_pmt_potrsm(Lu, Mxut);
-        c_pmt_gemm_nn(Mxu, Mxut, self->P[N - i - 1], Mxx);
-        c_pmt_pmat_print(Mxx);
-        c_pmt_gead(-1.0, self->P[N - i - 1], Mxx);
+        c_pmt_gecp(nu-0, nx-0, M, 0, nu, Mux, 0, 0);
+        c_pmt_gecp(nx-0, nu-0, M, nu, 0, Mxu, 0, 0);
+        c_pmt_gecp(nx-0, nx-0, M, nu, nu, Mxx, 0, 0);
+        c_pmt_potrsm(Lu, Mux);
+        c_pmt_pmat_fill(Mxx2, 0.0);
+        c_pmt_gemm_nn(Mxu, Mux, Mxx2, Mxx2);
+        c_pmt_gead(-1.0, Mxx2, Mxx);
         c_pmt_pmat_copy(Mxx, self->P[N - i - 1]);
+        c_pmt_gead(1.0, Q, self->P[N - i - 1]);
+        c_pmt_pmat_print(self->P[N - i - 1]);
     }
-	___c_prmt_8_heap = callee_prmt_8_heap;
-	___c_prmt_64_heap = callee_prmt_64_heap;
 
-    return;
-}
+	___c_pmt_8_heap = callee_pmt_8_heap;
+	___c_pmt_64_heap = callee_pmt_64_heap;
 
-
-void *___c_prmt_8_heap; 
-void *___c_prmt_64_heap; 
-void *___c_prmt_8_heap_head; 
-void *___c_prmt_64_heap_head; 
-void main() {
-    ___c_prmt_8_heap = malloc(10000); 
-    ___c_prmt_8_heap_head = ___c_prmt_8_heap;
-    char *pmem_ptr = (char *)___c_prmt_8_heap;
+    return ;
+}int main() {
+    ___c_pmt_8_heap = malloc(10000); 
+    ___c_pmt_8_heap_head = ___c_pmt_8_heap;
+    char * pmem_ptr = (char *)___c_pmt_8_heap;
     align_char_to(8, &pmem_ptr);
-    ___c_prmt_8_heap = pmem_ptr;
-    ___c_prmt_64_heap = malloc(1000000);
-    ___c_prmt_64_heap_head = ___c_prmt_64_heap;
-    pmem_ptr = (char *)___c_prmt_64_heap;
+    ___c_pmt_8_heap = pmem_ptr;
+    ___c_pmt_64_heap = malloc(1000000);
+    ___c_pmt_64_heap_head = ___c_pmt_64_heap;
+    pmem_ptr = (char *)___c_pmt_64_heap;
     align_char_to(64, &pmem_ptr);
-    ___c_prmt_64_heap = pmem_ptr;
+    ___c_pmt_64_heap = pmem_ptr;
+	void *callee_pmt_8_heap = ___c_pmt_8_heap;
+	void *callee_pmt_64_heap = ___c_pmt_64_heap;
 
     struct pmat * A = c_pmt_create_pmat(nx, nx);
     c_pmt_pmat_set_el(A, 0, 0, 0.8);
@@ -330,8 +371,12 @@ void main() {
     }
 
     qp->_Z9factorize(qp);
-free(___c_prmt_8_heap_head);
-free(___c_prmt_64_heap_head);
+	___c_pmt_8_heap = callee_pmt_8_heap;
+	___c_pmt_64_heap = callee_pmt_64_heap;
+
+	free(___c_pmt_8_heap_head);
+	free(___c_pmt_64_heap_head);
+	return 0;
 }
 ```
 __Disclaimer: prometeo is still at a very preliminary stage and only very few linear algebra operations and Python constructs are supported for the time being.__
