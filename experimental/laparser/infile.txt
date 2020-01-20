@@ -1,1 +1,1 @@
-[[ pmat_C = pmat_M \ (pmat_A * pmat_B) * (pmat_A - pmat_B)]]
+[[ C = M \ (A * B) * (A - B)]]

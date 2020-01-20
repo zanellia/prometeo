@@ -52,6 +52,7 @@ Usage: To process LA equations embedded in source files, import this module and
 """
 
 import re, sys
+import json
 from pyparsing import (
     Word,
     alphas,
@@ -155,22 +156,26 @@ class UnaryUnsupportedError(Exception):
     pass
 
 
-def _isvec(ident, typed_record):
-    if ident[0] == "-" and ident[1 : vplen + 1] == vprefix:
-        raise UnaryUnsupportedError
-    else:
-        return ident[0:vplen] == vprefix
+# def _isvec(ident, typed_record):
+#     if ident[0] == "-" and ident[1 : vplen + 1] == vprefix:
+#         raise UnaryUnsupportedError
+#     else:
+#         return ident[0:vplen] == vprefix
 
 
 def _ismat(ident, typed_record):
-    if ident[0] == "-" and ident[1 : mplen + 1] == mprefix:
-        raise UnaryUnsupportedError
-    else:
-        return ident[0:mplen] == mprefix
+    if typed_record[ident] == 'pmat':
+        return True
+    else: 
+        return False
+    # if ident[0] == "-" and ident[1 : mplen + 1] == mprefix:
+    #     raise UnaryUnsupportedError
+    # else:
+    #     return ident[0:mplen] == mprefix
 
 
-def _isscalar(ident, typed_record):
-    return not (_isvec(ident) or _ismat(ident))
+# def _isscalar(ident, typed_record):
+#     return not (_isvec(ident) or _ismat(ident))
 
 
 ## Binary infix operator (BIO) functions.  These are called when the stack evaluator
@@ -192,7 +197,7 @@ def _addfunc(a, b, typed_record):
     # if _isvec(a) and _isvec(b):
     #     return "%svAdd(%s,%s)" % (vprefix, a[vplen:], b[vplen:])
     if _ismat(a, typed_record) and _ismat(b, typed_record):
-        return "%s_pmt_gead(1.0, %s,%s)" % (mprefix, a[mplen:], b[mplen:])
+        return "%s_pmt_gead(1.0, %s,%s)" % (mprefix, a, b)
     else:
         raise TypeError
 
@@ -255,17 +260,17 @@ def _expfunc(a, b, typed_record):
     if _isscalar(a) and _isscalar(b):
         return "pow(%s,%s)" % (str(a), str(b))
     if _ismat(a, typed_record) and b == "-1 * ":
-        return "%smSolveLS(%s)" % (mprefix, a[mplen:])
+        return "mSolveLS(%s)" % (a)
     if _ismat(a, typed_record) and b == "-1":
-        return "%smInverse(%s)" % (mprefix, a[mplen:])
+        return "mInverse(%s)" % (a)
     if _ismat(a, typed_record) and b == "T":
-        return "%smTranspose(%s)" % (mprefix, a[mplen:])
+        return "mTranspose(%s)" % (a)
     if _ismat(a, typed_record) and b == "Det":
-        return "mDeterminant(%s)" % (a[mplen:])
+        return "mDeterminant(%s)" % (a)
     if _isvec(a, typed_record) and b == "Mag":
         return "sqrt(vMagnitude2(%s))" % (a[vplen:])
     if _isvec(a, typed_record) and b == "Mag2":
-        return "vMagnitude2(%s)" % (a[vplen:])
+        return "vMagnitude2(%s)" % (a)
     else:
         raise TypeError
 
@@ -277,7 +282,7 @@ def _assignfunc(a, b, typed_record):
     # if _isvec(a) and _isvec(b):
     #     return "vCopy(%s,%s)" % (a[vplen:], b[vplen:])
     if _ismat(a, typed_record) and _ismat(b, typed_record):
-        return "_pmt_pmat_copy(%s,%s)" % (b[mplen:], a[mplen:])
+        return "_pmt_pmat_copy(%s,%s)" % (b, a)
     else:
         raise TypeError
 
@@ -315,7 +320,7 @@ def _evaluateStack(s, typed_record):
 
 ##----------------------------------------------------------------------------
 # The parse function that invokes all of the above.
-def parse(input_string, typed_record_json):
+def parse(input_string, typed_record):
     """
     Accepts an input string containing an LA equation, e.g.,
     "M3_mymatrix = M3_anothermatrix^-1" returns C code function
@@ -347,7 +352,7 @@ def parse(input_string, typed_record_json):
 
         # Evaluate the stack of parsed operands, emitting C code.
         try:
-            result = _evaluateStack(exprStack)
+            result = _evaluateStack(exprStack, typed_record)
         except TypeError:
             print(
                 "Unsupported operation on right side of '%s'.\nCheck for missing or incorrect tags on non-scalar operands."
@@ -368,7 +373,7 @@ def parse(input_string, typed_record_json):
             print("var=", targetvar)
         if targetvar != None:
             try:
-                result = _assignfunc(targetvar, result)
+                result = _assignfunc(targetvar, result, typed_record)
             except TypeError:
                 print(
                     "Left side tag does not match right side of '%s'" % input_string,
@@ -390,7 +395,7 @@ def parse(input_string, typed_record_json):
 
 
 ##-----------------------------------------------------------------------------------
-def fprocess(infilep, outfilep):
+def fprocess(infilep, outfilep, typed_record_json):
     """
    Scans an input file for LA equations between double square brackets,
    e.g. [[ M3_mymatrix = M3_anothermatrix^-1 ]], and replaces the expression
@@ -406,8 +411,11 @@ def fprocess(infilep, outfilep):
     eqn = re.compile(pattern, re.DOTALL)
     s = infilep.read()
 
+    with open(typed_record_json, 'r') as f:
+        typed_record = json.load(f)
+
     def parser(mo):
-        ccode = parse(mo.group(1))
+        ccode = parse(mo.group(1), typed_record)
         return "/* %s */\n%s;\nLAParserBufferReset();\n" % (mo.group(1), ccode)
 
     content = eqn.sub(parser, s)
