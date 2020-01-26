@@ -73,6 +73,28 @@ void c_pmt_gemm_nn(struct pmat *A, struct pmat *B, struct pmat *C, struct pmat *
     blasfeo_dgemm_nn(mA, nB, nA, 1.0, bA, 0, 0, bB, 0, 0, 1, bC, 0, 0, bD, 0, 0);
 }
 
+struct pmat *D _c_pmt_gemm_nn(struct pmat *A, struct pmat *B, struct pmat *C) {
+    int mA = A->bmat->m; 
+    int nA = A->bmat->n; 
+    int nB = B->bmat->n; 
+    struct blasfeo_dmat *bA = A->bmat;
+    struct blasfeo_dmat *bB = B->bmat;
+    struct blasfeo_dmat *bC = C->bmat;
+
+    
+    struct pmat *D = c_pmt_create_pmat(nA, nB);
+    struct blasfeo_dmat *bD = D->bmat;
+
+    // printf("In dgemm\n");
+    // blasfeo_print_dmat(mA, nA, A->bmat, 0, 0);
+    // blasfeo_print_dmat(mA, nA, B->bmat, 0, 0);
+    // blasfeo_print_dmat(mA, nA, C->bmat, 0, 0);
+    // blasfeo_print_dmat(mA, nA, D->bmat, 0, 0);
+
+    blasfeo_dgemm_nn(mA, nB, nA, 1.0, bA, 0, 0, bB, 0, 0, 1, bC, 0, 0, bD, 0, 0);
+    return D;
+}
+
 void c_pmt_gemm_tn(struct pmat *A, struct pmat *B, struct pmat *C, struct pmat *D) {
     int mA = A->bmat->m; 
     int nA = A->bmat->n; 
@@ -169,6 +191,21 @@ void c_pmt_gead(double alpha, struct pmat *A, struct pmat *B) {
     struct blasfeo_dmat *bB = B->bmat;
 
     blasfeo_dgead(mA, nA, alpha, bA, 0, 0, bB, 0, 0);
+}
+
+struct pmat *C _c_pmt_gead(double alpha, struct pmat *A, struct pmat *B) {
+    int mA = A->bmat->m; 
+    int nA = A->bmat->n; 
+    struct blasfeo_dmat *bA = A->bmat;
+    struct blasfeo_dmat *bB = B->bmat;
+
+    struct pmat *C = c_pmt_create_pmat(mA, nA);
+
+    c_pmt_pmat_copy(B, C);
+    struct blasfeo_dmat *bC = C->bmat;
+
+    blasfeo_dgead(mA, nA, alpha, bA, 0, 0, bC, 0, 0);
+    return C;
 }
 
 void c_pmt_gemv_n(struct pmat *A, struct pvec *b, struct pvec *c, struct pvec *d) {

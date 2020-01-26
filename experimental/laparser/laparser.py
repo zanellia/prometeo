@@ -202,7 +202,7 @@ def _addfunc(a, b, typed_record):
     # if _isvec(a) and _isvec(b):
     #     return "%svAdd(%s,%s)" % (vprefix, a[vplen:], b[vplen:])
     if _ismat(a) and _ismat(b):
-        return "%s_pmt_gead(1.0, %s,%s)" % (mprefix, a[mplen:], b[mplen:])
+        return "%s_c_pmt_gead(1.0, %s,%s)" % (mprefix, a[mplen:], b[mplen:])
     else:
         raise TypeError
 
@@ -215,7 +215,7 @@ def _subfunc(a, b, typed_record):
     # if _isvec(a) and _isvec(b):
     #     return "%svSubtract(%s,%s)" % (vprefix, a[vplen:], b[vplen:])
     if _ismat(a) and _ismat(b):
-        return "%s_pmt_gead(-1.0, %s,%s)" % (mprefix, a[mplen:], b[mplen:])
+        return "%s_c_pmt_gead(-1.0, %s,%s)" % (mprefix, a[mplen:], b[mplen:])
     else:
         raise TypeError
 
@@ -224,7 +224,7 @@ def _mulfunc(a, b, typed_record):
     a = preprocess_var_name(a, typed_record)
     b = preprocess_var_name(b, typed_record)
     if _ismat(a) and _ismat(b):
-        return "%s_pmt_gemm(%s,%s)" % (mprefix, a[mplen:], b[mplen:])
+        return "%s_c_pmt_gemm_nn(%s,%s)" % (mprefix, a[mplen:], b[mplen:])
     # if _isscalar(a) and _isscalar(b):
     #     return "%s*%s" % (a, b)
     # if _isvec(a) and _isvec(b):
@@ -243,7 +243,7 @@ def _solvefunc(a, b, typed_record):
     a = preprocess_var_name(a, typed_record)
     b = preprocess_var_name(b, typed_record)
     if _ismat(a) and _ismat(b):
-        return "%s_pmt_getrsm(%s,%s)" % (mprefix, a[mplen:], b[mplen:])
+        return "%s_c_pmt_getrsm(%s,%s)" % (mprefix, a[mplen:], b[mplen:])
     else:
         raise TypeError
 
@@ -301,7 +301,7 @@ def _assignfunc(a, b, typed_record):
     # if _isvec(a) and _isvec(b):
     #     return "vCopy(%s,%s)" % (a[vplen:], b[vplen:])
     if _ismat(a) and _ismat(b):
-        return "_pmt_pmat_copy(%s,%s)" % (b[mplen:], a[mplen:])
+        return "_c_pmt_pmat_copy(%s,%s)" % (b[mplen:], a[mplen:])
     else:
         raise TypeError
 
