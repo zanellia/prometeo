@@ -13,6 +13,7 @@ pmt_functions = {\
     'global@plist': [], \
     'global@pmat_copy': [], \
     'global@pmat_print': [], \
+    'global@pvec_print': [], \
     'global@pmat_fill': [], \
     'global@pmat_tran': [], \
     'global@pmat_hcat': [], \
@@ -24,6 +25,7 @@ pmt_functions = {\
     'global@pmt_potrsm': [], \
     'global@pmt_getrf': [], \
     'global@pmt_getrsm': [], \
+    'global@print': [], \
     } 
 
 def precedence_setter(AST=ast.AST, get_op_precedence=get_op_precedence,
@@ -283,7 +285,7 @@ def compute_reach_graph(call_graph, typed_record):
             r_unresolved_callers[caller] = unresolved_callers[caller]
 
     if r_unresolved_callers != dict():
-        raise Exception('Could not resolve the following calls {}'.format(r_unresolved_callers))
+        raise Exception('call graph analyzer -- could not resolve the following calls {}'.format(r_unresolved_callers))
 
     reach_map = {}
     for curr_node in call_graph:

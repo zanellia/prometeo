@@ -50,7 +50,8 @@ pmt_temp_functions = {\
         "pmat_print": "c_pmt_pmat_print", \
         "pvec_fill": "c_pmt_pvec_fill", \
         "pvec_copy": "c_pmt_pvec_copy", \
-        "pvec_print": "c_pmt_pvec_print"}
+        "pvec_print": "c_pmt_pvec_print", \
+        "print": "printf"}
 
 pmt_temp_types = {\
         "pmat": "struct pmat *", \
@@ -1556,6 +1557,22 @@ class SourceGenerator(ExplicitNodeVisitor):
             else:
                 want_comma.append(True)
        
+        # treat print separately
+        if hasattr(node.func, 'id'):
+            if node.func.id == 'print':
+                if hasattr(node.args[0], 'op'):
+                    if isinstance(node.args[0].op, ast.Mod):
+                        # print string with arguments
+                        write('printf("%s' %node.args[0].left.s, '\\n", %s);\n' %node.args[0].right.id, dest = 'src')
+                        return
+                    else:
+                        raise Exception('Invalid operator in call to print()')
+
+                else:
+                    # print string with no arguments
+                    write('printf("%s\\n");\n' %node.args[0].s, dest = 'src')
+                    return
+
         args = node.args
         keywords = node.keywords
         starargs = self.get_starargs(node)
