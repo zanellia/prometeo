@@ -120,7 +120,7 @@ def pmt_main(script_path, stdout, stderr, args = None):
                 raise Exception('\n\nDetected cycle {} containing memory'
                 ' allocation.\n'.format(reach_map[method]))
 
-        env = os.environ
+        env = {k: os.environ[k] for k in os.environ.keys()}
         proc = subprocess.Popen(["make", "clean"], stdout=subprocess.PIPE, env=env)
 
         try:
