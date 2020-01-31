@@ -63,6 +63,9 @@ class pmat(pmat_):
                 raise Exception ('pmat subscript should be a 2-dimensional tuples, \
                         you have: {}\n. Exiting'.format(index))
             if isinstance(index[0], int) and isinstance(index[1], int):
+                if index[0] < 0 or index[0] > self.m or \
+                        index[1] < 0 or index[1] > self.n:
+                    raise Exception('Invalid subscripting values. Exiting. \n')
                 pmat_set(self, value, index[0], index[1])
             elif isinstance(index[0], slice) and isinstance(index[1], slice):
                 m_target = index[0].stop - index[0].start
