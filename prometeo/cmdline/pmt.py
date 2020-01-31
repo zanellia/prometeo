@@ -144,11 +144,11 @@ def pmt_main(script_path, stdout, stderr, args = None):
             raise Exception('Command \'make\' failed with the above error.'
              ' Full command is:\n\n {}'.format(outs.decode()))
 
-        if sys.platform == 'darwin':
-            DYLD_LIBRARY_PATH = os.getenv('DYLD_LIBRARY_PATH')
-            cmd = 'export DYLD_LIBRARY_PATH={} && '.format(DYLD_LIBRARY_PATH) + './' + filename_
-        else:
-            cmd = './' + filename_
+        # if sys.platform == 'darwin':
+        #     DYLD_LIBRARY_PATH = os.getenv('DYLD_LIBRARY_PATH')
+        #     cmd = 'export DYLD_LIBRARY_PATH={} && '.format(DYLD_LIBRARY_PATH) + './' + filename_
+        # else:
+        cmd = './' + filename_
 
         if red_stdout is not None: 
             proc = subprocess.Popen([cmd], stdout=subprocess.PIPE)
