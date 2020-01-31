@@ -120,8 +120,7 @@ def pmt_main(script_path, stdout, stderr, args = None):
                 raise Exception('\n\nDetected cycle {} containing memory'
                 ' allocation.\n'.format(reach_map[method]))
 
-        env = {k: os.environ[k] for k in os.environ.keys()}
-        proc = subprocess.Popen(["make", "clean"], stdout=subprocess.PIPE, env=env)
+        proc = subprocess.Popen(["make", "clean"], stdout=subprocess.PIPE)
 
         try:
             outs, errs = proc.communicate(timeout=20)
@@ -133,7 +132,7 @@ def pmt_main(script_path, stdout, stderr, args = None):
             raise Exception('Command \'make\' failed with the above error.'
              ' Full command is:\n\n {}'.format(outs.decode()))
 
-        proc = subprocess.Popen(["make"], stdout=subprocess.PIPE, env=env)
+        proc = subprocess.Popen(["make"], stdout=subprocess.PIPE)
 
         try:
             outs, errs = proc.communicate(timeout=20)
@@ -152,7 +151,7 @@ def pmt_main(script_path, stdout, stderr, args = None):
             cmd = './' + filename_
 
         if red_stdout is not None: 
-            proc = subprocess.Popen([cmd], stdout=subprocess.PIPE, env=env)
+            proc = subprocess.Popen([cmd], stdout=subprocess.PIPE)
         else:
             proc = subprocess.Popen([cmd])
 
