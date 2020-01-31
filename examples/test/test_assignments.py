@@ -2,45 +2,56 @@
 
 from prometeo import *
 
-n : dims = 10
+n : dims = 3
 
 def main() -> int:
 
-
-    # integer 
+    # integer declaration 
     int_var : int = 1
-    print('int_var = %i' %int_var)
+    print('int variable declaration:\n%i\n' %int_var)
 
-    # float 
+    # float declaration 
     float_var : float = 1.0
-    print('float_var = %f' %float_var)
+    print('float variable declaration:\n%f\n' %float_var)
 
+    # pvec declaration
+    pvec_var : pvec = pvec(3)
+    print('pvec variable declaration:')
+    pvec_print(pvec_var)
+
+    # pmat declaration
     pmat_var: pmat = pmat(n, n)
-    pvec_var : pvec = pvec(10)
+    print('pmat variable declaration:')
+    pmat_print(pmat_var)
+    # pmat_print(asd)
 
+    # float to pvec
+    pvec_var[0] = float_var
+    print('float to pvec:')
+    pvec_print(pvec_var)
+
+    # float (const) to pvec
     pvec_var[1] = 3.0
+    print('float (const) to pvec:')
     pvec_print(pvec_var)
 
     # float to pmat
     pmat_var[0,1] = float_var
+    print('float to pmat:')
     pmat_print(pmat_var)
 
     # float (const) to pmat 
-    pmat_var[0,1] = 1.0
+    pmat_var[1,1] = 2.0
+    print('float (const) to pmat:')
     pmat_print(pmat_var)
-
-    # pmat to float
-    float_var = pmat_var[0, 1]
-    print('float_var = %f' %float_var)
-
-    # float to pvec
-    pvec_var[0] = float_var
-
-    # float (const) to pvec 
-    pvec_var[0] = 1.0
 
     # pvec to float
     float_var = pvec_var[0]
+    print('pvec to float:\n%f\n' %float_var)
+
+    # pmat to float
+    float_var = pmat_var[1, 1]
+    print('pmat to float:\n%f\n' %float_var)
 
     # subscripted pmat to pmat 
     for i in range(2):

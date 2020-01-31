@@ -1011,7 +1011,7 @@ class SourceGenerator(ExplicitNodeVisitor):
 
                 # check for Assigns targeting pmats
                 target = node.targets[0].id
-                print(target)
+                # print(target)
                 if target in self.typed_record[self.scope]: 
                     if self.typed_record[self.scope][target] == 'pmat':
                         if type(node.value) == ast.BinOp:
@@ -1290,7 +1290,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         else:
             raise Exception('Unknown return object {}'.format(returns))
 
-        print(return_type_py)
+        # print(return_type_py)
         return_type_c = pmt_temp_types[return_type_py]
         # function declaration
         self.write(return_type_c, ' %s' %(node.name), '(', dest = 'hdr')
@@ -1563,14 +1563,14 @@ class SourceGenerator(ExplicitNodeVisitor):
                 if hasattr(node.args[0], 'op'):
                     if isinstance(node.args[0].op, ast.Mod):
                         # print string with arguments
-                        write('printf("%s' %node.args[0].left.s, '\\n", %s);\n' %node.args[0].right.id, dest = 'src')
+                        write('printf("%s' %repr(node.args[0].left.s)[1:-1], '\\n", %s);\n' %node.args[0].right.id, dest = 'src')
                         return
                     else:
                         raise Exception('Invalid operator in call to print()')
 
                 else:
                     # print string with no arguments
-                    write('printf("%s\\n");\n' %node.args[0].s, dest = 'src')
+                    write('printf("%s\\n");\n' %repr(node.args[0].s)[1:-1], dest = 'src')
                     return
 
         args = node.args

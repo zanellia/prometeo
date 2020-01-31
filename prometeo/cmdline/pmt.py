@@ -5,6 +5,7 @@ import sys
 import argparse
 import prometeo
 import os
+import subprocess
 from strip_hints import strip_file_to_string
 
 from prometeo.mem.ast_analyzer import compute_reach_graph
@@ -51,9 +52,13 @@ def pmt_main(script_path, stdout, stderr, args = None):
     parser.add_argument("--cgen", type=str2bool, default="False", \
             help="generate, compile and execute C code?")
 
+    parser.add_argument("--out", type=str, default=None, \
+            help="redirect output to file")
+
     args = parser.parse_args()
     filename = args.program_name
     cgen = args.cgen
+    red_stdout = args.out
 
     if cgen is False:
         post = '''main()'''
@@ -104,22 +109,66 @@ def pmt_main(script_path, stdout, stderr, args = None):
         visitor.visit(tree_copy) 
         call_graph = visitor.callees
         typed_record = visitor.typed_record
-        print('\ncall graph:\n\n', call_graph, '\n\n')
+        # print('\ncall graph:\n\n', call_graph, '\n\n')
 
         reach_map = compute_reach_graph(call_graph, typed_record)
-        print('reach_map:\n\n', reach_map, '\n\n')
+        # print('reach_map:\n\n', reach_map, '\n\n')
 
         # check that there are no cycles containing memory allocations
         for method in reach_map:
             if '*' in reach_map[method] and typed_record[method] != dict():
-                raise Exception('\n\nDetected cycle {} containing memory allocation.\n'.format(reach_map[method]))
+                raise Exception('\n\nDetected cycle {} containing memory'
+                ' allocation.\n'.format(reach_map[method]))
 
-        os.system('make clean')
-        os.system('make')
+        proc = subprocess.Popen(["make", "clean"], stdout=subprocess.PIPE)
+
+        try:
+            outs, errs = proc.communicate(timeout=20)
+        except TimeOutExpired:
+            proc.kill()
+            outs, errs = proc.communicate()
+            print('Command \'make\' timed out.')
+        if proc.returncode:
+            raise Exception('Command \'make\' failed with the above error.'
+             ' Full command is:\n\n {}'.format(outs.decode()))
+
+        proc = subprocess.Popen(["make"], stdout=subprocess.PIPE)
+
+        try:
+            outs, errs = proc.communicate(timeout=20)
+        except TimeOutExpired:
+            proc.kill()
+            outs, errs = proc.communicate()
+            print('Command \'make\' timed out.')
+        if proc.returncode:
+            raise Exception('Command \'make\' failed with the above error.'
+             ' Full command is:\n\n {}'.format(outs.decode()))
+
         if sys.platform == 'darwin':
             DYLD_LIBRARY_PATH = os.getenv('DYLD_LIBRARY_PATH')
-            cmd = './' + filename_
-            sys.exit(os.system('export DYLD_LIBRARY_PATH={} && '.format(DYLD_LIBRARY_PATH) + cmd))
+            cmd = 'export DYLD_LIBRARY_PATH={} && '.format(DYLD_LIBRARY_PATH) + './' + filename_
         else:
             cmd = './' + filename_
-            sys.exit(os.system(cmd))
+
+        if red_stdout is not None: 
+            proc = subprocess.Popen([cmd], stdout=subprocess.PIPE)
+        else:
+            proc = subprocess.Popen([cmd])
+
+        try:
+            outs, errs = proc.communicate()
+        except TimeOutExpired:
+            proc.kill()
+            outs, errs = proc.communicate()
+            print('Command \'make\' timed out.')
+            if red_stdout is not None:
+                with open(red_stdout, 'w') as f:
+                    f.write(outs)
+
+        if red_stdout is not None:
+            with open(red_stdout, 'w') as f:
+                f.write(outs.decode())
+
+        if proc.returncode: 
+            raise Exception('Command {} failed with the above error.'
+             ' Full command is:\n\n {}'.format(cmd, outs.decode()))

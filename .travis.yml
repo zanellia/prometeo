@@ -49,6 +49,8 @@ script:
   - pushd examples/test
   - pmt test.py --cgen=True
   - pmt test.py --cgen=False
+  - pmt test_assignments.py --cgen=True
+  - pmt test_assignments.py --cgen=False
   - popd
 
   - pushd examples/riccati_example
