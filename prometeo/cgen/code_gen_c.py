@@ -90,6 +90,12 @@ arg_types = {\
 
 usr_temp_types = {}
 
+class cgenException(Exception):
+    def __init__(self, message, lineno):
+        super().__init__(message)
+        self.message = message
+        self.lineno = lineno
+
 def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False,
               pretty_string=pretty_string, pretty_source=pretty_source,
               main=False, ___c_pmt_8_heap_size=None, ___c_pmt_64_heap_size=None, 
@@ -206,7 +212,6 @@ def descope(current_scope, pop):
     if current_scope.endswith(pop):
         return current_scope[:-len(pop)]
     else:
-        import pdb; pdb.set_trace()
         raise Exception('Attempt to descope {}, which is not the current scope'.format(pop))
 
 def Num_or_Name(node):
@@ -438,7 +443,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                         if  ann in pmt_temp_types:
                             ann = pmt_temp_types[ann]
                         else:
-                            raise Exception ('Usage of non existing type {}'.format(ann))
+                            raise Exception ('Usage of non existing type \033[91m{}\033[0m'.format(ann))
                         # check is dims is not a numerical value
                         if isinstance(dims, str):
                             dim_list = self.dim_record[dims]
@@ -483,7 +488,9 @@ class SourceGenerator(ExplicitNodeVisitor):
                 if  ret_type in pmt_temp_types:
                     ret_type = pmt_temp_types[ret_type]
                 else:
-                    raise Exception ('Usage of non existing type {}'.format(ret_type))
+
+                    raise Exception ('Usage of non existing type \033[91m{}\033[0m'.format(ann))
+                    # raise Exception ('Usage of non existing type {}'.format(ret_type))
 
                 if len(item.args.args) > 0:  
                     self.write('%s (*%s%s%s' % (ret_type, pre_mangl, \
@@ -623,7 +630,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                             if item.value.value != None:
                                 self.conditional_write('\n', 'object->', item.target, ' = ', item.value, ';', dest = 'src')
                     else:
-                        raise Exception('Cannot declare attribute without initialization\n')
+                        raise Exception('Cannot declare attribute without initialization.\n')
                 else:
                     if item.value != None:
                         if hasattr(item.value, 'value') is False:
@@ -632,7 +639,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                             if item.value.value != None:
                                 self.conditional_write('\n', 'object->', item.target, ' = ', item.value, ';', dest = 'src')
                     else:
-                        raise Exception('Cannot declare attribute without initialization\n')
+                        raise Exception('Cannot declare attribute without initialization.\n')
 
             elif isinstance(item, ast.FunctionDef):
                 # build argument mangling
@@ -640,7 +647,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 pre_mangl = '_Z%s' %f_name_len 
                 if item.args.args[0].arg is not 'self':
                     raise Exception("First argument in method {} \
-                        must be 'self'. You have '{}'".format(item.name, item.args.args[0].arg))
+                        must be 'self'. You have '{}'.".format(item.name, item.args.args[0].arg))
                 else: 
                     # store self argument
                     self_arg = item.args.args[0]
@@ -673,7 +680,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 pre_mangl = '_Z%s' %f_name_len 
                 if item.args.args[0].arg is not 'self':
                     raise Exception("First argument in method {} \
-                        must be 'self'. You have '{}'".format(item.name, item.args.args[0].arg))
+                        must be 'self'. You have '{}'.".format(item.name, item.args.args[0].arg))
                 else: 
                     # store self argument
                     self_arg = item.args.args[0]
@@ -693,7 +700,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 if  ret_type in pmt_temp_types:
                     ret_type = pmt_temp_types[ret_type]
                 else:
-                    raise Exception ('Usage of non existing type {}'.format(ret_type))
+                    raise Exception ('Usage of non existing type {}.'.format(ret_type))
 
                 if len(item.args.args) > 0:
                     self.statement(item, ret_type, ' %s%s%s%s' % (pre_mangl, \
@@ -845,7 +852,7 @@ class SourceGenerator(ExplicitNodeVisitor):
             if hasattr(node.targets[0], 'value'):
                 if hasattr(node.targets[0].value, 'attr'):
                     if node.targets[0].value.attr not in self.typed_record[self.scope]:
-                        raise Exception('Unknown variable {}'.format(node.targets[0].value.attr))
+                        raise Exception('Unknown variable {}.'.format(node.targets[0].value.attr))
                     # TODO(andrea): need to handle attributes recursively
                     target = node.targets[0].value.attr
                     obj_name = node.targets[0].value.value.id
@@ -854,12 +861,12 @@ class SourceGenerator(ExplicitNodeVisitor):
                     scope = 'global@' + self.typed_record[self.scope][obj_name]
                 else:
                     if node.targets[0].value.id not in self.typed_record[self.scope]:
-                        raise Exception('Unknown variable {}'.format(node.targets[0].value.id))
+                        raise Exception('Unknown variable {}.'.format(node.targets[0].value.id))
                     target = node.targets[0].value.id
                     scope = self.scope
             else:
                 if node.targets[0].id not in self.typed_record[self.scope]:
-                    raise Exception('Unknown variable {}'.format(node.targets[0].id))
+                    raise Exception('Unknown variable {}.'.format(node.targets[0].id))
             if type(node.targets[0]) == ast.Subscript: 
                 if target in self.typed_record[scope]: 
                     # map subscript for pmats to blasfeo el assign
@@ -917,7 +924,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                                         elif sub_type == ast.Name: 
                                             index_value = node.value.slice.value.id
                                         else:
-                                            raise Exception("Subscripting with value of type {} not implemented".format(sub_type))
+                                            raise Exception("Subscripting with value of type {} not implemented.".format(sub_type))
 
                                         value_expr = 'c_pmt_pvec_get_el(' + value + ', {})'.format(index_value) 
                                         self.statement([], 'c_pmt_pmat_set_el(', target, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value_expr), ');')
@@ -979,10 +986,10 @@ class SourceGenerator(ExplicitNodeVisitor):
             elif type(node.value) == ast.Subscript:
                 target = node.targets[0].id
                 if target not in self.typed_record[self.scope]:
-                    raise Exception('Undefined variable {}'.format(target))
+                    raise Exception('Undefined variable {}.'.format(target))
                 # target must be a float
                 if self.typed_record[self.scope][target] != 'float':
-                    raise Exception('Target must be a float {}'.format(target))
+                    raise Exception('Target must be a float {}.'.format(target))
                 value = node.value.value.id
                 if value in self.typed_record[self.scope]:
                     # if value is a pmat
@@ -1002,7 +1009,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                             elif sub_type == ast.Name: 
                                 index_value = node.value.slice.value.id
                             else:
-                                raise Exception("Subscripting with value of type {} not implemented".format(sub_type))
+                                raise Exception("Subscripting with value of type {} not implemented.".format(sub_type))
 
                             value_expr = 'c_pmt_pvec_get_el(' + value + ', {})'.format(index_value) 
                             self.statement([], target, ' = {}'.format(value_expr), ';')
@@ -1041,7 +1048,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                                         self.statement([], 'c_pmt_gead(-1.0, ', right_op, ', ', target, ');')
                                         return
                                     else:
-                                        raise Exception('Unsupported operator call:{} {} {}'\
+                                        raise Exception('Unsupported operator call:{} {} {}.'\
                                             .format(self.typed_record[self.scope][left_op], node.value.op, self.typed_record[self.scope][right_op]))
                             # elif self.typed_record[self.scope][node.value] == 'float':
                             #     import pdb; pdb.set_trace()
@@ -1064,7 +1071,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                                         return
                                     # dgead
                                     else:
-                                        raise Exception('Unsupported operator call:{} {} {}'\
+                                        raise Exception('Unsupported operator call:{} {} {}.'\
                                             .format(self.typed_record[self.scope][left_op], node.value.op, self.typed_record[self.scope][right_op]))
 
 
@@ -1076,7 +1083,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                     attr_name = node.targets[0].attr 
                     self.statement([], struct_name, '->', attr_name, ' = ', str(attr_value), ';')
                 else:
-                    raise Exception("Unknown variable {}".format(struct_name))
+                    raise Exception("Unknown variable {}.".format(struct_name))
                 return
 
             else:
@@ -1103,7 +1110,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         end = ')' if need_parens else ''
 
         if "value" not in node.__dict__:
-            raise Exception('Cannot declare variable without initialization\n')
+            raise Exception('Cannot declare variable without initialization.')
 
         ann = node.annotation.id
         # check if a List is being declared
@@ -1112,7 +1119,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 raise Exception("Cannot create Lists without using plist constructor.")
 
             if len(node.value.args) != 2:
-                raise Exception('plist constructor takes 2 arguments plist(<type>, <sizes>)')
+                raise Exception('plist constructor takes 2 arguments plist(<type>, <sizes>).')
 
             # attribute is a List
             lann = node.value.args[0].id
@@ -1124,7 +1131,7 @@ class SourceGenerator(ExplicitNodeVisitor):
             if  lann in pmt_temp_types:
                 lann = pmt_temp_types[lann]
             else:
-                raise Exception ('Usage of non existing type {}'.format(lann))
+                raise Exception ('Usage of non existing type {}.'.format(lann))
             # check is dims is not a numerical value
             if isinstance(dims, str):
                 dim_list = self.dim_record[dims]
@@ -1154,7 +1161,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         elif ann == 'pmat':
             if node.value.func.id != 'pmat':
                 raise Exception('pmat objects need to be declared calling', 
-                    ' the pmat(<n>, <m>) constructor\n.')
+                    ' the pmat(<n>, <m>) constructor.')
             dim1 = Num_or_Name(node.value.args[0])
             dim2 = Num_or_Name(node.value.args[1])
             self.var_dim_record[self.scope][node.target.id] = [dim1, dim2]
@@ -1179,7 +1186,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         # or pvec[<n>]
         elif ann == 'pvec':
             if node.value.func.id != 'pvec':
-                raise Exception('pvec objects need to be declared calling the pvec(<n>, <m>) constructor\n.')
+                raise Exception('pvec objects need to be declared calling the pvec(<n>, <m>) constructor.')
             dim1 = Num_or_Name(node.value.args[0])
             self.var_dim_record[self.scope][node.target.id] = [dim1]
             node.annotation.id = pmt_temp_types[ann]
@@ -1216,7 +1223,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 self.statement(node, c_ann, ' ', node.target.id)
                 self.conditional_write(' = ', node.value, ';', dest = 'src')
             else:
-                raise Exception ('Usage of non existing type {}'.format(ann))
+                raise cgenException('Usage of non existing type \033[91m{}\033[0m.'.format(ann), node.lineno)
 
         # print('typed_record = \n', self.typed_record, '\n\n')
         # print('var_dim_record = \n', self.var_dim_record, '\n\n')
@@ -1288,7 +1295,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         elif isinstance(returns, ast.Name):
             return_type_py = returns.id
         else:
-            raise Exception('Unknown return object {}'.format(returns))
+            raise Exception('Unknown return object {}.'.format(returns))
 
         # print(return_type_py)
         return_type_c = pmt_temp_types[return_type_py]
@@ -1404,7 +1411,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                     ' < {}'.format(range_value_2), 
                     '; ',node.target, '+={})'.format(increment), ' {')
         else:
-            raise Exception('Too many arguments for range()')
+            raise Exception('Too many arguments for range().')
 
         self.body_or_else(node)
         self.write('\n    }\n', dest = 'src')
@@ -1544,7 +1551,7 @@ class SourceGenerator(ExplicitNodeVisitor):
             if  self.typed_record[self.scope][node.value.id] in usr_temp_types: 
                 self.write(node.value, '->', node.attr, dest = 'src')
             else:
-                raise Exception("Accessing attribute of object {} of unknown type".format(node.value))
+                raise Exception("Accessing attribute of object {} of unknown type.".format(node.value))
 
     def visit_Call(self, node, len=len):
         write = self.write
@@ -1566,7 +1573,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                         write('printf("%s' %repr(node.args[0].left.s)[1:-1], '\\n", %s);\n' %node.args[0].right.id, dest = 'src')
                         return
                     else:
-                        raise Exception('Invalid operator in call to print()')
+                        raise Exception('Invalid operator in call to print().')
 
                 else:
                     # print string with no arguments

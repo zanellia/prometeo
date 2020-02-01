@@ -55,10 +55,14 @@ def pmt_main(script_path, stdout, stderr, args = None):
     parser.add_argument("--out", type=str, default=None, \
             help="redirect output to file")
 
+    parser.add_argument("--debug", type=str, default=False, \
+            help="call raise instead of exit() upon Exception")
+
     args = parser.parse_args()
     filename = args.program_name
     cgen = args.cgen
     red_stdout = args.out
+    debug = args.debug
 
     if cgen is False:
         post = '''main()'''
@@ -79,12 +83,28 @@ def pmt_main(script_path, stdout, stderr, args = None):
         # astpretty.pprint(tree)
         # import pdb; pdb.set_trace()
 
-        result  = prometeo.cgen.code_gen_c.to_source(tree, filename_, \
-                main=True, ___c_pmt_8_heap_size=10000, \
-                ___c_pmt_64_heap_size=1000000, \
-                size_of_pointer = size_of_pointer, \
-                size_of_int = size_of_int, \
-                size_of_double = size_of_double)
+        # result  = prometeo.cgen.code_gen_c.to_source(tree, filename_, \
+        #         main=True, ___c_pmt_8_heap_size=10000, \
+        #         ___c_pmt_64_heap_size=1000000, \
+        #         size_of_pointer = size_of_pointer, \
+        #         size_of_int = size_of_int, \
+        #         size_of_double = size_of_double)
+        try:
+            result  = prometeo.cgen.code_gen_c.to_source(tree, filename_, \
+                    main=True, ___c_pmt_8_heap_size=10000, \
+                    ___c_pmt_64_heap_size=1000000, \
+                    size_of_pointer = size_of_pointer, \
+                    size_of_int = size_of_int, \
+                    size_of_double = size_of_double)
+        except prometeo.cgen.code_gen_c.cgenException as e:
+            print('\n> Exception -- prometeo code-gen: ', e.message)
+            code = ''.join(open(filename))
+            print('\033[95m> @ line {}:'.format(e.lineno) + code.splitlines()[e.lineno-1] + '\033[0m')
+            print('> Exiting.\n')
+            if debug:
+                raise
+            else:
+                exit()
 
         dest_file = open(filename_ + '.c', 'w')
         dest_file.write(prometeo.cgen.source_repr.pretty_source(result.source))
@@ -144,10 +164,6 @@ def pmt_main(script_path, stdout, stderr, args = None):
             raise Exception('Command \'make\' failed with the above error.'
              ' Full command is:\n\n {}'.format(outs.decode()))
 
-        # if sys.platform == 'darwin':
-        #     DYLD_LIBRARY_PATH = os.getenv('DYLD_LIBRARY_PATH')
-        #     cmd = 'export DYLD_LIBRARY_PATH={} && '.format(DYLD_LIBRARY_PATH) + './' + filename_
-        # else:
         cmd = './' + filename_
 
         if red_stdout is not None: 
