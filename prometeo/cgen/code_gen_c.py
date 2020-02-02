@@ -1223,7 +1223,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 self.statement(node, c_ann, ' ', node.target.id)
                 self.conditional_write(' = ', node.value, ';', dest = 'src')
             else:
-                raise cgenException('Usage of non existing type \033[91m{}\033[0m.'.format(ann), node.lineno)
+                raise cgenException('\033[;1mUsage of non existing type\033[0;0m \033[1;31m{}\033[0;0m.'.format(ann), node.lineno)
 
         # print('typed_record = \n', self.typed_record, '\n\n')
         # print('var_dim_record = \n', self.var_dim_record, '\n\n')

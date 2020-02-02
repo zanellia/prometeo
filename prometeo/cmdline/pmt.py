@@ -97,10 +97,10 @@ def pmt_main(script_path, stdout, stderr, args = None):
                     size_of_int = size_of_int, \
                     size_of_double = size_of_double)
         except prometeo.cgen.code_gen_c.cgenException as e:
-            print('\n> Exception -- prometeo code-gen: ', e.message)
+            print('\n > Exception -- prometeo code-gen: ', e.message)
             code = ''.join(open(filename))
-            print('\033[95m> @ line {}:'.format(e.lineno) + code.splitlines()[e.lineno-1] + '\033[0m')
-            print('> Exiting.\n')
+            print(' > @ line {}:'.format(e.lineno) + '\033[34m' + code.splitlines()[e.lineno-1] + '\033[0;0m')
+            print(' > Exiting.\n')
             if debug:
                 raise
             else:
