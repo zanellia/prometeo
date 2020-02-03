@@ -123,10 +123,8 @@ def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False
         error('Need to pass heap_sizes! Exiting.')
 
     generator = SourceGenerator(indent_with, ___c_pmt_8_heap_size,
-                                ___c_pmt_64_heap_size, size_of_pointer, size_of_int, size_of_double,
-                                add_line_information,
-                                pretty_string,
-                                )
+        ___c_pmt_64_heap_size, size_of_pointer, size_of_int, size_of_double,
+        add_line_information, pretty_string)
     
     generator.result.source.append('#include "stdlib.h"\n')
     # generator.result.source.append('#include "pmat_blasfeo_wrapper.h"\n')
@@ -212,7 +210,8 @@ def descope(current_scope, pop):
     if current_scope.endswith(pop):
         return current_scope[:-len(pop)]
     else:
-        raise Exception('Attempt to descope {}, which is not the current scope'.format(pop))
+        raise Exception('Attempt to descope {}, which is \
+            not the current scope'.format(pop))
 
 def Num_or_Name(node):
     if isinstance(node, ast.Num):
@@ -298,8 +297,10 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.add_line_information = add_line_information
         self.indentation = 0 # Current indentation level
         self.new_lines = 0   # Number of lines to insert before next code
-        self.colinfo = 0, 0  # index in result.source of string containing linefeed, and
-                             # position of last linefeed in that string
+        self.colinfo = 0, 0  # index in result.source of string containing 
+                             # linefeed, and position of last linefeed in 
+                             # that string
+
         self.pretty_string = pretty_string
         AST = ast.AST
 
@@ -453,7 +454,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                         array_size = len(dim_list)
                             # array_size = str(Num_or_Name(item.value.args[1]))
                             # self.statement([], ann, ' ', item.target, '[', array_size, '];')
-                        self.write('%s' %ann, ' ', '%s' %item.target.id, '[%s' %array_size, '];\n', dest = 'hdr')
+                        self.write('%s' %ann, ' ', '%s' %item.target.id, \
+                            '[%s' %array_size, '];\n', dest = 'hdr')
                 else:
                     type_c = pmt_temp_types[type_py]
                     self.write('%s' %type_c, ' ', '%s' %item.target.id, ';\n', dest = 'hdr')
@@ -646,10 +648,12 @@ class SourceGenerator(ExplicitNodeVisitor):
                 else:
                     if item.value != None:
                         if hasattr(item.value, 'value') is False:
-                            self.conditional_write('\n', 'object->', item.target, ' = ', item.value, ';', dest = 'src')
+                            self.conditional_write('\n', 'object->', \
+                                item.target, ' = ', item.value, ';', dest = 'src')
                         else:
                             if item.value.value != None:
-                                self.conditional_write('\n', 'object->', item.target, ' = ', item.value, ';', dest = 'src')
+                                self.conditional_write('\n', 'object->', \
+                                    item.target, ' = ', item.value, ';', dest = 'src')
                     else:
                         raise cgenException('Cannot declare attribute without \
                             initialization.\n', item.lineno)
@@ -670,7 +674,9 @@ class SourceGenerator(ExplicitNodeVisitor):
 
                 post_mangl = self.build_arg_mangling(item.args)
                 
-                self.statement(item, 'object->%s%s%s' %(pre_mangl, item.name, post_mangl), ' = &', '%s%s%s%s' %(pre_mangl, item.name, post_mangl, name), '_impl;')
+                self.statement(item, 'object->%s%s%s' %(pre_mangl, \
+                    item.name, post_mangl), ' = &', '%s%s%s%s' %(pre_mangl, \
+                    item.name, post_mangl, name), '_impl;')
                 
                 # build argument mangling
                 arg_mangl = self.build_arg_mangling(item.args)
@@ -893,16 +899,32 @@ class SourceGenerator(ExplicitNodeVisitor):
                     if self.typed_record[scope][target] == 'pmat':
                         # check for ExtSlices
                         if isinstance(node.targets[0].slice, ast.ExtSlice):
-                            first_index_l  = astu.unparse(node.targets[0].slice.dims[0].lower).strip('\n')
-                            first_index_u  = astu.unparse(node.targets[0].slice.dims[0].upper).strip('\n')
-                            second_index_l = astu.unparse(node.targets[0].slice.dims[1].lower).strip('\n')
-                            second_index_u = astu.unparse(node.targets[0].slice.dims[1].upper).strip('\n')
+                            first_index_l  = astu.unparse( \
+                                node.targets[0].slice.dims[0].lower).strip('\n')
+
+                            first_index_u  = astu.unparse( \
+                                node.targets[0].slice.dims[0].upper).strip('\n')
+
+                            second_index_l = astu.unparse( \
+                                node.targets[0].slice.dims[1].lower).strip('\n')
+
+                            second_index_u = astu.unparse( \
+                                node.targets[0].slice.dims[1].upper).strip('\n')
+
                             # check if subscripted expression is used in the value
                             if hasattr(node.value, 'slice'):
-                                first_index_value_l  = astu.unparse(node.value.slice.dims[0].lower).strip('\n')
-                                first_index_value_u  = astu.unparse(node.value.slice.dims[0].upper).strip('\n')
-                                second_index_value_l = astu.unparse(node.value.slice.dims[1].lower).strip('\n')
-                                second_index_value_u = astu.unparse(node.value.slice.dims[1].upper).strip('\n')
+                                first_index_value_l  = astu.unparse( \
+                                    node.value.slice.dims[0].lower).strip('\n')
+
+                                first_index_value_u  = astu.unparse( \
+                                    node.value.slice.dims[0].upper).strip('\n')
+
+                                second_index_value_l = astu.unparse( \
+                                    node.value.slice.dims[1].lower).strip('\n')
+
+                                second_index_value_u = astu.unparse( \
+                                    node.value.slice.dims[1].upper).strip('\n')
+
                                 ai = first_index_value_l
                                 aj = second_index_value_l
                                 value = node.value.value.id
@@ -1164,10 +1186,12 @@ class SourceGenerator(ExplicitNodeVisitor):
         # check if a List is being declared
         if ann is 'List':
             if node.value.func.id is not 'plist': 
-                raise cgenException('Cannot create Lists without using plist constructor.', node.lineno)
+                raise cgenException('Cannot create Lists without using \
+                    plist constructor.', node.lineno)
 
             if len(node.value.args) != 2:
-                raise cgenException('plist constructor takes 2 arguments plist(<type>, <sizes>).', node.lineno)
+                raise cgenException('plist constructor takes 2 arguments \
+                    plist(<type>, <sizes>).', node.lineno)
 
             # attribute is a List
             lann = node.value.args[0].id
