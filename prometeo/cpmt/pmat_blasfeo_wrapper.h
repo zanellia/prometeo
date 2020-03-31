@@ -43,6 +43,7 @@ void c_pmt_pmat_fill(struct pmat *A, double fill_value);
 void c_pmt_pmat_set_el(struct pmat *A, int i, int j, double value);
 double c_pmt_pmat_get_el(struct pmat *A, int i, int j);
 void c_pmt_pmat_copy(struct pmat *A, struct pmat *B);
+struct pmat * _c_pmt_pmat_copy(struct pmat *A, struct pmat *B);
 void c_pmt_pmat_tran(struct pmat *A, struct pmat *B);
 void c_pmt_gecp(int m, int n, struct pmat *A, int ai, int aj, struct pmat *B, int bi, int bj);
 void c_pmt_pmat_vcat(struct pmat *A, struct pmat *B, struct pmat *res);

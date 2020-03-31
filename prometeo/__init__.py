@@ -4,5 +4,6 @@ from . import mem
 from . import auxl
 from . import cmdline
 from . import mem
+from . import laparser
 from .linalg import *
 from .auxl import *

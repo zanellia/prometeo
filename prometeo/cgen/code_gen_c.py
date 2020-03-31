@@ -25,6 +25,7 @@ from .op_util import get_op_symbol, get_op_precedence, Precedence
 from .node_util import ExplicitNodeVisitor
 from .string_repr import pretty_string
 from .source_repr import pretty_source
+from ..laparser import *
 from collections import namedtuple
 import astpretty as ap
 import os
@@ -1655,6 +1656,32 @@ class SourceGenerator(ExplicitNodeVisitor):
                     # print string with no arguments
                     write('printf("%s\\n");\n' %repr(node.args[0].s)[1:-1], dest = 'src')
                     return
+            elif node.func.id == 'pparse':
+
+                # update typed_record.json
+                os.chdir('__pmt_cache__')
+                json_file = 'current_typed_record.json'
+                with open(json_file, 'w') as f:
+                    json.dump(self.typed_record[self.scope], f, indent=4, sort_keys=True)
+
+                os.chdir('..')
+                # pass string to laparser
+                fin= open("laparser_buffer_in.txt","w+")
+                fout= open("laparser_buffer_out.txt","w+")
+                fin.write('[[' + node.args[0].s + ']]')
+                fin.close()
+                fin= open("laparser_buffer_in.txt","r")
+
+                try:
+                    fprocess(fin, fout, './__pmt_cache__/current_typed_record.json')
+                except:
+                    raise cgenException('call to laparser failed', node.lineno)
+                fout.close()
+                fout= open("laparser_buffer_out.txt","r")
+                laparser_out = fout.read()
+                write(laparser_out, dest = 'src')
+                return
+
 
         args = node.args
         keywords = node.keywords

@@ -193,6 +193,7 @@ void c_pmt_gead(double alpha, struct pmat *A, struct pmat *B) {
     blasfeo_dgead(mA, nA, alpha, bA, 0, 0, bB, 0, 0);
 }
 
+
 struct pmat * _c_pmt_gead(double alpha, struct pmat *A, struct pmat *B) {
     int mA = A->bmat->m; 
     int nA = A->bmat->n; 
@@ -262,6 +263,20 @@ void c_pmt_pmat_copy(struct pmat *A, struct pmat *B) {
             value = blasfeo_dgeex1(A->bmat, i, j);
             blasfeo_dgein1(value, B->bmat, i, j);
         }
+}
+
+struct pmat * _c_pmt_pmat_copy(struct pmat *A, struct pmat *B) {
+    int m = A->bmat->m;
+    int n = A->bmat->n;
+    double value;
+
+    for(int i = 0; i < m; i++)
+        for(int j = 0; j < n; j++) {
+            value = blasfeo_dgeex1(A->bmat, i, j);
+            blasfeo_dgein1(value, B->bmat, i, j);
+        }
+
+    return B;
 }
 
 void c_pmt_pmat_tran(struct pmat *A, struct pmat *B) {

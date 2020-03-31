@@ -26,6 +26,7 @@ pmt_functions = {\
     'global@pmt_getrf': [], \
     'global@pmt_getrsm': [], \
     'global@print': [], \
+    'global@pparse': [], \
     } 
 
 def precedence_setter(AST=ast.AST, get_op_precedence=get_op_precedence,
