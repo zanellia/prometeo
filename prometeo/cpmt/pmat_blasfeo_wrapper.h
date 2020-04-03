@@ -25,11 +25,12 @@ void c_pmt_assign_and_advance_blasfeo_dmat(int m, int n, struct blasfeo_dmat **b
 
 // BLAS API
 void c_pmt_gemm_nn(struct pmat *A, struct pmat *B, struct pmat *C, struct pmat *D);
-struct pmat * _c_pmt_gemm_nn(struct pmat *A, struct pmat *B, struct pmat *C);
+struct pmat * _c_pmt_gemm_nn(struct pmat *A, struct pmat *B);
 void c_pmt_gemm_tn(struct pmat *A, struct pmat *B, struct pmat *C, struct pmat *D);
 void c_pmt_getrf(struct pmat *A, struct pmat *fact, int *ipiv);
 void c_pmt_potrf(struct pmat *A, struct pmat *fact);
 void c_pmt_getrsm(struct pmat *fact, int *ipiv, struct pmat *rhs);
+struct pmat * _c_pmt_getrsm(struct pmat *A, struct pmat *rhs);
 void c_pmt_getrsv(struct pmat *fact, int *ipiv, struct pvec *rhs);
 void c_pmt_potrsm(struct pmat *fact, struct pmat *rhs);
 void c_pmt_potrsv(struct pmat *fact, struct pvec *rhs);
@@ -45,6 +46,7 @@ double c_pmt_pmat_get_el(struct pmat *A, int i, int j);
 void c_pmt_pmat_copy(struct pmat *A, struct pmat *B);
 struct pmat * _c_pmt_pmat_copy(struct pmat *A, struct pmat *B);
 void c_pmt_pmat_tran(struct pmat *A, struct pmat *B);
+struct pmat * _c_pmt_pmat_tran(struct pmat *A);
 void c_pmt_gecp(int m, int n, struct pmat *A, int ai, int aj, struct pmat *B, int bi, int bj);
 void c_pmt_pmat_vcat(struct pmat *A, struct pmat *B, struct pmat *res);
 void c_pmt_pmat_hcat(struct pmat *A, struct pmat *B, struct pmat *res);

@@ -73,17 +73,16 @@ void c_pmt_gemm_nn(struct pmat *A, struct pmat *B, struct pmat *C, struct pmat *
     blasfeo_dgemm_nn(mA, nB, nA, 1.0, bA, 0, 0, bB, 0, 0, 1, bC, 0, 0, bD, 0, 0);
 }
 
-struct pmat * _c_pmt_gemm_nn(struct pmat *A, struct pmat *B, struct pmat *C) {
+struct pmat * _c_pmt_gemm_nn(struct pmat *A, struct pmat *B) {
     int mA = A->bmat->m; 
     int nA = A->bmat->n; 
     int nB = B->bmat->n; 
     struct blasfeo_dmat *bA = A->bmat;
     struct blasfeo_dmat *bB = B->bmat;
-    struct blasfeo_dmat *bC = C->bmat;
 
     
-    struct pmat *D = c_pmt_create_pmat(nA, nB);
-    struct blasfeo_dmat *bD = D->bmat;
+    struct pmat *C = c_pmt_create_pmat(nA, nB);
+    struct blasfeo_dmat *bC = C->bmat;
 
     // printf("In dgemm\n");
     // blasfeo_print_dmat(mA, nA, A->bmat, 0, 0);
@@ -91,8 +90,8 @@ struct pmat * _c_pmt_gemm_nn(struct pmat *A, struct pmat *B, struct pmat *C) {
     // blasfeo_print_dmat(mA, nA, C->bmat, 0, 0);
     // blasfeo_print_dmat(mA, nA, D->bmat, 0, 0);
 
-    blasfeo_dgemm_nn(mA, nB, nA, 1.0, bA, 0, 0, bB, 0, 0, 1, bC, 0, 0, bD, 0, 0);
-    return D;
+    blasfeo_dgemm_nn(mA, nB, nA, 1.0, bA, 0, 0, bB, 0, 0, 1, bC, 0, 0, bC, 0, 0);
+    return C;
 }
 
 void c_pmt_gemm_tn(struct pmat *A, struct pmat *B, struct pmat *C, struct pmat *D) {
@@ -152,6 +151,26 @@ void c_pmt_getrsm(struct pmat *fact, int *ipiv, struct pmat *rhs) {
     // triangular solves 
     blasfeo_dtrsm_llnu(mfact, mfact, 1.0, bfact, 0, 0, brhs, 0, 0, brhs, 0, 0);
     blasfeo_dtrsm_lunn(mfact, mfact, 1.0, bfact, 0, 0, brhs, 0, 0, brhs, 0, 0);
+}
+
+struct pmat * _c_pmt_getrsm(struct pmat *A, struct pmat *rhs) {
+    int mA = A->bmat->m; 
+    struct blasfeo_dmat *brhs  = rhs->bmat;
+    struct blasfeo_dmat *bA = A->bmat;
+
+    struct pmat *fact = c_pmt_create_pmat(mA, mA);
+    struct blasfeo_dmat *bfact = fact->bmat;
+
+	// permutation indeces
+	int *ipiv; int_zeros(&ipiv, mA, 1);
+    // factorization
+    blasfeo_dgetrf_rp(mA, mA, bA, 0, 0, bfact, 0, 0, ipiv);
+    // permute the r.h.s
+    blasfeo_drowpe(mA, ipiv, brhs);
+    // triangular solves 
+    blasfeo_dtrsm_llnu(mA, mA, 1.0, bfact, 0, 0, brhs, 0, 0, brhs, 0, 0);
+    blasfeo_dtrsm_lunn(mA, mA, 1.0, bfact, 0, 0, brhs, 0, 0, brhs, 0, 0);
+    return rhs;
 }
 
 void c_pmt_potrsm(struct pmat *fact, struct pmat *rhs) {
@@ -289,6 +308,21 @@ void c_pmt_pmat_tran(struct pmat *A, struct pmat *B) {
             value = blasfeo_dgeex1(A->bmat, i, j);
             blasfeo_dgein1(value, B->bmat, j, i);
         }
+}
+
+struct pmat * _c_pmt_pmat_tran(struct pmat *A) {
+    int m = A->bmat->m;
+    int n = A->bmat->n;
+    struct pmat *B = c_pmt_create_pmat(n, m);
+    struct blasfeo_dmat *bB = B->bmat;
+    double value;
+
+    for(int i = 0; i < m; i++)
+        for(int j = 0; j < n; j++) {
+            value = blasfeo_dgeex1(A->bmat, i, j);
+            blasfeo_dgein1(value, B->bmat, j, i);
+        }
+    return B;
 }
 
 void c_pmt_pmat_vcat(struct pmat *A, struct pmat *B, struct pmat *res) {

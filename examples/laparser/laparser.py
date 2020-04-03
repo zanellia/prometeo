@@ -12,12 +12,18 @@ def main() -> int:
 
     B: pmat = pmat(nx, nx)
     B[0,0] = 1.0  
-    B[0,1] = 0.0
+    B[0,1] = 2.0
     B[1,0] = 0.0
     B[1,1] = 1.0
 
+    D: pmat = pmat(nx, nx)
+    D[0,0] = 1.0  
+    D[0,1] = 3.0
+    D[1,0] = 2.0
+    D[1,1] = 1.0
+
     C: pmat = pmat(nx, nx)
 
-    pparse('C = A + B')
+    pparse('C = A - A.T \ (B * D)')
 
     pmat_print(C)

@@ -125,7 +125,8 @@ lpar = Literal("(").suppress()
 rpar = Literal(")").suppress()
 addop = plus | minus
 multop = mult | div | outer | solveop | solvePDop
-expop = Literal("^")
+# expop = Literal("^")
+expop = Literal(".")
 assignop = Literal("=")
 
 expr = Forward()
@@ -144,7 +145,7 @@ equation = (ident + assignop).setParseAction(_assignVar) + expr + StringEnd()
 ## The following are helper variables and functions used by the Binary Infix Operator
 ## Functions described below.
 
-vprefix = "pvec_"
+vprefix = "@pvec@"
 # vprefix = "m3_"
 vplen = len(vprefix)
 mprefix = "@pmat@"
@@ -274,14 +275,14 @@ def _expfunc(a, b, typed_record):
     b = preprocess_var_name(b, typed_record)
     ## The '^' operator is used for exponentiation on scalars and
     ## as a marker for unary operations on vectors and matrices.
-    if _isscalar(a) and _isscalar(b):
-        return "pow(%s,%s)" % (str(a), str(b))
+    # if _isscalar(a) and _isscalar(b):
+    #     return "pow(%s,%s)" % (str(a), str(b))
     if _ismat(a) and b == "-1 * ":
         return "mSolveLS(%s)" % (a)
     if _ismat(a) and b == "-1":
         return "mInverse(%s)" % (a)
     if _ismat(a) and b == "T":
-        return "mTranspose(%s)" % (a)
+        return "%s_c_pmt_pmat_tran(%s)" % (mprefix, a[mplen:])
     if _ismat(a) and b == "Det":
         return "mDeterminant(%s)" % (a)
     if _isvec(a, typed_record) and b == "Mag":
@@ -316,7 +317,7 @@ opn = {
     "*": (_mulfunc),
     "@": (_outermulfunc),
     "/": (_divfunc),
-    "^": (_expfunc),
+    ".": (_expfunc),
     "\\": (_solvefunc),
 }
 
@@ -325,7 +326,7 @@ opn = {
 # Recursive function that evaluates the expression stack
 def _evaluateStack(s, typed_record):
     op = s.pop()
-    if op in ['+','-', '*', '/', '@', '^', '\\']:
+    if op in ['+','-', '*', '/', '@', '.', '\\']:
         op2 = _evaluateStack(s, typed_record)
         op1 = _evaluateStack(s, typed_record)
         # print(op1, op2)
