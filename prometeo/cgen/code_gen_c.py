@@ -36,6 +36,7 @@ pmt_temp_functions = {\
         'pvec': 'c_pmt_create_pvec', \
         'pmt_gemm_nn': 'c_pmt_gemm_nn', \
         'pmt_gemm_tn': 'c_pmt_gemm_tn', \
+        'pmt_gemm_nt': 'c_pmt_gemm_nt', \
         'pmt_gead': 'c_pmt_gead', \
         'pmt_getrf': 'c_pmt_getrf', \
         'pmt_getrsm': 'c_pmt_getrsm', \

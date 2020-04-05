@@ -20,6 +20,7 @@ pmt_functions = {\
     'global@pmat_vcat': [], \
     'global@pmt_gemm_nn': [], \
     'global@pmt_gemm_tn': [], \
+    'global@pmt_gemm_nt': [], \
     'global@pmt_gead': [], \
     'global@pmt_potrf': [], \
     'global@pmt_potrsm': [], \

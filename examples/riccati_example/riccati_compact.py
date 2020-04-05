@@ -25,37 +25,26 @@ class qp_data:
     fact: List = plist(pmat, sizes)
 
     def factorize(self) -> None:
-        M: pmat = pmat(nxu, nxu)
-        Mxx: pmat = pmat(nx, nx)
-        L: pmat = pmat(nxu, nxu)
-        Q: pmat = pmat(nx, nx)
-        R: pmat = pmat(nu, nu)
-        BA: pmat = pmat(nx, nxu)
-        BAtP: pmat = pmat(nxu, nx)
-        pmat_copy(self.Q[N-1], self.P[N-1])
+        Qk: pmat = pmat(nx, nx)
+        Rk: pmat = pmat(nu, nu)
+        Ak: pmat = pmat(nx, nx)
+        Bk: pmat = pmat(nu, nu)
+        Pk: pmat = pmat(nx, nx)
+        pmat_copy(self.Q[N-1], Pk)
+        pmat_copy(Pk, self.P[N-1])
 
         for i in range(1, N):
-            pmat_hcat(self.B[N-i], self.A[N-i], BA)
-            pmat_fill(BAtP, 0.0)
-            pmt_gemm_tn(BA, self.P[N-i], BAtP, BAtP)
+            pmat_copy(self.Q[N-i-1], Qk)
+            pmat_copy(self.R[N-i-1], Rk)
+            pmat_copy(self.B[N-i-1], Bk)
+            pmat_copy(self.A[N-i-1], Ak)
 
-            pmat_copy(self.Q[N-i], Q)
-            pmat_copy(self.R[N-i], R)
-            pmat_fill(M, 0.0)
-            M[0:nu,0:nu] = R
-            M[nu:nu+nx,nu:nu+nx] = Q
+            pparse('Pk = Qk + Ak.T * Pk * Ak ' \
+                '- (Ak.T * Pk * Bk) * ((Rk + Bk.T * Pk * Bk)' \
+                '\ (Bk.T * Pk * Ak))')
 
-            pmt_gemm_nn(BAtP, BA, M, M)
-            # pmat_print(M)
-            pmat_fill(L, 0.0)
-            pmt_potrf(M, L)
-            # pmat_print(L)
-
-            Mxx[0:nx, 0:nx] = L[nu:nu+nx, nu:nu+nx]
-
-            pmat_fill(self.P[N-i-1], 0.0)
-            pmt_gemm_nt(Mxx, Mxx, self.P[N-i-1], self.P[N-i-1])
-            pmat_print(self.P[N-i-1])
+            pmat_print(Pk)
+            pmat_copy(Pk, self.P[N-i-1])
 
         return
 

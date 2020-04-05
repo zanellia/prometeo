@@ -216,7 +216,7 @@ def _subfunc(a, b, typed_record):
     # if _isvec(a) and _isvec(b):
     #     return "%svSubtract(%s,%s)" % (vprefix, a[vplen:], b[vplen:])
     if _ismat(a) and _ismat(b):
-        return "%s_c_pmt_gead(-1.0, %s,%s)" % (mprefix, a[mplen:], b[mplen:])
+        return "%s_c_pmt_gead(-1.0, %s,%s)" % (mprefix, b[mplen:], a[mplen:])
     else:
         raise TypeError
 

@@ -14,9 +14,6 @@ P = Q
 
 BA = zeros((nx, nxu))
 M = zeros((nxu, nxu))
-Mu = zeros((nu, nu))
-Mxu = zeros((nx, nu))
-Mux = zeros((nu, nxu))
 Mxx = zeros((nx, nx))
 for i in range(N):
     BA = concatenate((B,A),1)
@@ -25,13 +22,16 @@ for i in range(N):
     M[0:nu, 0:nu] = R
     M[nu:nu+nx, nu:nu+nx] = Q
     M = M + dot(BAtP, BA)
-    Mu[:nu, 0:nu] = M[0:nu, 0:nu]
-    Lu = linalg.cholesky(Mu)
-    Mux = M[0:nu, nx:nu+nx]
-    Mux = linalg.blas.dtrsm(1.0, transpose(Lu), Mux, lower=1)
-    Mux = linalg.blas.dtrsm(1.0, Lu, Mux, lower=0)
-    Mxu[0:nx, 0:nu] = M[nu:nu+nx, 0:nu]
-    Mxx[0:nx, 0:nx] = M[nu:nu+nx, nu:nu+nx]
-    P = Q + Mxx - dot(Mxu, Mux)
+    L = linalg.cholesky(M)
+    Mxx = L[nu:nu+nx, nu:nu+nx]
+    P = dot(transpose(Mxx), Mxx)
+    print('P:\n', P)
+
+P = Q
+for i in range(N):
+    P = Q + dot(transpose(A),dot(P,A)) - dot(dot(transpose(A),dot(P,B)), \
+        linalg.solve(R + dot(transpose(B), dot(P,B)), \
+        dot(dot(transpose(B),P), A)))
+
     print('P:\n', P)
 
