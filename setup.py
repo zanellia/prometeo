@@ -16,6 +16,7 @@ setup(name='prometeo',
       'numpy',
       'scipy',
       'multipledispatch',
+      'pyparsing',
       'mypy'
    ],
    zip_safe=False)
