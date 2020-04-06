@@ -123,12 +123,8 @@ class qp_data:
 
     def factorize(self) -> None:
         M: pmat = pmat(nxu, nxu)
-        Mu: pmat = pmat(nu, nu)
-        Mux: pmat = pmat(nu, nx)
-        Mxu: pmat = pmat(nx, nu)
         Mxx: pmat = pmat(nx, nx)
-        Mxx2: pmat = pmat(nx, nx)
-        Lu: pmat = pmat(nu, nu)
+        L: pmat = pmat(nxu, nxu)
         Q: pmat = pmat(nx, nx)
         R: pmat = pmat(nu, nu)
         BA: pmat = pmat(nx, nxu)
@@ -147,19 +143,13 @@ class qp_data:
             M[nu:nu+nx,nu:nu+nx] = Q
 
             pmt_gemm_nn(BAtP, BA, M, M)
-            Mu[0:nu, 0:nu] = M[0:nu, 0:nu]
-            pmt_potrf(Mu, Lu)
+            pmat_fill(L, 0.0)
+            pmt_potrf(M, L)
 
-            Mux[0:nu, 0:nx] = M[0:nu, nu:nu+nx]
-            Mxu[0:nx, 0:nu] = M[nu:nu+nx, 0:nu]
-            Mxx[0:nx, 0:nx] = M[nu:nu+nx, nu:nu+nx]
+            Mxx[0:nx, 0:nx] = L[nu:nu+nx, nu:nu+nx]
 
-            pmt_potrsm(Lu, Mux)
-            pmat_fill(Mxx2, 0.0)
-            pmt_gemm_nn(Mxu, Mux, Mxx2, Mxx2)
-            pmt_gead(-1.0, Mxx2, Mxx)
-            pmat_copy(Mxx, self.P[N-i-1])
-            pmt_gead(1.0, Q, self.P[N-i-1])
+            pmat_fill(self.P[N-i-1], 0.0)
+            pmt_gemm_nt(Mxx, Mxx, self.P[N-i-1], self.P[N-i-1])
             pmat_print(self.P[N-i-1])
 
         return
@@ -278,12 +268,8 @@ void _Z9factorizeqp_data_impl(qp_data *self) {
 	void *callee_pmt_64_heap = ___c_pmt_64_heap;
 
     struct pmat * M = c_pmt_create_pmat(nxu, nxu);
-    struct pmat * Mu = c_pmt_create_pmat(nu, nu);
-    struct pmat * Mux = c_pmt_create_pmat(nu, nx);
-    struct pmat * Mxu = c_pmt_create_pmat(nx, nu);
     struct pmat * Mxx = c_pmt_create_pmat(nx, nx);
-    struct pmat * Mxx2 = c_pmt_create_pmat(nx, nx);
-    struct pmat * Lu = c_pmt_create_pmat(nu, nu);
+    struct pmat * L = c_pmt_create_pmat(nxu, nxu);
     struct pmat * Q = c_pmt_create_pmat(nx, nx);
     struct pmat * R = c_pmt_create_pmat(nu, nu);
     struct pmat * BA = c_pmt_create_pmat(nx, nxu);
@@ -299,17 +285,11 @@ void _Z9factorizeqp_data_impl(qp_data *self) {
         c_pmt_gecp(nu-0, nu-0, R, 0, 0, M, 0, 0);
         c_pmt_gecp((nu + nx)-nu, (nu + nx)-nu, Q, 0, 0, M, nu, nu);
         c_pmt_gemm_nn(BAtP, BA, M, M);
-        c_pmt_gecp(nu-0, nu-0, M, 0, 0, Mu, 0, 0);
-        c_pmt_potrf(Mu, Lu);
-        c_pmt_gecp(nu-0, nx-0, M, 0, nu, Mux, 0, 0);
-        c_pmt_gecp(nx-0, nu-0, M, nu, 0, Mxu, 0, 0);
-        c_pmt_gecp(nx-0, nx-0, M, nu, nu, Mxx, 0, 0);
-        c_pmt_potrsm(Lu, Mux);
-        c_pmt_pmat_fill(Mxx2, 0.0);
-        c_pmt_gemm_nn(Mxu, Mux, Mxx2, Mxx2);
-        c_pmt_gead(-1.0, Mxx2, Mxx);
-        c_pmt_pmat_copy(Mxx, self->P[N - i - 1]);
-        c_pmt_gead(1.0, Q, self->P[N - i - 1]);
+        c_pmt_pmat_fill(L, 0.0);
+        c_pmt_potrf(M, L);
+        c_pmt_gecp(nx-0, nx-0, L, nu, nu, Mxx, 0, 0);
+        c_pmt_pmat_fill(self->P[N - i - 1], 0.0);
+        c_pmt_gemm_nt(Mxx, Mxx, self->P[N - i - 1], self->P[N - i - 1]);
         c_pmt_pmat_print(self->P[N - i - 1]);
     }
 
