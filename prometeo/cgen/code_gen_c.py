@@ -25,7 +25,7 @@ from .op_util import get_op_symbol, get_op_precedence, Precedence
 from .node_util import ExplicitNodeVisitor
 from .string_repr import pretty_string
 from .source_repr import pretty_source
-from ..laparser import *
+from ..laparser.laparser import *
 from collections import namedtuple
 import astpretty as ap
 import os
