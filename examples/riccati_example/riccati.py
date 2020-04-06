@@ -46,10 +46,8 @@ class qp_data:
             M[nu:nu+nx,nu:nu+nx] = Q
 
             pmt_gemm_nn(BAtP, BA, M, M)
-            # pmat_print(M)
             pmat_fill(L, 0.0)
             pmt_potrf(M, L)
-            # pmat_print(L)
 
             Mxx[0:nx, 0:nx] = L[nu:nu+nx, nu:nu+nx]
 
