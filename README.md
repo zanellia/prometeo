@@ -103,15 +103,6 @@ nxu: dims = 4
 nu: dims  = 2
 N:  dims  = 5
 
-def function1() -> None:
-    # M: pmat = pmat(nxu, nxu)
-    function2()
-    return
-                        
-def function2() -> None:
-    function1()
-    return
-
 class qp_data:
     A: List = plist(pmat, sizes)
     B: List = plist(pmat, sizes)
@@ -208,25 +199,7 @@ void * ___c_pmt_8_heap_head;
 void * ___c_pmt_64_heap_head;
 
 #include "prometeo.h"
-void function1() {
-	void *callee_pmt_8_heap = ___c_pmt_8_heap;
-	void *callee_pmt_64_heap = ___c_pmt_64_heap;
 
-    function2();
-	___c_pmt_8_heap = callee_pmt_8_heap;
-	___c_pmt_64_heap = callee_pmt_64_heap;
-
-    return ;
-}void function2() {
-	void *callee_pmt_8_heap = ___c_pmt_8_heap;
-	void *callee_pmt_64_heap = ___c_pmt_64_heap;
-
-    function1();
-	___c_pmt_8_heap = callee_pmt_8_heap;
-	___c_pmt_64_heap = callee_pmt_64_heap;
-
-    return ;
-}
 void qp_data_init(struct qp_data *object){
     object->A[0] = c_pmt_create_pmat(2, 2);
     object->A[1] = c_pmt_create_pmat(2, 2);
