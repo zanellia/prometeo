@@ -5,5 +5,6 @@ from . import auxl
 from . import cmdline
 from . import mem
 from . import laparser
+from . import nonlinear
 from .linalg import *
 from .auxl import *

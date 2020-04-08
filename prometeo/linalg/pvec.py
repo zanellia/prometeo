@@ -13,8 +13,13 @@ class pvec(pvec_):
     blasfeo_dvec = None
 
     def __init__(self, m: int):
-        self.blasfeo_dvec = c_pmt_create_blasfeo_dvec(m)  
+       self._m = m
+       self.blasfeo_dvec = c_pmt_create_blasfeo_dvec(m)  
     
+    @property
+    def m(self):
+        return self._m
+
     def __getitem__(self, index):
         return pvec_get(self, index)
 

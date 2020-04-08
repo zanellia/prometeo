@@ -19,8 +19,21 @@ def main() -> int:
     v[1] = 1.0
 
     x : ca = ca.SX.sym('x', 1, 1) 
-    fun = pfun('test_fun', 'A*v + sin(x)', {'A': A, 'v': v, 'x': x})
-    import pdb; pdb.set_trace()
+    test_fun : pfun = pfun('test_fun', 'ca.mtimes(A, v) + sin(x)', \
+        {'A': A, 'v': v, 'x': x})
+    
+    res : float = 0.0
+    res = test_fun(1.0)
+    print(res)
+
+    test_jac : pfun = pfun('test_jac', 'ca.jacobian( \
+        ca.mtimes(A, v) + sin(x), x)', \
+        {'A': A, 'v': v, 'x': x})
+    
+    res = test_jac(1.0)
+
+    print(res)
+
     return 0
 
 
