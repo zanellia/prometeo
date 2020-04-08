@@ -17,6 +17,7 @@ setup(name='prometeo',
       'scipy',
       'multipledispatch',
       'pyparsing',
-      'mypy'
+      'mypy',
+      'casadi==3.4.5'
    ],
    zip_safe=False)
