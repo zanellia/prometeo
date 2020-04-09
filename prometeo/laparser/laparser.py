@@ -415,7 +415,7 @@ def parse(input_string, typed_record):
 
 
 ##-----------------------------------------------------------------------------------
-def fprocess(infilep, outfilep, typed_record_json):
+def fprocess(expr, typed_record_json):
     """
    Scans an input file for LA equations between double square brackets,
    e.g. [[ M3_mymatrix = M3_anothermatrix^-1 ]], and replaces the expression
@@ -429,7 +429,6 @@ def fprocess(infilep, outfilep, typed_record_json):
    """
     pattern = r"\[\[\s*(.*?)\s*\]\]"
     eqn = re.compile(pattern, re.DOTALL)
-    s = infilep.read()
 
     with open(typed_record_json, 'r') as f:
         typed_record = json.load(f)
@@ -437,11 +436,10 @@ def fprocess(infilep, outfilep, typed_record_json):
     def parser(mo):
         ccode = parse(mo.group(1), typed_record)
         return "\n%s;\n" % (ccode)
-        # return "/* %s */\n%s;\nLAParserBufferReset();\n" % (mo.group(1), ccode)
 
-    content = eqn.sub(parser, s)
-    print(content)
-    outfilep.write(content)
+    content = eqn.sub(parser, expr)
+    return content
+
 
 
 ##-----------------------------------------------------------------------------------

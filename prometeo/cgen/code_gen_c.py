@@ -1666,20 +1666,14 @@ class SourceGenerator(ExplicitNodeVisitor):
                     json.dump(self.typed_record[self.scope], f, indent=4, sort_keys=True)
 
                 os.chdir('..')
+                # unescape 
+                expr = '[[' + node.args[0].s + ']]'
                 # pass string to laparser
-                fin= open("laparser_buffer_in.txt","w+")
-                fout= open("laparser_buffer_out.txt","w+")
-                fin.write('[[' + node.args[0].s + ']]')
-                fin.close()
-                fin= open("laparser_buffer_in.txt","r")
-
                 try:
-                    fprocess(fin, fout, './__pmt_cache__/current_typed_record.json')
+                    laparser_out = fprocess(expr, \
+                        './__pmt_cache__/current_typed_record.json')
                 except:
                     raise cgenException('call to laparser failed', node.lineno)
-                fout.close()
-                fout= open("laparser_buffer_out.txt","r")
-                laparser_out = fout.read()
                 write(laparser_out, dest = 'src')
                 return
 
