@@ -146,26 +146,31 @@ equation = (ident + assignop).setParseAction(_assignVar) + expr + StringEnd()
 ## Functions described below.
 
 vprefix = "@pvec@"
-# vprefix = "m3_"
 vplen = len(vprefix)
 mprefix = "@pmat@"
-# mprefix = "v3_"
 mplen = len(mprefix)
 
 ## We don't support unary negation for vectors and matrices
 class UnaryUnsupportedError(Exception):
     pass
 
-
-# def _isvec(ident, typed_record):
+# def _isvec(ident, records):
 #     if ident[0] == "-" and ident[1 : vplen + 1] == vprefix:
 #         raise UnaryUnsupportedError
 #     else:
 #         return ident[0:vplen] == vprefix
 
-def preprocess_var_name(ident, typed_record):
+class Operand:
+    def __init__(self, size, expr, optype):
+        self.size = size
+        self.expr = expr
+        self.optype = optype
+
+def preprocess_var_name(ident, records):
+    typed_record = records[0]
     if ident in typed_record:
         if typed_record[ident] == 'pmat':
+            import pdb; pdb.set_trace()
             return '@pmat@' + ident 
         else:
             raise Exception('Undefined variable {}'.format(ident))
@@ -178,9 +183,8 @@ def _ismat(ident):
     else:
         return ident[0:mplen] == mprefix
 
-# def _isscalar(ident, typed_record):
+# def _isscalar(ident, records):
 #     return not (_isvec(ident) or _ismat(ident))
-
 
 ## Binary infix operator (BIO) functions.  These are called when the stack evaluator
 ## pops a binary operator like '+' or '*".  The stack evaluator pops the two operand, a and b,
@@ -195,9 +199,10 @@ def _ismat(ident):
 ## recurses toward the final assignment statement.
 
 
-def _addfunc(a, b, typed_record):
-    a = preprocess_var_name(a, typed_record)
-    b = preprocess_var_name(b, typed_record)
+def _addfunc(a, b, records):
+    typed_record = records[0]
+    a = preprocess_var_name(a, records)
+    b = preprocess_var_name(b, records)
     # if _isscalar(a) and _isscalar(b):
     #     return "(%s+%s)" % (a, b)
     # if _isvec(a) and _isvec(b):
@@ -208,9 +213,10 @@ def _addfunc(a, b, typed_record):
         raise TypeError
 
 
-def _subfunc(a, b, typed_record):
-    a = preprocess_var_name(a, typed_record)
-    b = preprocess_var_name(b, typed_record)
+def _subfunc(a, b, records):
+    typed_record = records[0]
+    a = preprocess_var_name(a, records)
+    b = preprocess_var_name(b, records)
     # if _isscalar(a) and _isscalar(b):
     #     return "(%s-%s)" % (a, b)
     # if _isvec(a) and _isvec(b):
@@ -221,9 +227,10 @@ def _subfunc(a, b, typed_record):
         raise TypeError
 
 
-def _mulfunc(a, b, typed_record):
-    a = preprocess_var_name(a, typed_record)
-    b = preprocess_var_name(b, typed_record)
+def _mulfunc(a, b, records):
+    typed_record = records[0]
+    a = preprocess_var_name(a, records)
+    b = preprocess_var_name(b, records)
     if _ismat(a) and _ismat(b):
         return "%s_c_pmt_gemm_nn(%s,%s)" % (mprefix, a[mplen:], b[mplen:])
     # if _isscalar(a) and _isscalar(b):
@@ -240,9 +247,10 @@ def _mulfunc(a, b, typed_record):
         raise TypeError
 
 
-def _solvefunc(a, b, typed_record):
-    a = preprocess_var_name(a, typed_record)
-    b = preprocess_var_name(b, typed_record)
+def _solvefunc(a, b, records):
+    typed_record = records[0]
+    a = preprocess_var_name(a, records)
+    b = preprocess_var_name(b, records)
     if _ismat(a) and _ismat(b):
         return "%s_c_pmt_getrsm(%s,%s)" % (mprefix, a[mplen:], b[mplen:])
     else:
@@ -250,9 +258,10 @@ def _solvefunc(a, b, typed_record):
 
 
 
-def _outermulfunc(a, b, typed_record):
-    a = preprocess_var_name(a, typed_record)
-    b = preprocess_var_name(b, typed_record)
+def _outermulfunc(a, b, records):
+    typed_record = records[0]
+    a = preprocess_var_name(a, records)
+    b = preprocess_var_name(b, records)
     ## The '@' operator is used for the vector outer product.
     if _isvec(a) and _isvec(b):
         return "%svOuterProduct(%s,%s)" % (mprefix, a[vplen:], b[vplen:])
@@ -260,9 +269,10 @@ def _outermulfunc(a, b, typed_record):
         raise TypeError
 
 
-def _divfunc(a, b, typed_record):
-    a = preprocess_var_name(a, typed_record)
-    b = preprocess_var_name(b, typed_record)
+def _divfunc(a, b, records):
+    typed_record = records[0]
+    a = preprocess_var_name(a, records)
+    b = preprocess_var_name(b, records)
     ## The '/' operator is used only for scalar division
     if _isscalar(a, typed_record) and _isscalar(b, typed_record):
         return "%s/%s" % (a, b)
@@ -270,9 +280,10 @@ def _divfunc(a, b, typed_record):
         raise TypeError
 
 
-def _expfunc(a, b, typed_record):
-    a = preprocess_var_name(a, typed_record)
-    b = preprocess_var_name(b, typed_record)
+def _expfunc(a, b, records):
+    typed_record = records[0]
+    a = preprocess_var_name(a, records)
+    b = preprocess_var_name(b, records)
     ## The '^' operator is used for exponentiation on scalars and
     ## as a marker for unary operations on vectors and matrices.
     # if _isscalar(a) and _isscalar(b):
@@ -293,9 +304,10 @@ def _expfunc(a, b, typed_record):
         raise TypeError
 
 
-def _assignfunc(a, b, typed_record):
-    a = preprocess_var_name(a, typed_record)
-    b = preprocess_var_name(b, typed_record)
+def _assignfunc(a, b, records):
+    typed_record = records[0]
+    a = preprocess_var_name(a, records)
+    b = preprocess_var_name(b, records)
     ## The '=' operator is used for assignment
     # if _isscalar(a) and _isscalar(b):
     #     return "%s=%s" % (a, b)
@@ -324,13 +336,15 @@ opn = {
 
 ##----------------------------------------------------------------------------
 # Recursive function that evaluates the expression stack
-def _evaluateStack(s, typed_record):
+def _evaluateStack(s, records):
+    typed_record = records[0]
     op = s.pop()
     if op in ['+','-', '*', '/', '@', '.', '\\']:
-        op2 = _evaluateStack(s, typed_record)
-        op1 = _evaluateStack(s, typed_record)
+        op2 = _evaluateStack(s, records)
+        op1 = _evaluateStack(s, records)
         # print(op1, op2)
-        result = opn[op](op1, op2, typed_record)
+        result = opn[op](op1, op2, records)
+        import pdb; pdb.set_trace()
         if debug_flag:
             print(result)
         return result
@@ -340,7 +354,8 @@ def _evaluateStack(s, typed_record):
 
 ##----------------------------------------------------------------------------
 # The parse function that invokes all of the above.
-def parse(input_string, typed_record):
+def parse(input_string, records):
+    typed_record = records[0]
     """
     Accepts an input string containing an LA equation, e.g.,
     "M3_mymatrix = M3_anothermatrix^-1" returns C code function
@@ -372,7 +387,7 @@ def parse(input_string, typed_record):
 
         # Evaluate the stack of parsed operands, emitting C code.
         try:
-            result = _evaluateStack(exprStack, typed_record)
+            result = _evaluateStack(exprStack, records)
         except TypeError:
             print(
                 "Unsupported operation on right side of '%s'.\nCheck for missing or incorrect tags on non-scalar operands."
@@ -393,7 +408,7 @@ def parse(input_string, typed_record):
             print("var=", targetvar)
         if targetvar != None:
             try:
-                result = _assignfunc(targetvar, result, typed_record)
+                result = _assignfunc(targetvar, result, records)
             except TypeError:
                 print(
                     "Left side tag does not match right side of '%s'" % input_string,
@@ -415,7 +430,7 @@ def parse(input_string, typed_record):
 
 
 ##-----------------------------------------------------------------------------------
-def fprocess(expr, typed_record_json):
+def fprocess(expr, typed_record_json, dim_record_json, var_dim_record_json):
     """
    Scans an input file for LA equations between double square brackets,
    e.g. [[ M3_mymatrix = M3_anothermatrix^-1 ]], and replaces the expression
@@ -433,8 +448,19 @@ def fprocess(expr, typed_record_json):
     with open(typed_record_json, 'r') as f:
         typed_record = json.load(f)
 
+    with open(dim_record_json, 'r') as f:
+        dim_record = json.load(f)
+
+    with open(var_dim_record_json, 'r') as f:
+        var_dim_record = json.load(f)
+
+    records = dict()
+    records[0] = typed_record
+    records[1] = dim_record
+    records[2] = var_dim_record
+
     def parser(mo):
-        ccode = parse(mo.group(1), typed_record)
+        ccode = parse(mo.group(1), records)
         return "\n%s;\n" % (ccode)
 
     content = eqn.sub(parser, expr)

@@ -1659,20 +1659,32 @@ class SourceGenerator(ExplicitNodeVisitor):
                     return
             elif node.func.id == 'pparse':
 
-                # update typed_record.json
+                # update records
                 os.chdir('__pmt_cache__')
                 json_file = 'current_typed_record.json'
                 with open(json_file, 'w') as f:
                     json.dump(self.typed_record[self.scope], f, indent=4, sort_keys=True)
 
+                json_file = 'dim_record.json'
+                with open(json_file, 'w') as f:
+                    json.dump(self.dim_record, f, indent=4, sort_keys=True)
+
+                json_file = 'var_dim_record.json'
+                with open(json_file, 'w') as f:
+                    json.dump(self.var_dim_record[self.scope], f, indent=4, sort_keys=True)
+
                 os.chdir('..')
+
                 # unescape 
                 expr = '[[' + node.args[0].s + ']]'
                 # pass string to laparser
                 try:
                     laparser_out = fprocess(expr, \
-                        './__pmt_cache__/current_typed_record.json')
-                except:
+                        './__pmt_cache__/current_typed_record.json', 
+                        './__pmt_cache__/dim_record.json', 
+                        './__pmt_cache__/var_dim_record.json')
+                except Exception as e:
+                    print('\n > laparser exception: ', e)
                     raise cgenException('call to laparser failed', node.lineno)
                 write(laparser_out, dest = 'src')
                 return

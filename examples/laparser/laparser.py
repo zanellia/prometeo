@@ -24,6 +24,6 @@ def main() -> int:
 
     C: pmat = pmat(nx, nx)
 
-    pparse('C = A - A.T \ (B * D)')
+    pparse('C = A - A.T \ (B * D).T')
 
     pmat_print(C)
