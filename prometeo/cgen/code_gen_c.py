@@ -1681,8 +1681,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                 try:
                     laparser_out = fprocess(expr, \
                         './__pmt_cache__/current_typed_record.json', 
-                        './__pmt_cache__/dim_record.json', 
-                        './__pmt_cache__/var_dim_record.json')
+                        './__pmt_cache__/var_dim_record.json', 
+                        './__pmt_cache__/dim_record.json')
                 except Exception as e:
                     print('\n > laparser exception: ', e)
                     raise cgenException('call to laparser failed', node.lineno)

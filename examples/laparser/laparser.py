@@ -25,5 +25,6 @@ def main() -> int:
     C: pmat = pmat(nx, nx)
 
     pparse('C = A - A.T \ (B * D).T')
+    # pparse('C = A + B')
 
     pmat_print(C)

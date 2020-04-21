@@ -75,7 +75,7 @@ debug_flag = False
 # Variables that hold intermediate parsing results and a couple of
 # helper functions.
 exprStack = []  # Holds operators and operands parsed from input.
-targetvar = None  # Holds variable name to left of '=' sign in LA equation.
+# targetvar = None  # Holds variable name to left of '=' sign in LA equation.
 
 
 def _pushFirst(str, loc, toks):
@@ -84,9 +84,9 @@ def _pushFirst(str, loc, toks):
     exprStack.append(toks[0])
 
 
-def _assignVar(str, loc, toks):
-    global targetvar
-    targetvar = toks[0]
+# def _assignVar(str, loc, toks):
+#     global targetvar
+#     targetvar = Operand(toks[0]
 
 
 # -----------------------------------------------------------------------------
@@ -118,13 +118,12 @@ minus = Literal("-")
 mult = Literal("*")
 div = Literal("/")
 solveop = Literal("\\")
-solvePDop = Literal("\\p")
 outer = Literal("@")
 # solveop = Literal("~")
 lpar = Literal("(").suppress()
 rpar = Literal(")").suppress()
 addop = plus | minus
-multop = mult | div | outer | solveop | solvePDop
+multop = mult | div | outer | solveop
 # expop = Literal("^")
 expop = Literal(".")
 assignop = Literal("=")
@@ -138,17 +137,15 @@ factor << atom + ZeroOrMore((expop + factor).setParseAction(_pushFirst))
 
 term = factor + ZeroOrMore((multop + factor).setParseAction(_pushFirst))
 expr << term + ZeroOrMore((addop + term).setParseAction(_pushFirst))
-equation = (ident + assignop).setParseAction(_assignVar) + expr + StringEnd()
+# equation = (ident + assignop).setParseAction(_pushFirst) + expr + StringEnd()
+equation = ident + assignop + expr + StringEnd()
+# equation = (ident + assignop).setParseAction(_pushFirst) + expr + StringEnd()
+# equation = expr + StringEnd()
 
 # End of grammar definition
 # -----------------------------------------------------------------------------
 ## The following are helper variables and functions used by the Binary Infix Operator
 ## Functions described below.
-
-vprefix = "@pvec@"
-vplen = len(vprefix)
-mprefix = "@pmat@"
-mplen = len(mprefix)
 
 ## We don't support unary negation for vectors and matrices
 class UnaryUnsupportedError(Exception):
@@ -161,27 +158,23 @@ class UnaryUnsupportedError(Exception):
 #         return ident[0:vplen] == vprefix
 
 class Operand:
-    def __init__(self, size, expr, optype):
-        self.size = size
-        self.expr = expr
-        self.optype = optype
+    def __init__(self, oname, otype, osize, oexpr):
+        self.name = oname
+        self.type = otype
+        self.size = osize
+        self.expr = oexpr
 
-def preprocess_var_name(ident, records):
-    typed_record = records[0]
-    if ident in typed_record:
-        if typed_record[ident] == 'pmat':
-            import pdb; pdb.set_trace()
-            return '@pmat@' + ident 
-        else:
-            raise Exception('Undefined variable {}'.format(ident))
-    else:
-        return ident
+# def _ismat(ident):
+#     if ident[0] == "-" and ident[1 : mplen + 1] == mprefix:
+#         raise UnaryUnsupportedError
+#     else:
+#         return ident[0:mplen] == mprefix
 
-def _ismat(ident):
-    if ident[0] == "-" and ident[1 : mplen + 1] == mprefix:
-        raise UnaryUnsupportedError
+def _ismat(op):
+    if op.type == 'pmat':
+        return True
     else:
-        return ident[0:mplen] == mprefix
+        return False
 
 # def _isscalar(ident, records):
 #     return not (_isvec(ident) or _ismat(ident))
@@ -201,120 +194,59 @@ def _ismat(ident):
 
 def _addfunc(a, b, records):
     typed_record = records[0]
-    a = preprocess_var_name(a, records)
-    b = preprocess_var_name(b, records)
-    # if _isscalar(a) and _isscalar(b):
-    #     return "(%s+%s)" % (a, b)
     # if _isvec(a) and _isvec(b):
     #     return "%svAdd(%s,%s)" % (vprefix, a[vplen:], b[vplen:])
     if _ismat(a) and _ismat(b):
-        return "%s_c_pmt_gead(1.0, %s,%s)" % (mprefix, a[mplen:], b[mplen:])
+        return Operand(a.name + '_+_' + b.name, 'pmat', [a.size[0], a.size[1]], \
+            '_c_pmt_gead(1.0, %s, %s)' % (a.expr, b.expr))
     else:
         raise TypeError
 
 
 def _subfunc(a, b, records):
     typed_record = records[0]
-    a = preprocess_var_name(a, records)
-    b = preprocess_var_name(b, records)
     # if _isscalar(a) and _isscalar(b):
     #     return "(%s-%s)" % (a, b)
     # if _isvec(a) and _isvec(b):
     #     return "%svSubtract(%s,%s)" % (vprefix, a[vplen:], b[vplen:])
     if _ismat(a) and _ismat(b):
-        return "%s_c_pmt_gead(-1.0, %s,%s)" % (mprefix, b[mplen:], a[mplen:])
+        return Operand(a.name + '_-_' + b.name, 'pmat', [a.size[0], a.size[1]], \
+            '_c_pmt_gead(-1.0, %s,%s)' % (a.expr, b.expr))
     else:
         raise TypeError
 
 
 def _mulfunc(a, b, records):
     typed_record = records[0]
-    a = preprocess_var_name(a, records)
-    b = preprocess_var_name(b, records)
     if _ismat(a) and _ismat(b):
-        return "%s_c_pmt_gemm_nn(%s,%s)" % (mprefix, a[mplen:], b[mplen:])
-    # if _isscalar(a) and _isscalar(b):
-    #     return "%s*%s" % (a, b)
-    # if _isvec(a) and _isvec(b):
-    #     return "vDot(%s,%s)" % (a[vplen:], b[vplen:])
-    # if _ismat(a) and _isvec(b):
-    #     return "%smvMultiply(%s,%s)" % (vprefix, a[mplen:], b[vplen:])
-    # if _ismat(a) and _isscalar(b):
-    #     return "%smScale(%s,%s)" % (mprefix, a[mplen:], b)
-    # if _isvec(a) and _isscalar(b):
-    #     return "%svScale(%s,%s)" % (vprefix, a[mplen:], b)
+        return Operand(a.name + '_*_' + b.name, 'pmat', [a.size[0], b.size[1]], \
+            '_c_pmt_gemm_nn(%s,%s)' % (a.expr, b.expr))
     else:
         raise TypeError
 
 
 def _solvefunc(a, b, records):
     typed_record = records[0]
-    a = preprocess_var_name(a, records)
-    b = preprocess_var_name(b, records)
     if _ismat(a) and _ismat(b):
-        return "%s_c_pmt_getrsm(%s,%s)" % (mprefix, a[mplen:], b[mplen:])
+        return Operand(a.name + '_/_' + b.name, 'pmat', [a.size[0], b.size[1]], \
+            '_c_pmt_getrsm(%s,%s)' % (a.expr, b.expr))
     else:
         raise TypeError
-
-
-
-def _outermulfunc(a, b, records):
-    typed_record = records[0]
-    a = preprocess_var_name(a, records)
-    b = preprocess_var_name(b, records)
-    ## The '@' operator is used for the vector outer product.
-    if _isvec(a) and _isvec(b):
-        return "%svOuterProduct(%s,%s)" % (mprefix, a[vplen:], b[vplen:])
-    else:
-        raise TypeError
-
-
-def _divfunc(a, b, records):
-    typed_record = records[0]
-    a = preprocess_var_name(a, records)
-    b = preprocess_var_name(b, records)
-    ## The '/' operator is used only for scalar division
-    if _isscalar(a, typed_record) and _isscalar(b, typed_record):
-        return "%s/%s" % (a, b)
-    else:
-        raise TypeError
-
 
 def _expfunc(a, b, records):
     typed_record = records[0]
-    a = preprocess_var_name(a, records)
-    b = preprocess_var_name(b, records)
-    ## The '^' operator is used for exponentiation on scalars and
-    ## as a marker for unary operations on vectors and matrices.
-    # if _isscalar(a) and _isscalar(b):
-    #     return "pow(%s,%s)" % (str(a), str(b))
-    if _ismat(a) and b == "-1 * ":
-        return "mSolveLS(%s)" % (a)
-    if _ismat(a) and b == "-1":
-        return "mInverse(%s)" % (a)
-    if _ismat(a) and b == "T":
-        return "%s_c_pmt_pmat_tran(%s)" % (mprefix, a[mplen:])
-    if _ismat(a) and b == "Det":
-        return "mDeterminant(%s)" % (a)
-    if _isvec(a, typed_record) and b == "Mag":
-        return "sqrt(vMagnitude2(%s))" % (a[vplen:])
-    if _isvec(a, typed_record) and b == "Mag2":
-        return "vMagnitude2(%s)" % (a)
+    if _ismat(a) and b.name == "T":
+        return Operand(a.name + '_T', 'pmat', [a.size[1], a.size[0]], \
+            '_c_pmt_pmat_tran(%s)' % (a.expr))
     else:
         raise TypeError
 
 
 def _assignfunc(a, b, records):
     typed_record = records[0]
-    a = preprocess_var_name(a, records)
-    b = preprocess_var_name(b, records)
-    ## The '=' operator is used for assignment
-    # if _isscalar(a) and _isscalar(b):
-    #     return "%s=%s" % (a, b)
-    # if _isvec(a) and _isvec(b):
-    #     return "vCopy(%s,%s)" % (a[vplen:], b[vplen:])
     if _ismat(a) and _ismat(b):
-        return "_c_pmt_pmat_copy(%s,%s)" % (b[mplen:], a[mplen:])
+        return Operand(a.name + '_+_' + b.name, 'pmat', [a.size[0], a.size[1]], \
+            '_c_pmt_pmat_copy(%s,%s)' % (b.expr, a.expr))
     else:
         raise TypeError
 
@@ -327,35 +259,49 @@ opn = {
     "+": (_addfunc),
     "-": (_subfunc),
     "*": (_mulfunc),
-    "@": (_outermulfunc),
-    "/": (_divfunc),
     ".": (_expfunc),
     "\\": (_solvefunc),
+    "=": (_assignfunc),
 }
 
+
+def LAParser():
+    def __init__(self):
 
 ##----------------------------------------------------------------------------
 # Recursive function that evaluates the expression stack
 def _evaluateStack(s, records):
     typed_record = records[0]
-    op = s.pop()
-    if op in ['+','-', '*', '/', '@', '.', '\\']:
+    var_dim_record = records[1]
+    token = s.pop()
+    print('s=', s)
+    print('token=', token)
+    if token == '.':
+        token2 = s.pop()
+        import pdb; pdb.set_trace()
+        op2 = Operand(token2, [''], [0,0], '')
+        op1 = _evaluateStack(s, records)
+        result = opn[token](op1, op2, records)
+        if debug_flag:
+            print(result)
+        return result
+    elif token in ['+','-', '*', '/', '@', '\\', '=']:
         op2 = _evaluateStack(s, records)
         op1 = _evaluateStack(s, records)
         # print(op1, op2)
-        result = opn[op](op1, op2, records)
-        import pdb; pdb.set_trace()
+        result = opn[token](op1, op2, records)
         if debug_flag:
             print(result)
         return result
     else:
-        return op
+        return Operand(token, typed_record[token], var_dim_record[token], token) 
 
 
 ##----------------------------------------------------------------------------
 # The parse function that invokes all of the above.
 def parse(input_string, records):
     typed_record = records[0]
+    var_dim_record = records[1]
     """
     Accepts an input string containing an LA equation, e.g.,
     "M3_mymatrix = M3_anothermatrix^-1" returns C code function
@@ -363,7 +309,7 @@ def parse(input_string, records):
     """
 
     global exprStack
-    global targetvar
+    # global targetvar
 
     # Start with a blank exprStack and a blank targetvar
     exprStack = []
@@ -373,6 +319,7 @@ def parse(input_string, records):
         # try parsing the input string
         try:
             L = equation.parseString(input_string)
+            targetvar = Operand(L[0], typed_record[L[0]], var_dim_record[L[0]], L[0]) 
         except ParseException as err:
             print("Parse Failure", file=sys.stderr)
             print(err.line, file=sys.stderr)
@@ -423,14 +370,15 @@ def parse(input_string, records):
                 )
                 raise
 
-            return result
         else:
             print("Empty left side in '%s'" % input_string, file=sys.stderr)
             raise TypeError
 
+        return result.expr
+
 
 ##-----------------------------------------------------------------------------------
-def fprocess(expr, typed_record_json, dim_record_json, var_dim_record_json):
+def fprocess(expr, typed_record_json, var_dim_record_json, dim_record_json):
     """
    Scans an input file for LA equations between double square brackets,
    e.g. [[ M3_mymatrix = M3_anothermatrix^-1 ]], and replaces the expression
@@ -448,16 +396,16 @@ def fprocess(expr, typed_record_json, dim_record_json, var_dim_record_json):
     with open(typed_record_json, 'r') as f:
         typed_record = json.load(f)
 
-    with open(dim_record_json, 'r') as f:
-        dim_record = json.load(f)
-
     with open(var_dim_record_json, 'r') as f:
         var_dim_record = json.load(f)
 
+    with open(dim_record_json, 'r') as f:
+        dim_record = json.load(f)
+
     records = dict()
     records[0] = typed_record
-    records[1] = dim_record
-    records[2] = var_dim_record
+    records[1] = var_dim_record
+    records[2] = dim_record
 
     def parser(mo):
         ccode = parse(mo.group(1), records)
@@ -465,175 +413,3 @@ def fprocess(expr, typed_record_json, dim_record_json, var_dim_record_json):
 
     content = eqn.sub(parser, expr)
     return content
-
-
-
-##-----------------------------------------------------------------------------------
-def test():
-    """
-   Tests the parsing of various supported expressions. Raises
-   an AssertError if the output is not what is expected. Prints the
-   input, expected output, and actual output for all tests.
-   """
-    print("Testing LAParser")
-    testcases = [
-        ("Scalar addition", "a = b+c", "a=(b+c)"),
-        ("Vector addition", "V3_a = V3_b + V3_c", "vCopy(a,vAdd(b,c))"),
-        ("Vector addition", "V3_a=V3_b+V3_c", "vCopy(a,vAdd(b,c))"),
-        ("Matrix addition", "M3_a = M3_b + M3_c", "mCopy(a,mAdd(b,c))"),
-        ("Matrix addition", "M3_a=M3_b+M3_c", "mCopy(a,mAdd(b,c))"),
-        ("Scalar subtraction", "a = b-c", "a=(b-c)"),
-        ("Vector subtraction", "V3_a = V3_b - V3_c", "vCopy(a,vSubtract(b,c))"),
-        ("Matrix subtraction", "M3_a = M3_b - M3_c", "mCopy(a,mSubtract(b,c))"),
-        ("Scalar multiplication", "a = b*c", "a=b*c"),
-        ("Scalar division", "a = b/c", "a=b/c"),
-        ("Vector multiplication (dot product)", "a = V3_b * V3_c", "a=vDot(b,c)"),
-        (
-            "Vector multiplication (outer product)",
-            "M3_a = V3_b @ V3_c",
-            "mCopy(a,vOuterProduct(b,c))",
-        ),
-        ("Matrix multiplication", "M3_a = M3_b * M3_c", "mCopy(a,mMultiply(b,c))"),
-        ("Vector scaling", "V3_a = V3_b * c", "vCopy(a,vScale(b,c))"),
-        ("Matrix scaling", "M3_a = M3_b * c", "mCopy(a,mScale(b,c))"),
-        (
-            "Matrix by vector multiplication",
-            "V3_a = M3_b * V3_c",
-            "vCopy(a,mvMultiply(b,c))",
-        ),
-        ("Scalar exponentiation", "a = b^c", "a=pow(b,c)"),
-        ("Matrix inversion", "M3_a = M3_b^-1", "mCopy(a,mInverse(b))"),
-        ("Matrix transpose", "M3_a = M3_b^T", "mCopy(a,mTranspose(b))"),
-        ("Matrix determinant", "a = M3_b^Det", "a=mDeterminant(b)"),
-        ("Vector magnitude squared", "a = V3_b^Mag2", "a=vMagnitude2(b)"),
-        ("Vector magnitude", "a = V3_b^Mag", "a=sqrt(vMagnitude2(b))"),
-        (
-            "Complicated expression",
-            "myscalar = (M3_amatrix * V3_bvector)^Mag + 5*(-xyz[i] + 2.03^2)",
-            "myscalar=(sqrt(vMagnitude2(mvMultiply(amatrix,bvector)))+5*(-xyz[i]+pow(2.03,2)))",
-        ),
-        (
-            "Complicated Multiline",
-            "myscalar = \n(M3_amatrix * V3_bvector)^Mag +\n 5*(xyz + 2.03^2)",
-            "myscalar=(sqrt(vMagnitude2(mvMultiply(amatrix,bvector)))+5*(xyz+pow(2.03,2)))",
-        ),
-    ]
-
-    all_passed = [True]
-
-    def post_test(test, parsed):
-
-        # copy exprStack to evaluate and clear before running next test
-        parsed_stack = exprStack[:]
-        exprStack.clear()
-
-        name, testcase, expected = next(tc for tc in testcases if tc[1] == test)
-
-        this_test_passed = False
-        try:
-            try:
-                result = _evaluateStack(parsed_stack)
-            except TypeError:
-                print(
-                    "Unsupported operation on right side of '%s'.\nCheck for missing or incorrect tags on non-scalar operands."
-                    % input_string,
-                    file=sys.stderr,
-                )
-                raise
-            except UnaryUnsupportedError:
-                print(
-                    "Unary negation is not supported for vectors and matrices: '%s'"
-                    % input_string,
-                    file=sys.stderr,
-                )
-                raise
-
-            # Create final assignment and print it.
-            if debug_flag:
-                print("var=", targetvar)
-            if targetvar != None:
-                try:
-                    result = _assignfunc(targetvar, result)
-                except TypeError:
-                    print(
-                        "Left side tag does not match right side of '%s'"
-                        % input_string,
-                        file=sys.stderr,
-                    )
-                    raise
-                except UnaryUnsupportedError:
-                    print(
-                        "Unary negation is not supported for vectors and matrices: '%s'"
-                        % input_string,
-                        file=sys.stderr,
-                    )
-                    raise
-
-            else:
-                print("Empty left side in '%s'" % input_string, file=sys.stderr)
-                raise TypeError
-
-            parsed["result"] = result
-            parsed["passed"] = this_test_passed = result == expected
-
-        finally:
-            all_passed[0] = all_passed[0] and this_test_passed
-            print("\n" + name)
-
-    equation.runTests((t[1] for t in testcases), postParse=post_test)
-
-    ##TODO: Write testcases with invalid expressions and test that the expected
-    ## exceptions are raised.
-
-    print("Tests completed!")
-    print("PASSED" if all_passed[0] else "FAILED")
-    assert all_passed[0]
-
-
-##----------------------------------------------------------------------------
-## The following is executed only when this module is executed as
-## command line script.  It runs a small test suite (see above)
-## and then enters an interactive loop where you
-## can enter expressions and see the resulting C code as output.
-
-if __name__ == "__main__":
-
-    import sys
-
-    if not sys.flags.interactive:
-        # run testcases
-        test()
-        sys.exit(0)
-
-    # input_string
-    input_string = ""
-
-    # Display instructions on how to use the program interactively
-    interactiveusage = """
-  Entering interactive mode:
-  Type in an equation to be parsed or 'quit' to exit the program.
-  Type 'debug on' to print parsing details as each string is processed.
-  Type 'debug off' to stop printing parsing details
-  """
-    print(interactiveusage)
-    input_string = input("> ")
-
-    while input_string != "quit":
-        if input_string == "debug on":
-            debug_flag = True
-        elif input_string == "debug off":
-            debug_flag = False
-        else:
-            try:
-                print(parse(input_string))
-            except Exception:
-                pass
-
-        # obtain new input string
-        input_string = input("> ")
-
-    # if user types 'quit' then say goodbye
-    print("Good bye!")
-    import os
-
-    os._exit(0)
