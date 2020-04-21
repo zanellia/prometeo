@@ -12,7 +12,7 @@ to high-performance self-contained C code easily deployable on embedded devices.
 - Optional: to keep things clean you can setup a virtual environment with `virtualenv --python=<path_to_python3.7 <path_to_new_virtualenv>`.
 - Run `pip install -e .` from `<prometeo_root>` to install the Python package.
 
-Finally, you can run the examples in `<root>/examples` with `pmt <example_name>.py --cgen=<True/False>`, where the `--cgen` flag determines whether the code is executed by the Python intereter or C code is generated compiled and run.
+Finally, you can run the examples in `<root>/examples` with `pmt <example_name>.py --cgen=<True/False>`, where the `--cgen` flag determines whether the code is executed by the Python interpreter or C code is generated compiled and run.
 
 ### a simple example
 
