@@ -95,8 +95,6 @@ class Operand:
 # map  operator symbols to corresponding BIO funcs
 class LAParser():
     def __init__(self, typed_record_json, var_dim_record_json, dim_record_json):
-        pattern = r"\[\[\s*(.*?)\s*\]\]"
-        eqn = re.compile(pattern, re.DOTALL)
 
         with open(typed_record_json, 'r') as f:
             typed_record = json.load(f)
