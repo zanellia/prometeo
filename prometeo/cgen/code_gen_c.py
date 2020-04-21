@@ -25,7 +25,7 @@ from .op_util import get_op_symbol, get_op_precedence, Precedence
 from .node_util import ExplicitNodeVisitor
 from .string_repr import pretty_string
 from .source_repr import pretty_source
-from ..laparser.laparser import fprocess 
+from ..laparser.laparser import LAParser 
 from collections import namedtuple
 import astpretty as ap
 import os
@@ -1665,24 +1665,25 @@ class SourceGenerator(ExplicitNodeVisitor):
                 with open(json_file, 'w') as f:
                     json.dump(self.typed_record[self.scope], f, indent=4, sort_keys=True)
 
-                json_file = 'dim_record.json'
-                with open(json_file, 'w') as f:
-                    json.dump(self.dim_record, f, indent=4, sort_keys=True)
-
                 json_file = 'var_dim_record.json'
                 with open(json_file, 'w') as f:
                     json.dump(self.var_dim_record[self.scope], f, indent=4, sort_keys=True)
 
+                json_file = 'dim_record.json'
+                with open(json_file, 'w') as f:
+                    json.dump(self.dim_record, f, indent=4, sort_keys=True)
+
+
                 os.chdir('..')
 
-                # unescape 
-                expr = '[[' + node.args[0].s + ']]'
+                expr = node.args[0].s
                 # pass string to laparser
                 try:
-                    laparser_out = fprocess(expr, \
+                    parser = LAParser( \
                         './__pmt_cache__/current_typed_record.json', 
                         './__pmt_cache__/var_dim_record.json', 
                         './__pmt_cache__/dim_record.json')
+                    laparser_out = parser.parse(expr)
                 except Exception as e:
                     print('\n > laparser exception: ', e)
                     raise cgenException('call to laparser failed', node.lineno)

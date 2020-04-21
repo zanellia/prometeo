@@ -16,15 +16,8 @@ def main() -> int:
     B[1,0] = 0.0
     B[1,1] = 1.0
 
-    D: pmat = pmat(nx, nx)
-    D[0,0] = 1.0  
-    D[0,1] = 3.0
-    D[1,0] = 2.0
-    D[1,1] = 1.0
-
     C: pmat = pmat(nx, nx)
 
     pparse('C = A - A.T \ (B * D).T')
-    # pparse('C = A + B')
 
     pmat_print(C)
