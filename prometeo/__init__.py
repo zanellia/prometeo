@@ -7,4 +7,5 @@ from . import mem
 from . import laparser
 from . import nonlinear
 from .linalg import *
+from .nonlinear import pfun
 from .auxl import *

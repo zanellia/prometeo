@@ -1185,6 +1185,18 @@ class SourceGenerator(ExplicitNodeVisitor):
             raise cgenException('Cannot declare variable without initialization.', node.lineno)
 
         ann = node.annotation.id
+        # check if a CasADi function is being declared (and skip)
+        if ann == 'ca':
+            return
+        elif ann == 'pfun':
+            self.scope = self.scope + '@' + node.value.args[0].s
+            self.typed_record[self.scope] = dict()
+            self.var_dim_record[self.scope] = dict()
+            self.heap8_record[self.scope] = 0
+            self.heap64_record[self.scope] = 0
+            self.scope = descope(self.scope, '@' + node.value.args[0].s)
+            return
+            
         # check if a List is being declared
         if ann is 'List':
             if node.value.func.id is not 'plist': 

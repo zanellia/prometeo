@@ -1,6 +1,4 @@
 from prometeo import *
-from prometeo.nonlinear import pfun
-import casadi as ca
 
 n: dims  = 2
 
@@ -24,7 +22,7 @@ def main() -> int:
     
     res : float = 0.0
     res = test_fun(1.0)
-    print(res)
+    # print(res)
 
     test_jac : pfun = pfun('test_jac', 'ca.jacobian( \
         ca.mtimes(A, v) + sin(x), x)', \
@@ -32,7 +30,7 @@ def main() -> int:
     
     res = test_jac(1.0)
 
-    print(res)
+    # print(res)
 
     return 0
 

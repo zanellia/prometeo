@@ -8,11 +8,13 @@ import os
 import subprocess
 from strip_hints import strip_file_to_string
 
+# from prometeo.mem.ast_analyzer import compute_reach_graph
+from prometeo.mem.ast_analyzer import ast_visitor
 from prometeo.mem.ast_analyzer import compute_reach_graph
-from prometeo.mem.ast_analyzer_2 import ast_visitor
-from prometeo.mem.ast_analyzer_2 import compute_reach_graph
 
 from copy import deepcopy
+
+import casadi as ca
 
 size_of_pointer = 8
 size_of_int = 4
