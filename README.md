@@ -5,6 +5,19 @@ domain specific language (DSL) based on a subset of the Python language that all
 one to conveniently write scientific computing programs in a high-level language (Python itself) that can be transpiled
 to high-performance self-contained C code easily deployable on embedded devices.
 
+### features
+- __Python compatible syntax__ : prometeo is a DSL embedded into the Python language. 
+prometeo programs can be executed from the Python interpreter.
+- __efficient__ : prometeo programs transpile to high-performance C code.
+- __statically typed__ : prometeo uses Python's native type hints to strictly enforce static typing.
+- __deterministic memory usage__ : a specific program structure is required and enforced through static analysis. In this way
+prometeo transpiled programs have a guaranteed maximum heap usage.
+- __fast memory menagement__ : thanks to its static analysis, prometeo can avoid allocating
+and garbage-collecting memory, resulting in faster and safer execution.
+- __self-contained and embeddable__ : unlike other similar tools and languages, prometeo targets specifically embedded applications and programs 
+written in prometeo transpiled to self-contained C code that does not require linking against 
+the Python run-time library.
+
 ### installation
 - Run `git submodule update --init` to clone the submodules.
 - Run `make install_shared` from `<prometeo_root>/prometeo/cpmt` to compile and install the shared library associated with the C backend. Notice that the default installation path is `<prometeo_root>/prometeo/cpmt/install`.
