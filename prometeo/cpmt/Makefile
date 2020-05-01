@@ -3,8 +3,7 @@ CC = gcc
 # CC = clang
 CFLAGS = -std=c99
 CFLAGS += -fPIC
-PREFIX = ./install
-
+PREFIX = ./..
 SRCS += pmat_blasfeo_wrapper.c
 SRCS += pvec_blasfeo_wrapper.c
 SRCS += pmt_aux.c
@@ -21,14 +20,14 @@ shared: all
 	$(CC) $(OPT_LD_FLAGS) -shared -o libcpmt.so *.o
 
 install_shared: blasfeo all shared
-	mkdir -p $(PREFIX)/blasfeo/lib
-	cp -f ../../external/blasfeo/lib/libblasfeo.so $(PREFIX)/blasfeo/lib/
-	mkdir -p $(PREFIX)/blasfeo/include
-	cp -f ../../external/blasfeo/include/*.h $(PREFIX)/blasfeo/include/
-	mkdir -p $(PREFIX)/prometeo/lib
-	cp -f ./libcpmt.so $(PREFIX)/prometeo/lib/
-	mkdir -p $(PREFIX)/prometeo/include
-	cp -f ./*.h $(PREFIX)/prometeo/include/
+	mkdir -p $(PREFIX)/lib/blasfeo
+	cp -f ../../external/blasfeo/lib/libblasfeo.so $(PREFIX)/lib/blasfeo
+	mkdir -p $(PREFIX)/include/blasfeo
+	cp -f ../../external/blasfeo/include/*.h $(PREFIX)/include/blasfeo
+	mkdir -p $(PREFIX)/lib/prometeo
+	cp -f ./libcpmt.so $(PREFIX)/lib/prometeo
+	mkdir -p $(PREFIX)/include/prometeo
+	cp -f ./*.h $(PREFIX)/include/prometeo
 
 clean:
 	rm -f *.o

@@ -24,10 +24,10 @@ makefile_template = '''
 CC = gcc
 CFLAGS += -fPIC -std=c99
 
-INSTALL_DIR = ../../prometeo/cpmt/install
+INSTALL_DIR = ../../prometeo
 SRCS += {{ filename }}.c 
-CFLAGS+=-I$(INSTALL_DIR)/blasfeo/include -I$(INSTALL_DIR)/prometeo/include
-LIBPATH+=-L$(INSTALL_DIR)/blasfeo/lib -L$(INSTALL_DIR)/prometeo/lib
+CFLAGS+=-I$(INSTALL_DIR)/include/blasfeo -I$(INSTALL_DIR)/include/prometeo
+LIBPATH+=-L$(INSTALL_DIR)/lib/blasfeo -L$(INSTALL_DIR)/lib/prometeo
 
 all: $(SRCS) 
 	$(CC) $(LIBPATH) -o {{ filename }} $(CFLAGS)  $(SRCS)  -lcpmt -lblasfeo -lm

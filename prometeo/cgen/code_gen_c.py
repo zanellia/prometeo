@@ -30,6 +30,7 @@ from collections import namedtuple
 import astpretty as ap
 import os
 import json
+from jinja2 import Template
 
 pmt_temp_functions = {\
         'pmat': 'c_pmt_create_pmat', \
@@ -894,7 +895,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                     scope = self.scope
             else:
                 if node.targets[0].id not in self.typed_record[self.scope]:
-                    raise cgenException('Unknown variable {}.'.format(node.targets[0].id))
+                    raise cgenException('Unknown variable {}.'.format(node.targets[0].id), node.lineno)
             if type(node.targets[0]) == ast.Subscript: 
                 if target in self.typed_record[scope]: 
                     # map subscript for pmats to blasfeo el assign
