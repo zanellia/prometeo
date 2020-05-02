@@ -1,59 +1,64 @@
 language: python
-
 sudo: required
-
 group: travis_latest
-
 python: 3.7
-
 cache: pip
-
-jobs: 
-  include: 
+jobs:
+  include:
     - name: Linux Build + examples
       os: linux
       dist: xenial
+      sudo: required
+      services:
+      env:
+        - CC="gcc"
+        - PYTHON="python3"
+        - PIP="pip3" - docker
+    # - name: macOS Build + examples
+    #   os: osx
+    #   osx_image: xcode10.2
+    #   language: shell
 
-    - name: macOS Build + examples
-      os: osx
-      osx_image: xcode10.2
-      language: shell
+env:
+  global:
+    TWINE_USERNAME = __token__
+    secure: HPuoI/Mt0WLtmull21BrWHvEKMKkwnYF9JTDc1I9RtI4zCjFn7Xy9/1VKcfqIAszvsTyGh4PkWPdrwFHJRAz+TtxozE07B8cuk0i9F0/7RNeVOjbI9Cg/l0LEafxGTHVCQUMeV9bhqse600nOSOKTaHi2iAUCDh8ln5vYWrBqVOIFQPbO9rMQFhjXUyz0T3O2t0GPxmymHxKQEhd5f1EZyIjx+q5fX09jsCxnqck60XBbh39NbIi7opM9ZHyE4ahuZsJojuUZ51kFOIhqReDEULVyGbMHG3RLA+i07YLav1rbkMLbqGmJSBr/YZoPkWKDtfnDLCjDSYgsOlr69o24+aLfzr/60BLQMS5aDulpX7ICcpHAnkqJzVoqOGRAappq7sPwz4bky11FxQymlsMgiMUqENUGib7lVVidwS91AbO/YBLrJmzHGEkdj7VfwHg14qesfUr0txySjJrsE3K3wnTMq+GVWUC97b2Icb4vjsw/BfbsBUmmXO7rHbktAbUibCsAb06JyOCfHFjvIWTePhwYZ7oDJHr84rM0ya8vNivrMyms6ZQx7TkgnT5u08b0XlfeNTpJ59XpUBX6lnUas7MvcXrOZlRlrA0eNs3UNw5fxhbH/vBEJCA9kzOvRjzW2JUrkz8N8i1ySg1BD0vfGkikCpBiZPTsmVLiSBGs+0=
+    - CIBW_SKIP="cp27-* cp33-* cp34-* cp35-*"
+    - CIBW_TEST_COMMAND="pmt simple_example.py --cgen=True"
 
 install:
   - pip install virtualenv
   - virtualenv --python=python3.7 pmtenv
   - source pmtenv/bin/activate
-  - pip install .
-  - if [ "$TRAVIS_OS_NAME" = "osx" ]; then 
-      pushd prometeo/cpmt;
-      make install_shared CC=clang TARGET=GENERIC OPT_LD_FLAGS=-Wl,-undefined,dynamic_lookup; 
-      popd;
-      export DYLD_LIBRARY_PATH=$(pwd)/prometeo/lib/blasfeo:$DYLD_LIBRARY_PATH;
-      export DYLD_LIBRARY_PATH=$(pwd)/prometeo/lib/prometeo:$DYLD_LIBRARY_PATH;
-      export LD_LIBRARY_PATH=$(pwd)/prometeo/lib/blasfeo:$LD_LIBRARY_PATH;
-      export LD_LIBRARY_PATH=$(pwd)/prometeo/lib/prometeo:$LD_LIBRARY_PATH;
-    else
-      pushd prometeo/cpmt;
-      make install_shared; 
-      popd;
-      export LD_LIBRARY_PATH=$(pwd)/prometeo/lib/blasfeo:$LD_LIBRARY_PATH;
-      export LD_LIBRARY_PATH=$(pwd)/prometeo/lib/prometeo:$LD_LIBRARY_PATH;
+  - $PIP install .
+  - if [ "$TRAVIS_OS_NAME" = "osx" ]; then
+      pushd prometeo/cpmt; make install_shared
+      CC=clang TARGET=GENERIC OPT_LD_FLAGS=-Wl,-undefined,dynamic_lookup; popd; export
+      DYLD_LIBRARY_PATH=$(pwd)/prometeo/lib/blasfeo:$DYLD_LIBRARY_PATH; export DYLD_LIBRARY_PATH=$(pwd)/prometeo/lib/prometeo:$DYLD_LIBRARY_PATH;
+      export LD_LIBRARY_PATH=$(pwd)/prometeo/lib/blasfeo:$LD_LIBRARY_PATH; export LD_LIBRARY_PATH=$(pwd)/prometeo/lib/prometeo:$LD_LIBRARY_PATH;
+      else pushd prometeo/cpmt; make install_shared; popd; export LD_LIBRARY_PATH=$(pwd)/prometeo/lib/blasfeo:$LD_LIBRARY_PATH;
+      export LD_LIBRARY_PATH=$(pwd)/prometeo/lib/prometeo:$LD_LIBRARY_PATH; 
     fi
 
-script: 
+script:
   - pushd examples/simple_example
   - pmt simple_example.py --cgen=True
   - pmt simple_example.py --cgen=False
   - popd
-
   - pushd examples/test
   - pmt test.py --cgen=True
   - pmt test.py --cgen=False
   - pmt test_assignments.py --cgen=True
   - pmt test_assignments.py --cgen=False
   - popd
-
   - pushd examples/riccati_example
   - pmt riccati.py --cgen=True
   - pmt riccati.py --cgen=False
   - popd
+
+deploy: 
+  - if [[ "${TRAVIS_TAG:-}" =~ ^v[0-9]\.[0-9]\.[0-9].*$ ]]; then
+      $PIP install cibuildwheel==1.0.0 && cibuildwheel --output-dir wheelhouse && ls -1 wheelhouse;
+    else
+      echo "No valid git tag present so not running cibuildwheel.";
+    fi
