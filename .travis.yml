@@ -13,7 +13,6 @@ jobs:
       env:
         - CC="gcc"
         - PYTHON="python3"
-        - PIP="pip3"
     - name: macOS Build + examples
       os: osx
       osx_image: xcode10.2
@@ -30,7 +29,7 @@ install:
   - pip install virtualenv
   - virtualenv --python=python3.7 pmtenv
   - source pmtenv/bin/activate
-  - $PIP install .
+  - pip install .
   - if [ "$TRAVIS_OS_NAME" = "osx" ]; then
       pushd prometeo/cpmt; make install_shared
       CC=clang TARGET=GENERIC OPT_LD_FLAGS=-Wl,-undefined,dynamic_lookup; popd; export
@@ -58,6 +57,6 @@ script:
 
 deploy: 
   provider: script
-  script: bash $PIP install cibuildwheel==1.0.0 && $PIP cibuildwheel --output-dir wheelhouse && $PIP ls -1 wheelhouse
+  script: bash pip install cibuildwheel==1.0.0 && pip cibuildwheel --output-dir wheelhouse && pip ls -1 wheelhouse
   on:
     tags: true
