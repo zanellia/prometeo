@@ -4,7 +4,7 @@ class BinaryDistribution(dist.Distribution):
     def has_ext_modules(foo):
         return True
 
-setup(name='prometeo',
+setup(name='prometeo-dsl',
     version='0.1',
     python_requires='>=3.6, <=3.9',
     description='a prototyping and modelling tool for embedded optimization',
