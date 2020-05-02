@@ -58,6 +58,6 @@ script:
   - popd
 
 deploy: 
-  $PIP install cibuildwheel==1.0.0 && cibuildwheel --output-dir wheelhouse && ls -1 wheelhouse;
+  - $PIP install cibuildwheel==1.0.0 && cibuildwheel --output-dir wheelhouse && ls -1 wheelhouse;
   on:
     tags: true
