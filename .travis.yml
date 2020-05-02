@@ -25,10 +25,12 @@ env:
     - CIBW_SKIP="cp27-* cp33-* cp34-* cp35-*"
     - CIBW_TEST_COMMAND="pmt simple_example.py --cgen=True"
 
+# before_install:
+#   - $PIP install virtualenv
+#   - virtualenv --python=python3.7 pmtenv
+#   - source pmtenv/bin/activate
+
 install:
-  - pip install virtualenv
-  - virtualenv --python=python3.7 pmtenv
-  - source pmtenv/bin/activate
   - pip install .
   - if [ "$TRAVIS_OS_NAME" = "osx" ]; then
       pushd prometeo/cpmt; make install_shared
@@ -55,8 +57,9 @@ script:
   - pmt riccati.py --cgen=False
   - popd
 
-deploy: 
+deploy:
   provider: script
-  script: bash pip install cibuildwheel==1.0.0 && pip cibuildwheel --output-dir wheelhouse && pip ls -1 wheelhouse
+  script: deploy.sh
   on:
     tags: true
+
