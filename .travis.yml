@@ -57,7 +57,7 @@ script:
   - pmt riccati.py --cgen=False
   - popd
 
-deploy: 
-  - $PIP install cibuildwheel==1.0.0 && cibuildwheel --output-dir wheelhouse && ls -1 wheelhouse
-  on:
-    tags: true
+# deploy: 
+#   - $PIP install cibuildwheel==1.0.0 && cibuildwheel --output-dir wheelhouse && ls -1 wheelhouse
+#   on:
+#     tags: true
