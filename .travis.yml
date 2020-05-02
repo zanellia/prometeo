@@ -58,8 +58,6 @@ script:
   - popd
 
 deploy: 
-  - if [[ "${TRAVIS_TAG:-}" =~ ^v[0-9]\.[0-9]\.[0-9].*$ ]]; then
-      $PIP install cibuildwheel==1.0.0 && cibuildwheel --output-dir wheelhouse && ls -1 wheelhouse;
-    else
-      echo "No valid git tag present so not running cibuildwheel.";
-    fi
+  $PIP install cibuildwheel==1.0.0 && cibuildwheel --output-dir wheelhouse && ls -1 wheelhouse;
+  on:
+    tags: true
