@@ -10,14 +10,15 @@ jobs:
       dist: xenial
       sudo: required
       services:
+        - docker
       env:
         - CC="gcc"
         - PYTHON="python3"
         - PIP="pip3" - docker
-    # - name: macOS Build + examples
-    #   os: osx
-    #   osx_image: xcode10.2
-    #   language: shell
+    - name: macOS Build + examples
+      os: osx
+      osx_image: xcode10.2
+      language: shell
 
 env:
   global:
