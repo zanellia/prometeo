@@ -1,8 +1,8 @@
 language: python
-sudo: required
 group: travis_latest
 python: 3.7
 cache: pip
+
 jobs:
   include:
     - name: Linux Build + examples
@@ -14,7 +14,7 @@ jobs:
       env:
         - CC="gcc"
         - PYTHON="python3"
-        - PIP="pip3" - docker
+        - PIP="pip3"
     - name: macOS Build + examples
       os: osx
       osx_image: xcode10.2
