@@ -7,9 +7,11 @@ class BinaryDistribution(dist.Distribution):
 setup(name='prometeo',
     version='0.1',
     python_requires='>=3.6, <=3.9',
-    description='a prototyping and modelling tool for embedded optimization',
+    description='Python-to-C transpiler and domain specific language for embedded high-performance computing',
     url='http://github.com/zanellia/prometeo',
     author='Andrea Zanelli',
+    long_description=long_description,
+    long_description_content_type='text/markdown'
     license='LGPL',
     packages = find_packages(),
     entry_points={'console_scripts': ['pmt=prometeo.__main__:console_entry']},
