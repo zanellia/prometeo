@@ -57,6 +57,7 @@ script:
   - popd
 
 deploy:
+  skip_cleanup : true
   provider: script
   script: deploy.sh
   on:
