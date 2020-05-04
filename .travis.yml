@@ -32,7 +32,11 @@ install:
       CC=clang TARGET=GENERIC OPT_LD_FLAGS=-Wl,-undefined,dynamic_lookup; popd; export
       DYLD_LIBRARY_PATH=$(pwd)/prometeo/lib/blasfeo:$DYLD_LIBRARY_PATH; export DYLD_LIBRARY_PATH=$(pwd)/prometeo/lib/prometeo:$DYLD_LIBRARY_PATH;
       export LD_LIBRARY_PATH=$(pwd)/prometeo/lib/blasfeo:$LD_LIBRARY_PATH; export LD_LIBRARY_PATH=$(pwd)/prometeo/lib/prometeo:$LD_LIBRARY_PATH;
-      else pushd prometeo/cpmt; make install_shared; popd; export LD_LIBRARY_PATH=$(pwd)/prometeo/lib/blasfeo:$LD_LIBRARY_PATH;
+    else 
+      pushd prometeo/cpmt; 
+      make install_shared; 
+      popd; 
+      export LD_LIBRARY_PATH=$(pwd)/prometeo/lib/blasfeo:$LD_LIBRARY_PATH;
       export LD_LIBRARY_PATH=$(pwd)/prometeo/lib/prometeo:$LD_LIBRARY_PATH; 
     fi
 
