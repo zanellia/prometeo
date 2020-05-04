@@ -24,7 +24,7 @@ makefile_template = '''
 CC = gcc
 CFLAGS += -fPIC -std=c99
 
-INSTALL_DIR = ../../prometeo
+INSTALL_DIR = @INSTALL_DIR@
 SRCS += {{ filename }}.c 
 CFLAGS+=-I$(INSTALL_DIR)/include/blasfeo -I$(INSTALL_DIR)/include/prometeo
 LIBPATH+=-L$(INSTALL_DIR)/lib/blasfeo -L$(INSTALL_DIR)/lib/prometeo
@@ -121,6 +121,7 @@ def pmt_main(script_path, stdout, stderr, args = None):
         # execname_ = re.sub('\.c$', '', filename_)
         # makefile_code = makefile_template.replace('{{ execname }}', execname_)
         makefile_code = makefile_code.replace('\n','', 1)
+        makefile_code = makefile_code.replace('@INSTALL_DIR@', os.path.dirname(__file__) + '/..')
         dest_file = open('Makefile', 'w+')
         dest_file.write(makefile_code)
         dest_file.close()
@@ -166,12 +167,14 @@ def pmt_main(script_path, stdout, stderr, args = None):
             raise Exception('Command \'make\' failed with the above error.'
              ' Full command is:\n\n {}'.format(outs.decode()))
 
-        cmd = './' + filename_
+        INSTALL_DIR = os.path.dirname(__file__) + '/..' 
+        cmd = 'export LD_LIBRARY_PATH=' + INSTALL_DIR + '/lib/prometeo:' + \
+            INSTALL_DIR + '/lib/blasfeo:$LD_LIBRARY_PATH ; ./' + filename_
 
         if red_stdout is not None: 
-            proc = subprocess.Popen([cmd], stdout=subprocess.PIPE)
+            proc = subprocess.Popen([cmd], shell=True, stdout=subprocess.PIPE)
         else:
-            proc = subprocess.Popen([cmd])
+            proc = subprocess.Popen([cmd], shell=True)
 
         try:
             outs, errs = proc.communicate()

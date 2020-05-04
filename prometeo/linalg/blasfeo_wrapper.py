@@ -1,7 +1,7 @@
 from ctypes import *
-from os import *
+import os
 
-bw = CDLL('libblasfeo.so')
+bw = CDLL(os.path.dirname(__file__) + '/../lib/blasfeo/libblasfeo.so')
 
 class blasfeo_dmat(Structure):
     _fields_ = [    ("m", c_int),
