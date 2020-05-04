@@ -1,4 +1,4 @@
-![Travis Status](https://travis-ci.org/zanellia/prometeo.svg?branch=master)
+![Travis Status](https://travis-ci.org/zanellia/prometeo.svg?branch=master) https://badge.fury.io/py/prometeo-dsl.svg
 
 This is prometeo, a modeling tool for embedded high-performance computing. prometeo provides a 
 domain specific language (DSL) based on a subset of the Python language that allows 
