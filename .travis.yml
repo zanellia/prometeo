@@ -13,22 +13,17 @@ jobs:
       env:
         - CC="gcc"
         - PYTHON="python3"
-    - name: macOS Build + examples
-      os: osx
-      osx_image: xcode10.2
-      language: shell
+    # - name: macOS Build + examples
+    #   os: osx
+    #   osx_image: xcode10.2
+    #   language: shell
 
 env:
   global:
     - TWINE_USERNAME=__token__
     - secure: HPuoI/Mt0WLtmull21BrWHvEKMKkwnYF9JTDc1I9RtI4zCjFn7Xy9/1VKcfqIAszvsTyGh4PkWPdrwFHJRAz+TtxozE07B8cuk0i9F0/7RNeVOjbI9Cg/l0LEafxGTHVCQUMeV9bhqse600nOSOKTaHi2iAUCDh8ln5vYWrBqVOIFQPbO9rMQFhjXUyz0T3O2t0GPxmymHxKQEhd5f1EZyIjx+q5fX09jsCxnqck60XBbh39NbIi7opM9ZHyE4ahuZsJojuUZ51kFOIhqReDEULVyGbMHG3RLA+i07YLav1rbkMLbqGmJSBr/YZoPkWKDtfnDLCjDSYgsOlr69o24+aLfzr/60BLQMS5aDulpX7ICcpHAnkqJzVoqOGRAappq7sPwz4bky11FxQymlsMgiMUqENUGib7lVVidwS91AbO/YBLrJmzHGEkdj7VfwHg14qesfUr0txySjJrsE3K3wnTMq+GVWUC97b2Icb4vjsw/BfbsBUmmXO7rHbktAbUibCsAb06JyOCfHFjvIWTePhwYZ7oDJHr84rM0ya8vNivrMyms6ZQx7TkgnT5u08b0XlfeNTpJ59XpUBX6lnUas7MvcXrOZlRlrA0eNs3UNw5fxhbH/vBEJCA9kzOvRjzW2JUrkz8N8i1ySg1BD0vfGkikCpBiZPTsmVLiSBGs+0=
-    - CIBW_SKIP="cp27-* cp33-* cp34-* cp35-*"
+    - CIBW_SKIP="cp27-* cp33-* cp34-* cp35-* cp39"
     # - CIBW_TEST_COMMAND="pmt simple_example.py --cgen=True"
-
-# before_install:
-#   - $PIP install virtualenv
-#   - virtualenv --python=python3.7 pmtenv
-#   - source pmtenv/bin/activate
 
 install:
   - pip install .
@@ -57,9 +52,15 @@ script:
   - pmt riccati.py --cgen=False
   - popd
 
-after_success:
-  - python3 -m pip install cibuildwheel==1.3.0
-  - python3 -m cibuildwheel --output-dir wheelhouse
-  - python3 -m pip install twine
-  - python3 -m twine upload wheelhouse/*.whl
+deploy:
+  provider: script
+  script: deploy.sh
+  on:
+    tags: true
+    
+# after_success:
+#   - python3 -m pip install cibuildwheel==1.3.0
+#   - python3 -m cibuildwheel --output-dir wheelhouse
+#   - python3 -m pip install twine
+#   - python3 -m twine upload wheelhouse/*.whl
 
