@@ -18,9 +18,12 @@ and garbage-collecting memory, resulting in faster and safer execution.
 written in prometeo transpiled to self-contained C code that does not require linking against 
 the Python run-time library.
 
-### installation
+### PyPI installation
 
-prometeo can be installed through PyPI with `pip install prometeo-dsl` or manually as follows:
+prometeo can be installed through PyPI with `pip install prometeo-dsl`.
+
+### manual installation
+If you want to install prometeo building the sources on your local machine you can proceed as follows:
 
 - Run `git submodule update --init` to clone the submodules.
 - Run `make install_shared` from `<prometeo_root>/prometeo/cpmt` to compile and install the shared library associated with the C backend. Notice that the default installation path is `<prometeo_root>/prometeo/cpmt/install`.
