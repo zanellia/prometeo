@@ -19,6 +19,9 @@ written in prometeo transpiled to self-contained C code that does not require li
 the Python run-time library.
 
 ### installation
+
+prometeo can be installed through PyPI with `pip install prometeo-dsl` or manually as follows:
+
 - Run `git submodule update --init` to clone the submodules.
 - Run `make install_shared` from `<prometeo_root>/prometeo/cpmt` to compile and install the shared library associated with the C backend. Notice that the default installation path is `<prometeo_root>/prometeo/cpmt/install`.
 - You need Python 3.7. or later.
