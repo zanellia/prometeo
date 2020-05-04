@@ -5,6 +5,7 @@ import sys
 import argparse
 import prometeo
 import os
+import platform
 import subprocess
 from strip_hints import strip_file_to_string
 
@@ -168,8 +169,16 @@ def pmt_main(script_path, stdout, stderr, args = None):
              ' Full command is:\n\n {}'.format(outs.decode()))
 
         INSTALL_DIR = os.path.dirname(__file__) + '/..' 
-        cmd = 'export LD_LIBRARY_PATH=' + INSTALL_DIR + '/lib/prometeo:' + \
-            INSTALL_DIR + '/lib/blasfeo:$LD_LIBRARY_PATH ; ./' + filename_
+
+        running_on = platform.system()
+        if running_on == 'Linux':
+            cmd = 'export LD_LIBRARY_PATH=' + INSTALL_DIR + '/lib/prometeo:' + \
+                INSTALL_DIR + '/lib/blasfeo:$LD_LIBRARY_PATH ; ./' + filename_
+        elif running_on == 'Darwin':
+            cmd = 'export DYLD_LIBRARY_PATH=' + INSTALL_DIR + '/lib/prometeo:' + \
+                INSTALL_DIR + '/lib/blasfeo:$DYLD_LIBRARY_PATH ; ./' + filename_
+        else:
+            raise Exception('Running on unsupported operating system {}'.format(running_on))
 
         if red_stdout is not None: 
             proc = subprocess.Popen([cmd], shell=True, stdout=subprocess.PIPE)
