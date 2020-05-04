@@ -37,7 +37,7 @@ install:
       export LD_LIBRARY_PATH=$(pwd)/prometeo/lib/blasfeo:$LD_LIBRARY_PATH;
       export LD_LIBRARY_PATH=$(pwd)/prometeo/lib/prometeo:$LD_LIBRARY_PATH; 
     fi
-  - pip install .
+  - python3 -m pip install .
 
 script:
   - pushd examples/simple_example
