@@ -12,7 +12,6 @@ jobs:
         - docker
       env:
         - CC="gcc"
-        - PYTHON="python3"
     - name: macOS Build + examples
       os: osx
       osx_image: xcode10.2
