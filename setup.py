@@ -11,7 +11,7 @@ setup(name='prometeo-dsl',
     url='http://github.com/zanellia/prometeo',
     author='Andrea Zanelli',
     long_description=long_description,
-    long_description_content_type='text/markdown'
+    long_description_content_type='text/markdown',
     license='LGPL',
     packages = find_packages(),
     entry_points={'console_scripts': ['pmt=prometeo.__main__:console_entry']},
