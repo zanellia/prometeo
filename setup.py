@@ -29,7 +29,7 @@ setup(name='prometeo-dsl',
         'scipy',
         'multipledispatch',
         'pyparsing',
-        'casadi==3.4.5',
+        'casadi==3.5.1',
         'jinja2'
     ],
     package_data={'': \
