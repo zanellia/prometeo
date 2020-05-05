@@ -38,4 +38,6 @@ setup(name='prometeo-dsl',
         'include/prometeo/*', \
         'include/blasfeo/*']},
     include_package_data=True,
-    zip_safe=False)
+    zip_safe=False,
+    distclass=BinaryDistribution
+)
