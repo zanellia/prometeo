@@ -1,6 +1,8 @@
-<img src="https://github.com/zanellia/prometeo/blob/master/logo/logo.png" align="right"
-     alt="prometeo logo by Andrea Zanelli" width="100" height="150">
 ![Travis Status](https://travis-ci.org/zanellia/prometeo.svg?branch=master) [![PyPI version fury.io](https://badge.fury.io/py/prometeo-dsl.svg)](https://pypi.python.org/pypi/ansicolortags/)
+
+<img src="https://github.com/zanellia/prometeo/blob/master/logo/logo.png" align="right"
+     alt="prometeo logo by Andrea Zanelli" width="80" height="120">
+
 
 This is prometeo, a modeling tool for embedded high-performance computing. prometeo provides a 
 domain specific language (DSL) based on a subset of the Python language that allows 
