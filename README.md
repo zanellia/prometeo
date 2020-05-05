@@ -1,3 +1,6 @@
+<img src="https://github.com/zanellia/prometeo/blob/master/logo/logo.png" align="left"
+     alt="prometeo logo by Andrea Zanelli" width="80" height="120">
+
 ![Travis Status](https://travis-ci.org/zanellia/prometeo.svg?branch=master) [![PyPI version fury.io](https://badge.fury.io/py/prometeo-dsl.svg)](https://pypi.python.org/pypi/ansicolortags/)
 
 This is prometeo, a modeling tool for embedded high-performance computing. prometeo provides a 
