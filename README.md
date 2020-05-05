@@ -1,4 +1,4 @@
-![Travis Status](https://travis-ci.org/zanellia/prometeo.svg?branch=master)
+![Travis Status](https://travis-ci.org/zanellia/prometeo.svg?branch=master) [![PyPI version fury.io](https://badge.fury.io/py/prometeo-dsl.svg)](https://pypi.python.org/pypi/ansicolortags/)
 
 This is prometeo, a modeling tool for embedded high-performance computing. prometeo provides a 
 domain specific language (DSL) based on a subset of the Python language that allows 
@@ -18,7 +18,13 @@ and garbage-collecting memory, resulting in faster and safer execution.
 written in prometeo transpiled to self-contained C code that does not require linking against 
 the Python run-time library.
 
-### installation
+### PyPI installation
+
+prometeo can be installed through PyPI with `pip install prometeo-dsl`.
+
+### manual installation
+If you want to install prometeo building the sources on your local machine you can proceed as follows:
+
 - Run `git submodule update --init` to clone the submodules.
 - Run `make install_shared` from `<prometeo_root>/prometeo/cpmt` to compile and install the shared library associated with the C backend. Notice that the default installation path is `<prometeo_root>/prometeo/cpmt/install`.
 - You need Python 3.7. or later.
