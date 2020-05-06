@@ -15,35 +15,39 @@ jobs:
     os: osx
     osx_image: xcode10.2
     language: shell
+
 install:
-- if [ "$TRAVIS_OS_NAME" = "osx" ]; then pushd prometeo/cpmt; make install_shared
-  CC=clang TARGET=GENERIC OPT_LD_FLAGS=-Wl,-undefined,dynamic_lookup; popd; export
-  DYLD_LIBRARY_PATH=$(pwd)/prometeo/lib/blasfeo:$DYLD_LIBRARY_PATH; export DYLD_LIBRARY_PATH=$(pwd)/prometeo/lib/prometeo:$DYLD_LIBRARY_PATH;
-  export LD_LIBRARY_PATH=$(pwd)/prometeo/lib/blasfeo:$LD_LIBRARY_PATH; export LD_LIBRARY_PATH=$(pwd)/prometeo/lib/prometeo:$LD_LIBRARY_PATH;
-  else pushd prometeo/cpmt; make install_shared; popd; export LD_LIBRARY_PATH=$(pwd)/prometeo/lib/blasfeo:$LD_LIBRARY_PATH;
-  export LD_LIBRARY_PATH=$(pwd)/prometeo/lib/prometeo:$LD_LIBRARY_PATH; fi
-- python3 -m pip install .
+  - if [ "$TRAVIS_OS_NAME" = "osx" ]; then pushd prometeo/cpmt; make install_shared
+    CC=clang TARGET=GENERIC OPT_LD_FLAGS=-Wl,-undefined,dynamic_lookup; popd; export
+    DYLD_LIBRARY_PATH=$(pwd)/prometeo/lib/blasfeo:$DYLD_LIBRARY_PATH; export DYLD_LIBRARY_PATH=$(pwd)/prometeo/lib/prometeo:$DYLD_LIBRARY_PATH;
+    export LD_LIBRARY_PATH=$(pwd)/prometeo/lib/blasfeo:$LD_LIBRARY_PATH; export LD_LIBRARY_PATH=$(pwd)/prometeo/lib/prometeo:$LD_LIBRARY_PATH;
+    else pushd prometeo/cpmt; make install_shared; popd; export LD_LIBRARY_PATH=$(pwd)/prometeo/lib/blasfeo:$LD_LIBRARY_PATH;
+    export LD_LIBRARY_PATH=$(pwd)/prometeo/lib/prometeo:$LD_LIBRARY_PATH; fi
+  - python3 -m pip install .
+
 script:
-- pushd examples/simple_example
-- pmt simple_example.py --cgen=True
-- pmt simple_example.py --cgen=False
-- popd
-- pushd examples/test
-- pmt test.py --cgen=True
-- pmt test.py --cgen=False
-- pmt test_assignments.py --cgen=True
-- pmt test_assignments.py --cgen=False
-- popd
-- pushd examples/riccati_example
-- pmt riccati.py --cgen=True
-- pmt riccati.py --cgen=False
-- popd
+  - pushd examples/simple_example
+  - pmt simple_example.py --cgen=True
+  - pmt simple_example.py --cgen=False
+  - popd
+  - pushd examples/test
+  - pmt test.py --cgen=True
+  - pmt test.py --cgen=False
+  - pmt test_assignments.py --cgen=True
+  - pmt test_assignments.py --cgen=False
+  - popd
+  - pushd examples/riccati_example
+  - pmt riccati.py --cgen=True
+  - pmt riccati.py --cgen=False
+  - popd
+
 deploy:
   provider: pypi
   skip_cleanup: true
   skip_existing: true
   on:
     tags: true
+    condition: $TRAVIS_OS_NAME ~= "osx"$
   user: "__token__"
   password:
     secure: YtZfYvju9MJywGaaxCGk54/t5sY+nqGBvnsWc3vn9dqbpR0bGmehUZ3tVMxhgAwD7C0lG1Vl3eejEyRklesnO6W4KlWpv0M+ZDf7KvpNWIimQcS/rnkzFN+she/SL1vCHwq0SlLJfoPbmCnRMXWio4O1r07qs1pIM67UeZm8U/MH5ABJDaWrvsz6LVcsggf7HMMPe5RnT7tWDAS+CPE8IB1hGtJpha0A6DaG/mm+JcoeXNRqdYrpVZvKsnVY3mE+xuPY17M/n7BXo4/g/A1bu9QGDLRsAaE4FSkUu9KPXtsPVHENZGw1Jvltgv5KIMczOFohiZYNJx8ij3Wpam8okfwun/TlaC5C0z/MBBqN7G0JTBdw12JNaZMJA2GN7wPO9mC1JDWcFO0rUO2wGCneFDLP93agaNWgeD9IeUwBBnTGYjG+TYnmtt0J4CnYRKHW3HLQCNn7XZfpWxw6Q/4vz/quB28ofOLoj87rgljnzikC6m8ia5EGl4Y+/157leGoFrNdYtyXnJEkmlr7bGkLEvuY56kIbelvoiAxhyv3DveA1xHFzu4wmNWMDnw6Q7IRVD0litbMrnd6t/QTB6s117BcZflfQKIlh5MT9BH9LJ+cP8RFbl6B2cbof9VJfkv2XRZC6/Af6OaDkkvKBykppHH6vnXaD0XZu4SIiltHzxM=
