@@ -164,6 +164,9 @@ def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False
     json_file = 'typed_record.json'
     with open(json_file, 'w') as f:
         json.dump(generator.typed_record, f, indent=4, sort_keys=True)
+    json_file = 'new_typed_record.json'
+    with open(json_file, 'w') as f:
+        json.dump(generator.new_typed_record, f, indent=3, sort_keys=True)
     json_file = 'var_dim_record.json'
     with open(json_file, 'w') as f:
         json.dump(generator.var_dim_record, f, indent=4, sort_keys=True)
@@ -414,6 +417,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         """ self.write is a closure for performance (to reduce the number
             of attribute lookups).
         """
+        # self.new_typed_record['attr'] = []
         for item in params:
             if isinstance(item, ast.AnnAssign):
                 set_precedence(item, item.target, item.annotation)
@@ -425,6 +429,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 # annotation = ast.parse(item.annotation.s).body[0]
                 # if 'value' in annotation.value.__dict__:
                 type_py = annotation.id
+
                 if annotation.id is 'List':
                     if item.value.func.id is not 'plist': 
                         raise cgenException('Cannot create Lists without using'
@@ -515,6 +520,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                 self.write(');\n', dest = 'hdr')
                 # insert back self argument 
                 item.args.args.insert(0, self_arg)
+            else:
+                raise cgenException('Classes can only contain attributes and methods', item.lineno)
         
     def write_class_method_prototypes(self, *params, name):
         """ self.write is a closure for performance (to reduce the number
@@ -1433,6 +1440,7 @@ class SourceGenerator(ExplicitNodeVisitor):
     def visit_ClassDef(self, node):
         self.scope = self.scope + '@' + node.name
         self.typed_record[self.scope] = dict()
+        # self.new_typed_record[self.scope] = dict()
         self.var_dim_record[self.scope] = dict()
         self.heap8_record[self.scope] = 0 
         self.heap64_record[self.scope] = 0 
