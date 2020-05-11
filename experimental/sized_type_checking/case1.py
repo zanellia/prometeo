@@ -16,6 +16,6 @@ class ClassC():
 
 def main() -> int:
     A : pmat = pmat(n,n)
-    D : ClassA = ClassA()
+    D : ClassC = ClassC()
     return 0
 
