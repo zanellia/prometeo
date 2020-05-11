@@ -164,9 +164,9 @@ def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False
     json_file = 'typed_record.json'
     with open(json_file, 'w') as f:
         json.dump(generator.typed_record, f, indent=4, sort_keys=True)
-    json_file = 'new_typed_record.json'
+    json_file = 'meta_info.json'
     with open(json_file, 'w') as f:
-        json.dump(generator.new_typed_record, f, indent=3, sort_keys=True)
+        json.dump(generator.meta_info, f, indent=3, sort_keys=True)
     json_file = 'var_dim_record.json'
     with open(json_file, 'w') as f:
         json.dump(generator.var_dim_record, f, indent=4, sort_keys=True)
@@ -231,6 +231,13 @@ def Num_or_Name(node):
             raise cgenException('node.op is not of type ast.USub.\n', node.lineno)
     else:
         raise cgenException('node is not of type ast.Num nor ast.Name.\n', node.lineno)
+
+# def process_annotation(ann_node):
+#     if isinstance(ann_node, ast.Name):
+#         return ann_node.id
+#     elif isinstance(ann_node, ast.Subscript):
+#         return ann_node.value.id + '[' + Num_or_Name(ann_node.slice.value.elts[0]) + \
+#             ',' +  Num_or_Name(ann_node.slice.value.elts[0]) + ']' 
 
 class Delimit(object):
     """A context manager that can add enclosing
@@ -325,6 +332,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.heap64_size = ___c_pmt_64_heap_size 
 
         self.typed_record = {'global': dict()}
+        self.meta_info = {'global': dict()}
         self.heap8_record = {'global': dict()}
         self.heap64_record = {'global': dict()}
         self.scope = 'global'
@@ -417,7 +425,8 @@ class SourceGenerator(ExplicitNodeVisitor):
         """ self.write is a closure for performance (to reduce the number
             of attribute lookups).
         """
-        # self.new_typed_record['attr'] = []
+        self.meta_info[self.scope]['attr'] = dict()
+        self.meta_info[self.scope]['methods'] = dict()
         for item in params:
             if isinstance(item, ast.AnnAssign):
                 set_precedence(item, item.target, item.annotation)
@@ -429,8 +438,9 @@ class SourceGenerator(ExplicitNodeVisitor):
                 # annotation = ast.parse(item.annotation.s).body[0]
                 # if 'value' in annotation.value.__dict__:
                 type_py = annotation.id
+                self.meta_info[self.scope]['attr'][item.target.id] = type_py
 
-                if annotation.id is 'List':
+                if type_py is 'List':
                     if item.value.func.id is not 'plist': 
                         raise cgenException('Cannot create Lists without using'
                             ' plist constructor.', item.lineno)
@@ -465,10 +475,20 @@ class SourceGenerator(ExplicitNodeVisitor):
                         self.write('%s' %ann, ' ', '%s' %item.target.id, \
                             '[%s' %array_size, '];\n', dest = 'hdr')
                 else:
-                    type_c = pmt_temp_types[type_py]
-                    self.write('%s' %type_c, ' ', '%s' %item.target.id, ';\n', dest = 'hdr')
-                    # self.conditional_write(' = ', item.value, ';')
-                    self.typed_record[self.scope][item.target.id] = type_py
+                    # not a List
+                    ann = type_py
+
+                    # check for user-defined types
+                    if ann in usr_temp_types:
+                        self.write('struct %s' %ann, ' ',  item.target.id, '___;\n', dest = 'hdr')
+                        self.write('struct %s *' %ann, ' ',  item.target.id, ';\n', dest = 'hdr')
+                        # self.statement(node, node.annotation, ' ', node.target, '= &', node.target, '___;')
+                    else:
+                        type_c = pmt_temp_types[type_py]
+                        self.write('%s' %type_c, ' ', '%s' %item.target.id, ';\n', dest = 'hdr')
+
+                        # self.conditional_write(' = ', item.value, ';')
+                        self.typed_record[self.scope][item.target.id] = type_py
                 # else:
                 #     type_py = annotation.id
                 #     type_c = pmt_temp_types[type_py]
@@ -476,6 +496,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 #     # self.conditional_write(' = ', item.value, ';')
                 #     self.typed_record[self.scope][item.target.id] = type_py
             elif isinstance(item, ast.FunctionDef):
+                self.meta_info[self.scope]['methods'][item.name] = dict()
                 # build argument mangling
                 f_name_len = len(item.name)
                 pre_mangl = '_Z%s' %f_name_len 
@@ -495,6 +516,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                     ret_type = self.get_returns(item).id
                 else:
                     ret_type = self.get_returns(item).value
+
+                self.meta_info[self.scope]['methods'][item.name]['return_type'] = ret_type
 
                 if ret_type is None: 
                     ret_type = 'None'
@@ -516,7 +539,9 @@ class SourceGenerator(ExplicitNodeVisitor):
                             item.name, post_mangl) , ')', '(%s *self' %name, \
                             dest = 'hdr')
 
-                self.visit_arguments(item.args, 'hdr')
+
+                args_list = self.visit_arguments(item.args, 'hdr')
+                self.meta_info[self.scope]['methods'][item.name]['args'] = args_list
                 self.write(');\n', dest = 'hdr')
                 # insert back self argument 
                 item.args.args.insert(0, self_arg)
@@ -655,6 +680,9 @@ class SourceGenerator(ExplicitNodeVisitor):
                     else:
                         raise cgenException('Cannot declare attribute without' 
                             ' initialization.\n', item.lineno)
+                elif ann in usr_temp_types:
+                    self.write('\nobject->', item.target.id, ' = &(object->', item.target.id, '___);\n', dest = 'src')
+                    self.write(ann, '_init(object->', item.target.id, ');\n', dest='src')
                 else:
                     if item.value != None:
                         if hasattr(item.value, 'value') is False:
@@ -770,6 +798,8 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.else_body(node.orelse)
 
     def visit_arguments(self, node, dest_in):
+        # args_list returned for class meta-info update
+        args_list = dict()
         want_comma = []
 
         def write_comma():
@@ -799,6 +829,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 else:
                     arg_type_py = arg.annotation.id
 
+                args_list[arg.arg] = arg_type_py
                 arg_type_c = pmt_temp_types[arg_type_py]
                 self.write(write_comma, arg_type_c,' ',arg.arg, dest = dest_in)
 
@@ -815,6 +846,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                 self.write(write_comma, '*')
             loop_args(kwonlyargs, node.kw_defaults)
         self.conditional_write(write_comma, '**', node.kwarg, dest = 'src')
+
+        return args_list
 
     def build_arg_mangling(self, node):
         want_comma = []
@@ -1440,7 +1473,7 @@ class SourceGenerator(ExplicitNodeVisitor):
     def visit_ClassDef(self, node):
         self.scope = self.scope + '@' + node.name
         self.typed_record[self.scope] = dict()
-        # self.new_typed_record[self.scope] = dict()
+        self.meta_info[self.scope] = dict()
         self.var_dim_record[self.scope] = dict()
         self.heap8_record[self.scope] = 0 
         self.heap64_record[self.scope] = 0 
