@@ -9,3 +9,4 @@ from . import nonlinear
 from .linalg import *
 from .nonlinear import pfun
 from .auxl import *
+from .lib import blasfeo, prometeo
