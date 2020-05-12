@@ -140,6 +140,7 @@ def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False
     generator.result.source.append('void * ___c_pmt_8_heap_head;\n')
     generator.result.source.append('void * ___c_pmt_64_heap_head;\n')
     generator.result.header.append('#include "prometeo.h"\n')
+    generator.result.header.append('#include "timing.h"\n')
     generator.result.header.append('#include "pmt_aux.h"\n')
     generator.result.header.append('#ifdef __cplusplus\nextern "C" {\n#endif\n\n')
 
@@ -1437,6 +1438,9 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.visit_arguments(node.args, 'src')
         self.write(') {\n', dest = 'src')
         if node.name == 'main':
+            self.write('    prometeo_timer timer0, timer1;\n', dest = 'src')
+            self.write('    double total_time, execution_time;\n', dest = 'src')
+            self.write('    prometeo_tic(&timer0);\n', dest = 'src')
             self.write('    ___c_pmt_8_heap = malloc(%s); \n' %(self.heap8_size), dest = 'src')
             self.write('    ___c_pmt_8_heap_head = ___c_pmt_8_heap;\n', dest = 'src')
             self.write('    char * pmem_ptr = (char *)___c_pmt_8_heap;\n', dest = 'src')
@@ -1448,6 +1452,7 @@ class SourceGenerator(ExplicitNodeVisitor):
             self.write('    pmem_ptr = (char *)___c_pmt_64_heap;\n', dest = 'src')
             self.write('    align_char_to(64, &pmem_ptr);\n', dest = 'src')
             self.write('    ___c_pmt_64_heap = pmem_ptr;\n', dest = 'src')
+            self.write('    prometeo_tic(&timer1);\n', dest = 'src')
 
         # store current pmt_heap value (and restore before returning)
         self.write('\tvoid *callee_pmt_8_heap = ___c_pmt_8_heap;\n', dest = 'src')
@@ -1457,8 +1462,12 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.body(node.body)
         self.newline(1)
         if node.name == 'main':
+            self.write('\texecution_time = prometeo_toc(&timer1);\n', dest='src')
+            self.write('\tprintf(\"execution time:%f\\n\", execution_time);\n', dest='src')
             self.write('\tfree(___c_pmt_8_heap_head);\n', dest='src')
             self.write('\tfree(___c_pmt_64_heap_head);\n', dest='src')
+            self.write('\ttotal_time = prometeo_toc(&timer0);\n', dest='src')
+            self.write('\tprintf(\"total time:%f\\n\", total_time);\n', dest='src')
             self.write('\treturn 0;\n', dest='src')
         self.write('}', dest='src')
         if not self.indentation:

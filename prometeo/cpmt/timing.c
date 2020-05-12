@@ -84,7 +84,7 @@ double prometeo_toc(prometeo_timer* t) { return ds1401_tic_read() - t->time; }
 
 #else
 
-// #if __STDC_VERSION__ >= 199901L  // C99 Mode
+#if __STDC_VERSION__ >= 199901L  // C99 Mode
 
 /* read current time */
 void prometeo_tic(prometeo_timer* t) { gettimeofday(&t->tic, 0); }
