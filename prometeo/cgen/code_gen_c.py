@@ -221,6 +221,10 @@ def descope(current_scope, pop):
             not the current scope'.format(pop))
 
 def Num_or_Name(node):
+    """
+    Return node.n if, if node is of type Num, node.id if node is of type Name 
+    and -node.n if node is of type UnaryOp and node.op is of type USub
+    """
     if isinstance(node, ast.Num):
         return node.n
     elif isinstance(node, ast.Name):
@@ -232,6 +236,32 @@ def Num_or_Name(node):
             raise cgenException('node.op is not of type ast.USub.\n', node.lineno)
     else:
         raise cgenException('node is not of type ast.Num nor ast.Name.\n', node.lineno)
+
+def check_expression(node, binops, unops, usr_types, ast_types, record):
+    """
+    Return True if node is an expression that uses the operations in binops and unops and 
+    whose operations are of the types contained in the tuples usr_types and ast_types
+    """
+    if isinstance(node, ast_types):
+        return True
+    elif isinstance(node, ast.Name):
+        if node.id in record:
+            return True
+    else:
+        if isinstance(node, ast.BinOp):
+            if isinstance(node.op, binops):
+                return check_expression(node.left, binops, unops, usr_types, ast_types, record) \
+                    and check_expression(node.right, binops, unops, usr_types, ast_types, record)
+            else:
+                raise cgenException('unsopported BinOp {}\n'.format(astu.unparse(node)), node.lineno)
+        elif isinstance(node, ast.UnaryOp):
+            if isinstance(node.op, unops):
+                return check_expression(node.operand, binops, unops, usr_types, ast_types)
+            else:
+                raise cgenException('unsopported UnaryOp {}\n'.format(astu.unparse(node)), node.lineno)
+        else:
+            raise cgenException('could not resolve expression {}\n'.format(astu.unparse(node)), node.lineno)
+
 
 # def process_annotation(ann_node):
 #     if isinstance(ann_node, ast.Name):
@@ -772,8 +802,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                 self.scope = self.scope + '@' + item.name
                 self.typed_record[self.scope] = dict()
                 self.var_dim_record[self.scope] = dict()
-                self.heap8_record[self.scope] = 0
-                self.heap64_record[self.scope] = 0
+                self.heap8_record[self.scope] = '0'
+                self.heap64_record[self.scope] = '0'
                 self.visit_arguments(item.args, 'src')
                 self.write(') {\n', dest = 'src')
                 # store current pmt_heap value (and restore before returning)
@@ -1234,8 +1264,8 @@ class SourceGenerator(ExplicitNodeVisitor):
             self.scope = self.scope + '@' + node.value.args[0].s
             self.typed_record[self.scope] = dict()
             self.var_dim_record[self.scope] = dict()
-            self.heap8_record[self.scope] = 0
-            self.heap64_record[self.scope] = 0
+            self.heap8_record[self.scope] = '0'
+            self.heap64_record[self.scope] = '0'
             self.scope = descope(self.scope, '@' + node.value.args[0].s)
             return
             
@@ -1297,8 +1327,8 @@ class SourceGenerator(ExplicitNodeVisitor):
             self.statement(node, node.annotation, ' ', node.target)
             self.conditional_write(' = ', node.value, '', dest = 'src')
             # increment scoped heap usage (3 pointers and 6 ints for pmats)
-            self.heap8_record[self.scope] = self.heap8_record[self.scope] + 3*self.size_of_pointer
-            self.heap8_record[self.scope] = self.heap8_record[self.scope] + 6*self.size_of_int
+            self.heap8_record[self.scope] = self.heap8_record[self.scope] + '+' + '3*' + str(self.size_of_pointer)
+            self.heap8_record[self.scope] = self.heap8_record[self.scope] + '+' + '6*' + str(self.size_of_int)
             # check is dims is not a numerical value
             if isinstance(dim1, str):
                 if dim1 in self.dim_record:
@@ -1310,7 +1340,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                     dim2 = self.dim_record[dim2]
                 else:
                     raise cgenException('Undefined variable {} of type dims.'.format(dim2), node.lineno)
-            self.heap64_record[self.scope] = self.heap64_record[self.scope] + int(dim1)*int(dim2)*self.size_of_double
+            # self.heap64_record[self.scope] = self.heap64_record[self.scope] + int(dim1)*int(dim2)*self.size_of_double
+            self.heap64_record[self.scope] = self.heap64_record[self.scope] + '+' + str(dim1) + '*' + str(dim2) + '*' + str(self.size_of_double)
         # or pvec[<n>]
         elif ann == 'pvec':
             if node.value.func.id != 'pvec':
@@ -1324,8 +1355,10 @@ class SourceGenerator(ExplicitNodeVisitor):
 
         # or dims
         elif ann == 'dims':
-            self.write('#define %s %s\n' %(node.target.id, node.value.n), dest='hdr')
-            self.dim_record[node.target.id] = node.value.n
+            check_expression(node.value, tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]), tuple([ast.USub]),('dims'), tuple([ast.Num]), self.dim_record)
+            value = astu.unparse(node.value)
+            self.write('#define %s %s\n' %(node.target.id, value), dest='hdr')
+            self.dim_record[node.target.id] = value
             # self.write('const int %s = %s;\n' %(node.target.id, node.value.n), dest='hdr')
 
         # or dimv
@@ -1410,8 +1443,8 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.scope = self.scope + '@' + node.name
         self.typed_record[self.scope] = dict()
         self.var_dim_record[self.scope] = dict()
-        self.heap8_record[self.scope] = 0
-        self.heap64_record[self.scope] = 0
+        self.heap8_record[self.scope] = '0'
+        self.heap64_record[self.scope] = '0'
         prefix = 'is_async ' if is_async else ''
         self.decorators(node, 1 if self.indentation else 2)
         # self.write()
@@ -1484,8 +1517,8 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.typed_record[self.scope] = dict()
         self.meta_info[self.scope] = dict()
         self.var_dim_record[self.scope] = dict()
-        self.heap8_record[self.scope] = 0 
-        self.heap64_record[self.scope] = 0 
+        self.heap8_record[self.scope] = '0' 
+        self.heap64_record[self.scope] = '0'
         have_args = []
 
         def paren_or_comma():
