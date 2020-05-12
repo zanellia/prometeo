@@ -16,6 +16,7 @@ from prometeo.mem.ast_analyzer import compute_reach_graph
 from copy import deepcopy
 
 import casadi as ca
+import time
 
 size_of_pointer = 8
 size_of_int = 4
@@ -72,7 +73,11 @@ def pmt_main(script_path, stdout, stderr, args = None):
         # code = open(filename).read() + post
         # exec(code, globals(), globals())
         code_no_hints = strip_file_to_string(filename) + post
+
+        tic = time.time()
         exec(code_no_hints, globals(), globals())
+        toc = time.time() - tic
+        print('Execution time = {:0.3f} sec'.format(toc))
     else:
         pmt_path = os.path.dirname(prometeo.__file__)
         # cmd = 'export MYPYPATH=' + pmt_path + ' & mypy ' + filename
@@ -180,24 +185,25 @@ def pmt_main(script_path, stdout, stderr, args = None):
         else:
             raise Exception('Running on unsupported operating system {}'.format(running_on))
 
-        if red_stdout is not None: 
-            proc = subprocess.Popen([cmd], shell=True, stdout=subprocess.PIPE)
-        else:
-            proc = subprocess.Popen([cmd], shell=True)
+        tic = time.time()
+        proc = subprocess.Popen([cmd], shell=True, stdout=subprocess.PIPE)
 
         try:
             outs, errs = proc.communicate()
         except TimeOutExpired:
             proc.kill()
             outs, errs = proc.communicate()
-            print('Command \'make\' timed out.')
+            print('Command {} timed out.'.format(cmd))
             if red_stdout is not None:
                 with open(red_stdout, 'w') as f:
                     f.write(outs)
+        toc = time.time() - tic
 
         if red_stdout is not None:
             with open(red_stdout, 'w') as f:
                 f.write(outs.decode())
+        else:
+            print(outs.decode())
 
         if proc.returncode: 
             raise Exception('Command {} failed with the above error.'

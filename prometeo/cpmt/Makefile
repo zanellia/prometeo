@@ -1,12 +1,15 @@
+PMT_FLAGS = -DMEASURE_TIMINGS
 CC = gcc
 # CC = g++
 # CC = clang
 CFLAGS = -std=c99
 CFLAGS += -fPIC
+CFLAGS += $(PMT_FLAGS)
 PREFIX = ./..
 SRCS += pmat_blasfeo_wrapper.c
 SRCS += pvec_blasfeo_wrapper.c
 SRCS += pmt_aux.c
+SRCS += timing.c
 CFLAGS +=-I../../external/blasfeo/include/
 OPT_LD_FLAGS = 
 
