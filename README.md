@@ -3,7 +3,7 @@
 
 ![Travis Status](https://travis-ci.org/zanellia/prometeo.svg?branch=master) [![PyPI version fury.io](https://badge.fury.io/py/prometeo-dsl.svg)](https://pypi.python.org/pypi/ansicolortags/)
 
-This is prometeo, a modeling tool for embedded high-performance computing. prometeo provides a 
+This is prometeo, an experimental modeling tool for embedded high-performance computing. prometeo provides a 
 domain specific language (DSL) based on a subset of the Python language that allows 
 one to conveniently write scientific computing programs in a high-level language (Python itself) that can be transpiled
 to high-performance self-contained C code easily deployable on embedded devices.
