@@ -4,42 +4,50 @@ nm: dims = 4
 nx: dims  = 2*nm
 # nx: dims  = 2
 # sizes: dimv = [[2,2], [2,2], [2,2], [2,2], [2,2]]
-# sizes: dimv = [[8,8], [8,8], [8,8], [8,8], [8,8]]
+sizes: dimv = [[8,8], [8,8], [8,8], [8,8], [8,8]]
 nu: dims  = nm
 nxu: dims = nx + nu
 N:  dims  = 5
 
 class qp_data:
-    A: pmat = pmat(nx, nx) 
-    B: pmat = pmat(nx, nu) 
-    Q: pmat = pmat(nx, nx) 
-    R: pmat = pmat(nu, nu) 
+    A: List = plist(pmat, sizes)
+    B: List = plist(pmat, sizes)
+    Q: List = plist(pmat, sizes)
+    R: List = plist(pmat, sizes)
+    P: List = plist(pmat, sizes)
+
+    fact: List = plist(pmat, sizes)
 
     def factorize(self) -> None:
         M: pmat = pmat(nxu, nxu)
-        Lxx: pmat = pmat(nx, nx)
+        Mxx: pmat = pmat(nx, nx)
+        L: pmat = pmat(nxu, nxu)
         Q: pmat = pmat(nx, nx)
         R: pmat = pmat(nu, nu)
-        RSQ: pmat = pmat(nxu, nxu)
         BA: pmat = pmat(nx, nxu)
-        BAt: pmat = pmat(nxu, nx)
-        w_nxu_nx: pmat = pmat(nxu, nx)
+        BAtP: pmat = pmat(nxu, nx)
+        pmat_copy(self.Q[N-1], self.P[N-1])
 
-        pmat_hcat(self.B, self.A, BA)
-        pmat_tran(BA, BAt)
-        pmat_copy(self.Q, Q)
-        pmat_copy(self.R, R)
-        RSQ[0:nu,0:nu] = R
-        RSQ[nu:nu+nx,nu:nu+nx] = Q
-        pmt_potrf(self.Q, Lxx)
-        M[nu:nu+nx,nu:nu+nx] = Lxx
+        pmat_hcat(self.B[N-1], self.A[N-1], BA)
+        pmat_copy(self.Q[N-1], Q)
+        pmat_copy(self.R[N-1], R)
         for i in range(1, N):
-            pmat_fill(BAt, 0.0)
-            pmt_trmm_rlnn(M, BAt, w_nxu_nx)
+            pmat_fill(BAtP, 0.0)
+            pmt_gemm_tn(BA, self.P[N-i], BAtP, BAtP)
 
-            pmt_syrk_ln(w_nxu_nx, w_nxu_nx, RSQ, M)
-            pmt_potrf(M, M)
-            # pmat_print(M)
+            pmat_fill(M, 0.0)
+            M[0:nu,0:nu] = R
+            M[nu:nu+nx,nu:nu+nx] = Q
+
+            pmt_gemm_nn(BAtP, BA, M, M)
+            pmat_fill(L, 0.0)
+            pmt_potrf(M, L)
+
+            Mxx[0:nx, 0:nx] = L[nu:nu+nx, nu:nu+nx]
+
+            # pmat_fill(self.P[N-i-1], 0.0)
+            pmt_gemm_nt(Mxx, Mxx, self.P[N-i-1], self.P[N-i-1])
+            # pmat_print(self.P[N-i-1])
 
         return
 
@@ -98,10 +106,17 @@ def main() -> int:
 
     qp : qp_data = qp_data() 
 
-    pmat_copy(A, qp.A)
-    pmat_copy(B, qp.B)
-    pmat_copy(Q, qp.Q)
-    pmat_copy(R, qp.R)
+    for i in range(N):
+        qp.A[i] = A
+
+    for i in range(N):
+        qp.B[i] = B
+
+    for i in range(N):
+        qp.Q[i] = Q
+
+    for i in range(N):
+        qp.R[i] = R
 
     qp.factorize()
     
