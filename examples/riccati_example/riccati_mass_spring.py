@@ -28,13 +28,13 @@ class qp_data:
         BAtP: pmat = pmat(nxu, nx)
         pmat_copy(self.Q[N-1], self.P[N-1])
 
+        pmat_hcat(self.B[N-1], self.A[N-1], BA)
+        pmat_copy(self.Q[N-1], Q)
+        pmat_copy(self.R[N-1], R)
         for i in range(1, N):
-            pmat_hcat(self.B[N-i], self.A[N-i], BA)
             pmat_fill(BAtP, 0.0)
             pmt_gemm_tn(BA, self.P[N-i], BAtP, BAtP)
 
-            pmat_copy(self.Q[N-i], Q)
-            pmat_copy(self.R[N-i], R)
             pmat_fill(M, 0.0)
             M[0:nu,0:nu] = R
             M[nu:nu+nx,nu:nu+nx] = Q
@@ -45,9 +45,9 @@ class qp_data:
 
             Mxx[0:nx, 0:nx] = L[nu:nu+nx, nu:nu+nx]
 
-            pmat_fill(self.P[N-i-1], 0.0)
+            # pmat_fill(self.P[N-i-1], 0.0)
             pmt_gemm_nt(Mxx, Mxx, self.P[N-i-1], self.P[N-i-1])
-            pmat_print(self.P[N-i-1])
+            # pmat_print(self.P[N-i-1])
 
         return
 

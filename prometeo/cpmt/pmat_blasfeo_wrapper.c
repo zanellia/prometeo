@@ -270,9 +270,7 @@ void c_pmt_pmat_fill(struct pmat *A, double fill_value) {
     int m = A->bmat->m;
     int n = A->bmat->n;
 
-    for(int i = 0; i < m; i++)
-        for(int j = 0; j < n; j++)
-            blasfeo_dgein1(fill_value, A->bmat, i, j);
+    blasfeo_dgese(m, n, fill_value, A->bmat, 0, 0);
 }
 
 void c_pmt_pmat_set_el(struct pmat *A, int i, int j, double fill_value) {
@@ -296,11 +294,13 @@ void c_pmt_pmat_copy(struct pmat *A, struct pmat *B) {
     int n = A->bmat->n;
     double value;
 
-    for(int i = 0; i < m; i++)
-        for(int j = 0; j < n; j++) {
-            value = blasfeo_dgeex1(A->bmat, i, j);
-            blasfeo_dgein1(value, B->bmat, i, j);
-        }
+
+    blasfeo_dgecp(m, n, A->bmat, 0, 0, B->bmat, 0, 0);
+    // for(int i = 0; i < m; i++)
+    //     for(int j = 0; j < n; j++) {
+    //         value = blasfeo_dgeex1(A->bmat, i, j);
+    //         blasfeo_dgein1(value, B->bmat, i, j);
+    //     }
 }
 
 struct pmat * _c_pmt_pmat_copy(struct pmat *A, struct pmat *B) {
@@ -308,11 +308,12 @@ struct pmat * _c_pmt_pmat_copy(struct pmat *A, struct pmat *B) {
     int n = A->bmat->n;
     double value;
 
-    for(int i = 0; i < m; i++)
-        for(int j = 0; j < n; j++) {
-            value = blasfeo_dgeex1(A->bmat, i, j);
-            blasfeo_dgein1(value, B->bmat, i, j);
-        }
+    blasfeo_dgecp(m, n, A->bmat, 0, 0, B->bmat, 0, 0);
+    // for(int i = 0; i < m; i++)
+    //     for(int j = 0; j < n; j++) {
+    //         value = blasfeo_dgeex1(A->bmat, i, j);
+    //         blasfeo_dgein1(value, B->bmat, i, j);
+    //     }
 
     return B;
 }
@@ -322,11 +323,12 @@ void c_pmt_pmat_tran(struct pmat *A, struct pmat *B) {
     int n = A->bmat->n;
     double value;
 
-    for(int i = 0; i < m; i++)
-        for(int j = 0; j < n; j++) {
-            value = blasfeo_dgeex1(A->bmat, i, j);
-            blasfeo_dgein1(value, B->bmat, j, i);
-        }
+    blasfeo_dgetr(m, n, A->bmat, 0, 0, B->bmat, 0, 0);
+    // for(int i = 0; i < m; i++)
+    //     for(int j = 0; j < n; j++) {
+    //         value = blasfeo_dgeex1(A->bmat, i, j);
+    //         blasfeo_dgein1(value, B->bmat, j, i);
+    //     }
 }
 
 struct pmat * _c_pmt_pmat_tran(struct pmat *A) {
@@ -336,11 +338,12 @@ struct pmat * _c_pmt_pmat_tran(struct pmat *A) {
     struct blasfeo_dmat *bB = B->bmat;
     double value;
 
-    for(int i = 0; i < m; i++)
-        for(int j = 0; j < n; j++) {
-            value = blasfeo_dgeex1(A->bmat, i, j);
-            blasfeo_dgein1(value, B->bmat, j, i);
-        }
+    blasfeo_dgetr(m, n, A->bmat, 0, 0, B->bmat, 0, 0);
+    // for(int i = 0; i < m; i++)
+    //     for(int j = 0; j < n; j++) {
+    //         value = blasfeo_dgeex1(A->bmat, i, j);
+    //         blasfeo_dgein1(value, B->bmat, j, i);
+    //     }
     return B;
 }
 
