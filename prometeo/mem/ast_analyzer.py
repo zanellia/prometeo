@@ -21,6 +21,7 @@ pmt_functions = {\
     'global@pmt_gemm_nn': [], \
     'global@pmt_gemm_tn': [], \
     'global@pmt_gemm_nt': [], \
+    'global@pmt_trmm_rlnn': [], \
     'global@pmt_gead': [], \
     'global@pmt_potrf': [], \
     'global@pmt_potrsm': [], \

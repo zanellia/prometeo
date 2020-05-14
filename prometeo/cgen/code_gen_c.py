@@ -38,6 +38,7 @@ pmt_temp_functions = {\
         'pmt_gemm_nn': 'c_pmt_gemm_nn', \
         'pmt_gemm_tn': 'c_pmt_gemm_tn', \
         'pmt_gemm_nt': 'c_pmt_gemm_nt', \
+        'pmt_trmm_rlnn': 'c_pmt_trmm_rlnn', \
         'pmt_gead': 'c_pmt_gead', \
         'pmt_getrf': 'c_pmt_getrf', \
         'pmt_getrsm': 'c_pmt_getrsm', \
@@ -73,6 +74,7 @@ arg_types = {\
         'pvec': ['int'], \
         'pmt_gemm_nn': ['pmat', 'pmat', 'pmat', 'pmat'], \
         'pmt_gemm_tn': ['pmat', 'pmat', 'pmat', 'pmat'], \
+        'pmt_trmm_rlnn': ['pmat', 'pmat', 'pmat'], \
         'pmt_gead':    ['float', 'pmat', 'pmat'], \
         'pmt_getrf':   ['pmat', 'pmat', 'List'], \
         'pmt_getrsm':  ['pmat', 'List', 'pmat'], \

@@ -115,7 +115,7 @@ void c_pmt_gemm_tn(struct pmat *A, struct pmat *B, struct pmat *C, struct pmat *
 void c_pmt_gemm_nt(struct pmat *A, struct pmat *B, struct pmat *C, struct pmat *D) {
     int mA = A->bmat->m; 
     int nA = A->bmat->n; 
-    int nB = B->bmat->n; 
+    int mB = B->bmat->m; 
     struct blasfeo_dmat *bA = A->bmat;
     struct blasfeo_dmat *bB = B->bmat;
     struct blasfeo_dmat *bC = C->bmat;
@@ -127,7 +127,24 @@ void c_pmt_gemm_nt(struct pmat *A, struct pmat *B, struct pmat *C, struct pmat *
     // blasfeo_print_dmat(mA, nA, C->bmat, 0, 0);
     // blasfeo_print_dmat(mA, nA, D->bmat, 0, 0);
 
-    blasfeo_dgemm_nt(nA, nB, mA, 1.0, bA, 0, 0, bB, 0, 0, 1, bC, 0, 0, bD, 0, 0);
+    blasfeo_dgemm_nt(mA, mB, nA, 1.0, bA, 0, 0, bB, 0, 0, 1, bC, 0, 0, bD, 0, 0);
+}
+
+
+void c_pmt_trmm_rlnn(struct pmat *A, struct pmat *B, struct pmat *D) {
+    int nB = B->bmat->n; 
+    int mB = B->bmat->m; 
+    struct blasfeo_dmat *bA = A->bmat;
+    struct blasfeo_dmat *bB = B->bmat;
+    struct blasfeo_dmat *bD = D->bmat;
+
+    // printf("In dgemm\n");
+    // blasfeo_print_dmat(mA, nA, A->bmat, 0, 0);
+    // blasfeo_print_dmat(mA, nA, B->bmat, 0, 0);
+    // blasfeo_print_dmat(mA, nA, C->bmat, 0, 0);
+    // blasfeo_print_dmat(mA, nA, D->bmat, 0, 0);
+
+    blasfeo_dtrmm_rlnn(mB, nB, 1.0, bA, 0, 0, bB, 0, 0, bD, 0, 0);
 }
 
 void c_pmt_getrf(struct pmat *A, struct pmat *fact, int *ipiv) {
