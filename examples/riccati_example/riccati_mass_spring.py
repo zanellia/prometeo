@@ -1,49 +1,16 @@
 from prometeo import *
 
-nm: dims = 4
-nx: dims  = 2*nm
-# nx: dims  = 2
-# sizes: dimv = [[2,2], [2,2], [2,2], [2,2], [2,2]]
-# sizes: dimv = [[8,8], [8,8], [8,8], [8,8], [8,8]]
-nu: dims  = nm
+nm:  dims = 10
+nx:  dims = 2*nm
+nu:  dims = nm
 nxu: dims = nx + nu
-N:  dims  = 5
-
-class qp_data:
-    A: pmat = pmat(nx, nx) 
-    B: pmat = pmat(nx, nu) 
-    Q: pmat = pmat(nx, nx) 
-    R: pmat = pmat(nu, nu) 
-
-    def factorize(self) -> None:
-        M: pmat = pmat(nxu, nxu)
-        Lxx: pmat = pmat(nx, nx)
-        Q: pmat = pmat(nx, nx)
-        R: pmat = pmat(nu, nu)
-        RSQ: pmat = pmat(nxu, nxu)
-        BA: pmat = pmat(nx, nxu)
-        BAt: pmat = pmat(nxu, nx)
-        w_nxu_nx: pmat = pmat(nxu, nx)
-
-        pmat_hcat(self.B, self.A, BA)
-        pmat_tran(BA, BAt)
-        pmat_copy(self.Q, Q)
-        pmat_copy(self.R, R)
-        RSQ[0:nu,0:nu] = R
-        RSQ[nu:nu+nx,nu:nu+nx] = Q
-        pmt_potrf(self.Q, Lxx)
-        M[nu:nu+nx,nu:nu+nx] = Lxx
-        for i in range(1, N):
-            pmt_trmm_rlnn(M, BAt, w_nxu_nx)
-
-            pmt_syrk_ln(w_nxu_nx, w_nxu_nx, RSQ, M)
-            pmt_potrf(M, M)
-            # pmat_print(M)
-
-        return
+N:   dims = 5
 
 def main() -> int:
+    # number of repetitions for timing
+    nrep : int = 100000
 
+    # set up dynamics TODO(needs discretization!)
     A: pmat = pmat(nx, nx)
     Ac11 : pmat = pmat(nm,nm)
     Ac12 : pmat = pmat(nm,nm)
@@ -95,13 +62,22 @@ def main() -> int:
     for i in range(nu):
         R[i,i] = 1.0
 
-    qp : qp_data = qp_data() 
+    RSQ: pmat = pmat(nxu, nxu)
+    Lxx: pmat = pmat(nx, nx)
+    M: pmat = pmat(nxu, nxu)
+    w_nxu_nx: pmat = pmat(nxu, nx)
+    BAt : pmat = pmat(nxu, nx)
 
-    pmat_copy(A, qp.A)
-    pmat_copy(B, qp.B)
-    pmat_copy(Q, qp.Q)
-    pmat_copy(R, qp.R)
+    RSQ[0:nu,0:nu] = R
+    RSQ[nu:nu+nx,nu:nu+nx] = Q
 
-    qp.factorize()
-    
+    # array-type Riccati factorization
+    for i in range(nrep):
+        pmt_potrf(Q, Lxx)
+        M[nu:nu+nx,nu:nu+nx] = Lxx
+        for i in range(1, N):
+            pmt_trmm_rlnn(M, BAt, w_nxu_nx)
+            pmt_syrk_ln(w_nxu_nx, w_nxu_nx, RSQ, M)
+            pmt_potrf(M, M)
+
     return 0
