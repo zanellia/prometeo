@@ -34,7 +34,6 @@ class qp_data:
         pmt_potrf(self.Q, Lxx)
         M[nu:nu+nx,nu:nu+nx] = Lxx
         for i in range(1, N):
-            pmat_fill(BAt, 0.0)
             pmt_trmm_rlnn(M, BAt, w_nxu_nx)
 
             pmt_syrk_ln(w_nxu_nx, w_nxu_nx, RSQ, M)
