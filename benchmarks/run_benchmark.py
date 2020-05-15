@@ -66,17 +66,17 @@ else:
 AVG_CPU_TIME = np.array(AVG_CPU_TIME)
 
 plt.figure()
-plt.semilogy(AVG_CPU_TIME[:,1], AVG_CPU_TIME[:,0])
+plt.semilogy(2*AVG_CPU_TIME[:,1], AVG_CPU_TIME[:,0])
 
 if LOAD_BLASFEO_RES:
     with open(blasfeo_res_file) as res:
         AVG_CPU_TIME_BLASFEO = json.load(res)
     AVG_CPU_TIME_BLASFEO = np.array(AVG_CPU_TIME_BLASFEO)
-    plt.semilogy(AVG_CPU_TIME_BLASFEO[:,1], AVG_CPU_TIME_BLASFEO[:,0], 'o')
+    plt.semilogy(2*AVG_CPU_TIME_BLASFEO[:,1], AVG_CPU_TIME_BLASFEO[:,0], 'o')
 
 plt.legend(['prometeo','BLASFEO API'])
 plt.grid()
-plt.xlabel('size')
+plt.xlabel('matrix size (nx)')
 plt.ylabel('CPU time [s]')
 plt.title('Riccati factorization')
 if UPDATE_FIGURE:
