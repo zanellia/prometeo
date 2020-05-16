@@ -24,7 +24,7 @@ the Python run-time library.
 
       
 ### performance
-Since prometeo programs transpile to pure C code that calls the high performance linear algebra library BLASFEO ([https://arxiv.org/abs/1704.02457](https://arxiv.org/abs/1704.02457)), execution time can be comparable to hand-written high-performance code. The figure below shows a comparison of the CPU time necessary to carry out a Riccati factorization using highly optimized hand-written C code with calls to BLASFEO and the ones obtain with prometeo transpiled code from [this example](https://github.com/zanellia/prometeo/blob/master/examples/riccati_example/riccati_mass_spring.py).
+Since prometeo programs transpile to pure C code that calls the high performance linear algebra library BLASFEO ([https://arxiv.org/abs/1704.02457](https://arxiv.org/abs/1704.02457)), execution time can be comparable to hand-written high-performance code. The figure below shows a comparison of the CPU time necessary to carry out a Riccati factorization using highly optimized hand-written C code with calls to BLASFEO and the ones obtained with prometeo transpiled code from [this example](https://github.com/zanellia/prometeo/blob/master/examples/riccati_example/riccati_mass_spring.py).
 
 <p align="center">
 <img src="https://github.com/zanellia/prometeo/blob/master/benchmarks/riccati_benchmark.png" width="70%" >
