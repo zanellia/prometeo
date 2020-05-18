@@ -18,8 +18,17 @@ prometeo transpiled programs have a guaranteed maximum heap usage.
 - __fast memory menagement__ : thanks to its static analysis, prometeo can avoid allocating
 and garbage-collecting memory, resulting in faster and safer execution.
 - __self-contained and embeddable__ : unlike other similar tools and languages, prometeo targets specifically embedded applications and programs 
-written in prometeo transpiled to self-contained C code that does not require linking against 
+written in prometeo transpile to self-contained C code that does not require linking against 
 the Python run-time library.
+
+
+      
+### performance
+Since prometeo programs transpile to pure C code that calls the high performance linear algebra library BLASFEO ([https://arxiv.org/abs/1704.02457](https://arxiv.org/abs/1704.02457)), execution time can be comparable to hand-written high-performance code. The figure below shows a comparison of the CPU time necessary to carry out a Riccati factorization using highly optimized hand-written C code with calls to BLASFEO and the ones obtained with prometeo transpiled code from [this example](https://github.com/zanellia/prometeo/blob/master/examples/riccati_example/riccati_mass_spring.py).
+
+<p align="center">
+<img src="https://github.com/zanellia/prometeo/blob/master/benchmarks/riccati_benchmark.png" width="70%" >
+</p>
 
 ### PyPI installation
 
