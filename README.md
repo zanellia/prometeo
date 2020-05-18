@@ -18,7 +18,7 @@ prometeo transpiled programs have a guaranteed maximum heap usage.
 - __fast memory menagement__ : thanks to its static analysis, prometeo can avoid allocating
 and garbage-collecting memory, resulting in faster and safer execution.
 - __self-contained and embeddable__ : unlike other similar tools and languages, prometeo targets specifically embedded applications and programs 
-written in prometeo transpiled to self-contained C code that does not require linking against 
+written in prometeo transpile to self-contained C code that does not require linking against 
 the Python run-time library.
 
 
