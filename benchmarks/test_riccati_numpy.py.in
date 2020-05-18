@@ -1,0 +1,151 @@
+# Riccati recursion
+
+import numpy as np
+import scipy as sp
+import scipy.linalg
+import time
+
+nmass = NM
+nrep = NREP
+
+nx = 2*nmass
+nu = nmass
+N = 5
+
+# data
+
+# mass spring system
+Ts = 0.5 # sampling time
+
+Ac = np.vstack(( \
+	np.hstack((np.zeros((nmass, nmass)), np.eye(nmass))), \
+	np.hstack((np.diag(-2*np.ones(nmass)) + np.diag(np.ones(nmass-1),-1) + \
+	np.diag(np.ones(nmass-1),1), np.zeros((nmass, nmass)))) \
+	))
+
+Bc = np.vstack((np.zeros((nmass,nu)), np.eye(nu), np.zeros((nmass-nu, nu))))
+
+M = sp.linalg.expm(np.vstack((np.hstack((Ts*Ac, Ts*Bc)), np.zeros((nu, 2*nmass+nu)))))
+
+# dynamical system
+A = M[0:nx, 0:nx]
+B = M[0:nx, nx:]
+
+# cost function
+Q = np.eye(nx)
+R = 2*np.eye(nu)
+
+# initial state
+x0 = np.zeros((nx, 1))
+x0[0] = 3.5
+x0[1] = 3.5
+
+# work matrices
+BAt = np.vstack((B.transpose(), A.transpose()))
+BAt = np.array(BAt, dtype=np.float64, order='f')
+
+RSQ = np.zeros((nu+nx, nu+nx))
+RSQ[0:nu, 0:nu] = R
+RSQ[nu:,nu:] = Q
+RSQ = np.array(RSQ, dtype=np.float64, order='f')
+
+BAtP = np.zeros((nu+nx, nx))
+Lu = []
+for ii in range(N):
+	Lu.append(np.zeros((nu, nu)))
+
+Lxu = []
+for ii in range(N):
+	Lxu.append(np.zeros((nx, nu)))
+
+P = []
+for ii in range(N+1):
+	P.append(np.zeros((nx, nx)))
+
+M = np.zeros((nu+nx, nu+nx))
+
+BAtL = np.zeros((nu+nx, nx))
+BAtL = np.array(BAtL, dtype=np.float64, order='f')
+
+L = []
+for ii in range(N):
+	L.append(np.zeros((nu+nx, nu+nx)))
+	L[ii] = np.array(L[ii], dtype=np.float64, order='f')
+L.append(np.zeros((nx, nx)))
+L[N] = np.array(L[N], dtype=np.float64, order='f')
+
+Lx = np.zeros((nx, nx))
+Lx = np.array(Lx, dtype=np.float64, order='f')
+
+
+# Riccati recursion, classical algorithm
+
+tic = time.time()
+
+# for rep in range(nrep):
+
+# 	P[N] = Q
+
+# 	for ii in range(N):
+# 		BAtP = np.dot(BAt, P[N-ii])
+# 		M = RSQ + np.dot(BAtP, BAt.transpose())
+# 		Lu[N-1-ii] = np.linalg.cholesky(M[0:nu,0:nu])
+# 		Lxu[N-1-ii] = sp.linalg.blas.dtrsm(1.0, Lu[N-1-ii].transpose(), M[nu:,0:nu].transpose())
+# 		P[N-1-ii] = M[nu:,nu:] - np.dot(Lxu[N-1-ii].transpose(), Lxu[N-1-ii])
+
+# toc = time.time() - tic
+
+# time_ric_classic = toc/nrep
+
+#Lu
+#Lxu
+#P
+#return
+
+# Riccati recursion, square root algorithm
+
+# tic = time.time()
+
+# for rep in range(nrep):
+
+# 	L[N] = np.linalg.cholesky(Q)
+# 	Lx = L[N][0]
+
+# 	for ii in range(N):
+# 		BAtL = np.dot(BAt, Lx)
+# 		M = RSQ + np.dot(BAtL, BAtL.transpose())
+# 		L[N-1-ii] = np.linalg.cholesky(M)
+# 		Lx = L[N-1-ii][nu:,nu:]
+
+# toc = time.time() - tic
+# time_ric_square_root_np = toc/nrep
+
+# # ser (again) as fortran some matrix used by classic riccati
+# BAtL = np.array(BAtL, dtype=np.float64, order='f')
+# for ii in range(N+1):
+# 	L[ii] = np.array(L[ii], dtype=np.float64, order='f')
+
+tic = time.time()
+
+for rep in range(nrep):
+
+	L[N] = Q
+	(L[N], info) = sp.linalg.lapack.dpotrf(L[N], lower=1, clean=1, overwrite_a=1)
+	Lx = L[N]
+
+	for ii in range(N):
+#		BAtL = sp.linalg.blas.dgemm(1.0, BAt, Lx, beta=0.0, c=BAtL, overwrite_c=1)
+		BAtL = sp.linalg.blas.dtrmm(1.0, Lx, BAt, side=1, lower=1)
+		L[N-1-ii] = RSQ + sp.linalg.blas.dsyrk(1.0, BAtL, lower=1, trans=0, c=L[N-1-ii], overwrite_c=1)
+#		(L[N-1-ii], info) = sp.linalg.lapack.dpotrf(L[N-1-ii], lower=1, clean=1, overwrite_a=1)
+		(L[N-1-ii], info) = sp.linalg.lapack.dpotrf(L[N-1-ii], lower=1, clean=0, overwrite_a=1)
+		Lx = L[N-1-ii][nu:,nu:]
+
+toc = time.time() - tic
+time_ric_square_root_sp = toc/nrep
+
+#L
+#print(Lx)
+
+# print('{:e}\t{:e}\t{:e}'.format(time_ric_classic, time_ric_square_root_np, time_ric_square_root_sp))
+print('{:e}'.format(time_ric_square_root_sp))

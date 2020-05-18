@@ -3,6 +3,8 @@ import subprocess
 import json
 import matplotlib
 import matplotlib.pyplot as plt
+import matplotlib as mpl
+# mpl.style.use('v2.0')
 
 NM = range(2,150,4)
 # NM = range(2,20,2)
@@ -18,6 +20,10 @@ figname = 'riccati_benchmark'
 
 blasfeo_res_file = 'riccati_benchmark_blasfeo_api.json'
 LOAD_BLASFEO_RES = True
+numpy_res_file = 'riccati_benchmark_numpy.json'
+LOAD_NUMPY_RES = True
+julia_res_file = 'riccati_benchmark_julia.json'
+LOAD_JULIA_RES = True 
 
 if not UPDATE_res:
     print('Warning: not updating result file! This will just '
@@ -68,19 +74,35 @@ AVG_CPU_TIME = np.array(AVG_CPU_TIME)
 plt.figure()
 plt.semilogy(2*AVG_CPU_TIME[:,1], AVG_CPU_TIME[:,0])
 
+legend = ['prometeo']
 if LOAD_BLASFEO_RES:
     with open(blasfeo_res_file) as res:
         AVG_CPU_TIME_BLASFEO = json.load(res)
     AVG_CPU_TIME_BLASFEO = np.array(AVG_CPU_TIME_BLASFEO)
     plt.semilogy(2*AVG_CPU_TIME_BLASFEO[:,1], AVG_CPU_TIME_BLASFEO[:,0], 'o')
+    legend.append('BLASFEO_API')
 
-plt.legend(['prometeo','BLASFEO API'])
+if LOAD_NUMPY_RES:
+    with open(numpy_res_file) as res:
+        AVG_CPU_TIME_BLASFEO = json.load(res)
+    AVG_CPU_TIME_BLASFEO = np.array(AVG_CPU_TIME_BLASFEO)
+    plt.semilogy(2*AVG_CPU_TIME_BLASFEO[:,1], AVG_CPU_TIME_BLASFEO[:,0])
+    legend.append('NumPy')
+
+if LOAD_JULIA_RES:
+    with open(julia_res_file) as res:
+        AVG_CPU_TIME_BLASFEO = json.load(res)
+    AVG_CPU_TIME_BLASFEO = np.array(AVG_CPU_TIME_BLASFEO)
+    plt.semilogy(2*AVG_CPU_TIME_BLASFEO[:,1], AVG_CPU_TIME_BLASFEO[:,0])
+    legend.append('Julia')
+
+plt.legend(legend)
 plt.grid()
 plt.xlabel('matrix size (nx)')
 plt.ylabel('CPU time [s]')
 plt.title('Riccati factorization')
 if UPDATE_FIGURE:
-    plt.savefig(figname + '.pdf', dpi=300, bbox_inches="tight")
+    plt.savefig(figname + '.png', dpi=300, bbox_inches="tight")
 plt.show()
 
 
