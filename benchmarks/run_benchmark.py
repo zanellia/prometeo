@@ -4,7 +4,10 @@ import json
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-# mpl.style.use('v2.0')
+plt.rcParams['text.usetex'] = True
+plt.rcParams['text.latex.preamble'] = [r'\usepackage{lmodern}']
+font = {'family':'serif'}
+plt.rc('font',**font)
 
 NM = range(2,150,4)
 # NM = range(2,20,2)
@@ -76,40 +79,41 @@ AVG_CPU_TIME = np.array(AVG_CPU_TIME)
 plt.figure()
 plt.semilogy(2*AVG_CPU_TIME[:,1], AVG_CPU_TIME[:,0])
 
-legend = ['prometeo']
+legend = [r'\texttt{prometeo}']
 if LOAD_BLASFEO_RES:
     with open(blasfeo_res_file) as res:
         AVG_CPU_TIME_BLASFEO = json.load(res)
     AVG_CPU_TIME_BLASFEO = np.array(AVG_CPU_TIME_BLASFEO)
     plt.semilogy(2*AVG_CPU_TIME_BLASFEO[:,1], AVG_CPU_TIME_BLASFEO[:,0], 'o')
-    legend.append('BLASFEO_API')
+    legend.append(r'\texttt{BLASFEO}')
 
 if LOAD_NUMPY_RES:
     with open(numpy_res_file) as res:
         AVG_CPU_TIME_BLASFEO = json.load(res)
     AVG_CPU_TIME_BLASFEO = np.array(AVG_CPU_TIME_BLASFEO)
-    plt.semilogy(2*AVG_CPU_TIME_BLASFEO[:,1], AVG_CPU_TIME_BLASFEO[:,0])
-    legend.append('NumPy')
+    plt.semilogy(2*AVG_CPU_TIME_BLASFEO[:,1], AVG_CPU_TIME_BLASFEO[:,0], '--', alpha=0.7)
+    legend.append(r'\texttt{NumPy}')
+
+if LOAD_JULIA_RES:
+    with open(julia_res_file) as res:
+        AVG_CPU_TIME_BLASFEO = json.load(res)
+    AVG_CPU_TIME_BLASFEO = np.array(AVG_CPU_TIME_BLASFEO)
+    plt.semilogy(2*AVG_CPU_TIME_BLASFEO[:,1], AVG_CPU_TIME_BLASFEO[:,0], '--',alpha=0.7)
+    legend.append(r'\texttt{Julia}')
 
 if LOAD_NUMPY_BLASFEO_RES:
     with open(numpy_blasfeo_res_file) as res:
         AVG_CPU_TIME_BLASFEO = json.load(res)
     AVG_CPU_TIME_BLASFEO = np.array(AVG_CPU_TIME_BLASFEO)
     plt.semilogy(2*AVG_CPU_TIME_BLASFEO[:,1], AVG_CPU_TIME_BLASFEO[:,0])
-    legend.append('NumPy + BLASFEO')
+    legend.append(r'\texttt{NumPy + BLASFEO}')
 
-if LOAD_JULIA_RES:
-    with open(julia_res_file) as res:
-        AVG_CPU_TIME_BLASFEO = json.load(res)
-    AVG_CPU_TIME_BLASFEO = np.array(AVG_CPU_TIME_BLASFEO)
-    plt.semilogy(2*AVG_CPU_TIME_BLASFEO[:,1], AVG_CPU_TIME_BLASFEO[:,0])
-    legend.append('Julia')
 
 plt.legend(legend)
 plt.grid()
-plt.xlabel('matrix size (nx)')
-plt.ylabel('CPU time [s]')
-plt.title('Riccati factorization')
+plt.xlabel(r'matrix size ($n_x$)')
+plt.ylabel(r'CPU time [s]')
+plt.title(r'Riccati factorization')
 if UPDATE_FIGURE:
     plt.savefig(figname + '.png', dpi=300, bbox_inches="tight")
 plt.show()
