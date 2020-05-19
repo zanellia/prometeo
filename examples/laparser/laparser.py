@@ -17,6 +17,7 @@ def main() -> int:
     B[1,1] = 1.0
 
     C: pmat = pmat(nx, nx)
+    D: pmat = pmat(nx, nx)
 
     pparse('C = A - A.T \ (B * D).T')
 

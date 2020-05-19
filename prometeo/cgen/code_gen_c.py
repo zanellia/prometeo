@@ -563,6 +563,9 @@ class SourceGenerator(ExplicitNodeVisitor):
         for item in params:
             if not isinstance(item, ast.FunctionDef):
                 raise cgenException('Classes can only contain attributes and methods', item.lineno)
+            if item.returns is None:
+                raise cgenException('Missing return annotation on class method {}'.format(item.name), item.lineno)
+
             # additional treatment of  __init__ (declare attributes)
             if item.name == '__init__':
                 self.write_instance_attributes(item.body, name=name)
@@ -1324,7 +1327,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                 target = node.target.value.id
                 scope = self.scope
         else:
-            if node.target.id in self.typed_record[self.scope]:
+            target = node.target.id
+            if target in self.typed_record[self.scope]:
                 raise cgenException('variable {} already defined.'.format(node.target.id), node.lineno)
 
         # check if a CasADi function is being declared (and skip)
@@ -1353,26 +1357,36 @@ class SourceGenerator(ExplicitNodeVisitor):
             lann = node.value.args[0].id
             dims = Num_or_Name(node.value.args[1])
             if isinstance(dims, str):
-                self.typed_record[self.scope][node.target.id] = 'List[' + lann + ', ' + dims + ']'
+                self.typed_record[self.scope][target] = 'List[' + lann + ', ' + dims + ']'
             else:
-                self.typed_record[self.scope][node.target.id] = 'List[' + lann + ', ' + str(dims) + ']'
+                self.typed_record[self.scope][target] = 'List[' + lann + ', ' + str(dims) + ']'
             if  lann in pmt_temp_types:
                 lann = pmt_temp_types[lann]
             else:
                 raise cgenException ('Usage of non existing type {}.'.format(lann), node.lineno)
-            # check is dims is not a numerical value
+
+            # check if dims is not a numerical value
             if isinstance(dims, str):
                 dim_list = self.dim_record[dims]
                 array_size = len(dim_list)
             else: 
                 array_size = dims
-                # array_size = str(Num_or_Name(node.value.args[1]))
-                # self.statement([], lann, ' ', node.target, '[', array_size, '];')
-            self.write('%s' %lann, ' ', '%s' %node.target.id, '[%s' %array_size, '];\n', dest = 'src')
+
+            # assume that AnnAssigns on attributes are only used to declare instance attributes
+            if not isinstance(node.target, ast.Attribute):
+                self.write('%s' %lann, ' ', '%s' %target, '[%s' %array_size, '];\n', dest = 'src')
+
+
+            # assume that AnnAssigns on attributes are only used to declare instance attributes
+            if isinstance(node.target, ast.Attribute):
+                mod_target = 'self->' + target
+            else:
+                mod_target = target
+
             if lann == 'struct pmat *': 
                 # build init for List of pmats
                 for i in range(len(dim_list)):
-                    self.statement([], node.target.id, \
+                    self.statement([], mod_target, \
                         '[', str(i),'] = c_pmt_create_pmat(', \
                         str(dim_list[i][0]), ', ', \
                         str(dim_list[i][1]), ');')
@@ -1380,10 +1394,9 @@ class SourceGenerator(ExplicitNodeVisitor):
             elif lann == 'struct pvec *': 
                 # build init for List of pvecs
                 for i in range(len(dim_list)):
-                    self.statement([], node.target.id, \
+                    self.statement([], mod_target, \
                         '[', str(i),'] = c_pmt_create_pvec(', \
                         str(dim_list[i][0]), ');')
-            # self.conditional_write(' = ', node.value, '', dest = 'src')
 
         # pmat[<n>,<m>] 
         elif ann == 'pmat':
@@ -1392,13 +1405,22 @@ class SourceGenerator(ExplicitNodeVisitor):
                     ' the pmat(<n>, <m>) constructor.', node.lineno)
             dim1 = Num_or_Name(node.value.args[0])
             dim2 = Num_or_Name(node.value.args[1])
-            self.var_dim_record[self.scope][node.target.id] = [dim1, dim2]
+            self.var_dim_record[self.scope][target] = [dim1, dim2]
             node.annotation.id = pmt_temp_types[ann]
-            self.statement(node, node.annotation, ' ', node.target)
-            self.conditional_write(' = ', node.value, '', dest = 'src')
+            # assume that AnnAssigns on attributes are only used to declare instance attributes
+            if isinstance(node.target, ast.Attribute):
+                self.write('\nself->' + str(node.target.attr) + ' = ', node.value, '\n', dest = 'src') 
+            else:
+                self.statement(node, node.annotation, ' ', node.target)
+                self.conditional_write(' = ', node.value, '', dest = 'src')
+
             # increment scoped heap usage (3 pointers and 6 ints for pmats)
-            self.heap8_record[self.scope] = self.heap8_record[self.scope] + '+' + '3*' + str(self.size_of_pointer)
-            self.heap8_record[self.scope] = self.heap8_record[self.scope] + '+' + '6*' + str(self.size_of_int)
+            self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
+                '+' + '3*' + str(self.size_of_pointer)
+
+            self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
+                '+' + '6*' + str(self.size_of_int)
+
             # check is dims is not a numerical value
             if isinstance(dim1, str):
                 if dim1 in self.dim_record:
@@ -1410,7 +1432,6 @@ class SourceGenerator(ExplicitNodeVisitor):
                     dim2 = self.dim_record[dim2]
                 else:
                     raise cgenException('Undefined variable {} of type dims.'.format(dim2), node.lineno)
-            # self.heap64_record[self.scope] = self.heap64_record[self.scope] + int(dim1)*int(dim2)*self.size_of_double
             self.heap64_record[self.scope] = self.heap64_record[self.scope] + '+' + str(dim1) + \
                 '*' + str(dim2) + '*' + str(self.size_of_double)
         # or pvec[<n>]
@@ -1420,9 +1441,12 @@ class SourceGenerator(ExplicitNodeVisitor):
             dim1 = Num_or_Name(node.value.args[0])
             self.var_dim_record[self.scope][node.target.id] = [dim1]
             node.annotation.id = pmt_temp_types[ann]
-            self.statement(node, node.annotation, ' ', node.target)
-            self.conditional_write(' = ', node.value, '', dest = 'src')
-
+            # assume that AnnAssigns on attributes are only used to declare instance attributes
+            if isinstance(node.target, ast.Attribute):
+                self.write('\nself->' + str(node.target.attr) + ' = ', node.value, '\n', dest = 'src') 
+            else:
+                self.statement(node, node.annotation, ' ', node.target)
+                self.conditional_write(' = ', node.value, '', dest = 'src')
 
         # or dims
         elif ann == 'dims':
@@ -1431,7 +1455,6 @@ class SourceGenerator(ExplicitNodeVisitor):
             value = astu.unparse(node.value)
             self.write('#define %s %s\n' %(node.target.id, value), dest='hdr')
             self.dim_record[node.target.id] = value
-            # self.write('const int %s = %s;\n' %(node.target.id, node.value.n), dest='hdr')
 
         # or dimv
         elif ann == 'dimv':
@@ -1448,9 +1471,15 @@ class SourceGenerator(ExplicitNodeVisitor):
         elif ann in usr_temp_types:
             class_name = node.annotation.id
             node.annotation.id = usr_temp_types[ann]
-            self.statement([], 'struct ', class_name, ' ', node.target, '___;')
-            self.statement(node, node.annotation, ' ', node.target, '= &', node.target, '___;')
-            self.statement([], class_name, '_constructor(', node.target, '); //')
+            # assume that AnnAssigns on attributes are only used to declare instance attributes
+            if isinstance(node.target, ast.Attribute):
+                self.statement([], 'self->', node.annotation, '= & ', node.target, '___;')
+                # self.statement(node, node.annotation, ' ', node.target, '= &', node.target, '___;')
+                self.statement([], 'self->', class_name, '_constructor(', node.target, '); //')
+            else:
+                self.statement([], 'struct ', class_name, ' ', node.target, '___;')
+                self.statement(node, node.annotation, ' ', node.target, '= &', node.target, '___;')
+                self.statement([], class_name, '_constructor(', node.target, '); //')
         else:
             if  ann in pmt_temp_types:
                 c_ann = pmt_temp_types[ann]
@@ -1465,7 +1494,6 @@ class SourceGenerator(ExplicitNodeVisitor):
                                 raise cgenException('Unknown variable {}.'.format(node.value.id), node.lineno)
                         attr_value = Num_or_Name(node.value)
                         attr_name = node.target.attr 
-                        import pdb; pdb.set_trace()
                         self.statement([], node.target.value.id, '->', attr_name, ' = ', str(attr_value), ';')
 
                 else:
@@ -1541,8 +1569,8 @@ class SourceGenerator(ExplicitNodeVisitor):
         # self.write()
         returns = self.get_returns(node)
         if returns is None: 
-            raise cgenException('Function {} does not have a \
-                return type hint.', node.lineno)
+            if item.returns is None:
+                raise cgenException('Missing return annotation on method {}'.format(item.name), node.lineno)
 
         if isinstance(returns, ast.NameConstant):
             return_type_py = str(returns.value)
@@ -1888,11 +1916,11 @@ class SourceGenerator(ExplicitNodeVisitor):
         p = Precedence.Comma if numargs > 1 else Precedence.call_one_arg
         set_precedence(p, *args)
 
-        if type(node.func) == ast.Name: 
+        if isinstance(node.func, ast.Name): 
             if  node.func.id in pmt_temp_functions:
                 func_name = node.func.id
                 node.func.id = pmt_temp_functions[func_name]
-        elif type(node.func) == ast.Attribute: 
+        elif isinstance(node.func, ast.Attribute): 
             # calling a method of a user-defined class
             func_name = node.func.attr
             f_name_len = len(func_name)
@@ -1901,7 +1929,7 @@ class SourceGenerator(ExplicitNodeVisitor):
             node.func.attr = pre_mangl + func_name + post_mangl
 
         self.visit(node.func)
-        if type(node.func) == ast.Attribute: 
+        if isinstance(node.func, ast.Attribute): 
             if len(args) > 0:
                 code = '(' +  node.func.value.id + ', '
             else:
