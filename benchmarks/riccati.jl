@@ -1,3 +1,5 @@
+# author: Tommaso Sartor
+
 module riccati
 
 using LinearAlgebra

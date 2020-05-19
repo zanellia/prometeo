@@ -1,3 +1,4 @@
+# author: Tommaso Sartor
 include("./riccati.jl")
 using .riccati
 
