@@ -39,12 +39,13 @@ class qp_data:
             pmt_gemm_nn(BAtP, BA, M, M)
             pmat_fill(L, 0.0)
             pmt_potrf(M, L)
+            pmat_print(L)
 
             Mxx[0:nx, 0:nx] = L[nu:nu+nx, nu:nu+nx]
 
             pmat_fill(self.P[N-i-1], 0.0)
             pmt_gemm_nt(Mxx, Mxx, self.P[N-i-1], self.P[N-i-1])
-            pmat_print(self.P[N-i-1])
+            # pmat_print(self.P[N-i-1])
 
         return
 

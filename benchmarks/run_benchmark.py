@@ -22,6 +22,8 @@ blasfeo_res_file = 'riccati_benchmark_blasfeo_api.json'
 LOAD_BLASFEO_RES = True
 numpy_res_file = 'riccati_benchmark_numpy.json'
 LOAD_NUMPY_RES = True
+numpy_blasfeo_res_file = 'riccati_benchmark_numpy_blasfeo.json'
+LOAD_NUMPY_BLASFEO_RES = True
 julia_res_file = 'riccati_benchmark_julia.json'
 LOAD_JULIA_RES = True 
 
@@ -88,6 +90,13 @@ if LOAD_NUMPY_RES:
     AVG_CPU_TIME_BLASFEO = np.array(AVG_CPU_TIME_BLASFEO)
     plt.semilogy(2*AVG_CPU_TIME_BLASFEO[:,1], AVG_CPU_TIME_BLASFEO[:,0])
     legend.append('NumPy')
+
+if LOAD_NUMPY_BLASFEO_RES:
+    with open(numpy_blasfeo_res_file) as res:
+        AVG_CPU_TIME_BLASFEO = json.load(res)
+    AVG_CPU_TIME_BLASFEO = np.array(AVG_CPU_TIME_BLASFEO)
+    plt.semilogy(2*AVG_CPU_TIME_BLASFEO[:,1], AVG_CPU_TIME_BLASFEO[:,0])
+    legend.append('NumPy + BLASFEO')
 
 if LOAD_JULIA_RES:
     with open(julia_res_file) as res:

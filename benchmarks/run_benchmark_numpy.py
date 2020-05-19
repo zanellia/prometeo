@@ -10,7 +10,7 @@ NREP_small = 10000
 NREP_medium = 100
 NREP_large = 10
 AVG_CPU_TIME = []
-res_file = 'riccati_benchmark_numpy.json'
+res_file = 'riccati_benchmark_numpy_blasfeo.json'
 RUN = True
 UPDATE_res = True
 

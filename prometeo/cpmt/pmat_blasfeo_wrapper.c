@@ -147,6 +147,22 @@ void c_pmt_trmm_rlnn(struct pmat *A, struct pmat *B, struct pmat *D) {
     blasfeo_dtrmm_rlnn(mB, nB, 1.0, bA, 0, 0, bB, 0, 0, bD, 0, 0);
 }
 
+void c_pmt_syrk_ln(struct pmat *A, struct pmat *B, struct pmat *C, struct pmat *D) {
+    int nA = A->bmat->n; 
+    int mA = A->bmat->m; 
+    struct blasfeo_dmat *bA = A->bmat;
+    struct blasfeo_dmat *bB = B->bmat;
+    struct blasfeo_dmat *bD = D->bmat;
+
+    // printf("In dgemm\n");
+    // blasfeo_print_dmat(mA, nA, A->bmat, 0, 0);
+    // blasfeo_print_dmat(mA, nA, B->bmat, 0, 0);
+    // blasfeo_print_dmat(mA, nA, C->bmat, 0, 0);
+    // blasfeo_print_dmat(mA, nA, D->bmat, 0, 0);
+
+    blasfeo_dsyrk_ln(mA, nA, 1.0, A->bmat, 0, 0, B->bmat, 0, 0, 1.0, C->bmat, 0, 0, D->bmat, 0, 0);
+}
+
 void c_pmt_getrf(struct pmat *A, struct pmat *fact, int *ipiv) {
     int mA = A->bmat->m; 
     struct blasfeo_dmat *bA = A->bmat;

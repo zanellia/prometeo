@@ -29,6 +29,7 @@ struct pmat * _c_pmt_gemm_nn(struct pmat *A, struct pmat *B);
 void c_pmt_gemm_tn(struct pmat *A, struct pmat *B, struct pmat *C, struct pmat *D);
 void c_pmt_gemm_nt(struct pmat *A, struct pmat *B, struct pmat *C, struct pmat *D);
 void c_pmt_trmm_rlnn(struct pmat *A, struct pmat *B, struct pmat *D);
+void c_pmt_syrk_ln(struct pmat *A, struct pmat *B, struct pmat *C, struct pmat *D);
 void c_pmt_getrf(struct pmat *A, struct pmat *fact, int *ipiv);
 void c_pmt_potrf(struct pmat *A, struct pmat *fact);
 void c_pmt_getrsm(struct pmat *fact, int *ipiv, struct pmat *rhs);

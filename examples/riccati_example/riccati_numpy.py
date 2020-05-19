@@ -23,6 +23,7 @@ for i in range(N):
     M[nu:nu+nx, nu:nu+nx] = Q
     M = M + dot(BAtP, BA)
     L = linalg.cholesky(M)
+    print('L:\n', L)
     Mxx = L[nu:nu+nx, nu:nu+nx]
     P = dot(transpose(Mxx), Mxx)
     print('P:\n', P)

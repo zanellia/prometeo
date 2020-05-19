@@ -89,6 +89,5 @@ def main() -> int:
             pmt_syrk_ln(w_nxu_nx, w_nxu_nx, RSQ, M)
             pmt_potrf(M, M)
             Lxx[0:nx,0:nx] = M[nu:nu+nx,nu:nu+nx]
-            # pmat_print(M)
 
     return 0

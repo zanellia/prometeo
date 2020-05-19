@@ -22,12 +22,14 @@ pmt_functions = {\
     'global@pmt_gemm_tn': [], \
     'global@pmt_gemm_nt': [], \
     'global@pmt_trmm_rlnn': [], \
+    'global@pmt_syrk_ln': [], \
     'global@pmt_gead': [], \
     'global@pmt_potrf': [], \
     'global@pmt_potrsm': [], \
     'global@pmt_getrf': [], \
     'global@pmt_getrsm': [], \
     'global@print': [], \
+    'global@pparse': [], \
     'global@pparse': [], \
     } 
 
@@ -119,8 +121,8 @@ class ast_visitor(ExplicitNodeVisitor):
         return
 
     def visit_FunctionDef(self, node):
-        if node.name != '__init__':
-            self.caller_scope = self.caller_scope + '@' + node.name
+        # if node.name != '__init__':
+        self.caller_scope = self.caller_scope + '@' + node.name
         self.callees[self.caller_scope] = set([])
         # self.visit_ast(node)
         self.body(node.body)
