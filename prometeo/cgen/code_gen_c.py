@@ -266,6 +266,26 @@ def check_expression(node, binops, unops, usr_types, ast_types, record):
         else:
             raise cgenException('could not resolve expression {}\n'.format(astu.unparse(node)), node.lineno)
 
+def get_pmt_type_value(node, record):
+    """
+    Return prometeo-type of node.value
+    """
+    # simple value
+    if hasattr(node, 'value'):
+        if isinstance(node.value, ast.Name):
+            var_name = Num_or_Name(node)
+            if var_name in record:
+                return record[var_name]
+
+        # try to infer basic types
+        if isinstance(node.value, ast.Num):
+            if isinstance(node.ast.Num, int):
+                return 'int'
+            elif isinstance(node.ast.Num, float):
+                return 'float'
+    else:
+        raise cgenException('Could not determine type of node.value', self.lineno)
+
 
 # def process_annotation(ann_node):
 #     if isinstance(ann_node, ast.Name):
@@ -446,24 +466,24 @@ class SourceGenerator(ExplicitNodeVisitor):
 
     def body_class(self, statements, name):
         self.indentation += 1
-        self.write_class_attributes(*statements, name=name)
+        self.write_class(*statements, name=name)
         self.write('};', dest = 'hdr')
         self.indentation -= 1
         self.write_class_method_prototypes(*statements, name=name)
         
         self.write('\n', dest = 'src')
-        self.write_class_init(*statements, name=name)
+        self.write_class_constructor(*statements, name=name)
         self.write_class_methods(*statements, name=name)
 
 
-    def write_class_attributes(self, *params, name):
-        """ self.write is a closure for performance (to reduce the number
-            of attribute lookups).
-        """
-        self.meta_info[self.scope]['attr'] = dict()
-        self.meta_info[self.scope]['methods'] = dict()
+    def write_instance_attributes(self, params, name):
         for item in params:
             if isinstance(item, ast.AnnAssign):
+                # skip non-attribute declarations
+                if isinstance(item.target, ast.Name):
+                    break
+                if item.target.value.id != 'self':
+                    raise cgenException('Unrecognized attribute declaration', self.lineno)
                 set_precedence(item, item.target, item.annotation)
                 set_precedence(Precedence.Comma, item.value)
                 need_parens = isinstance(item.target, ast.Name) and not item.simple
@@ -473,7 +493,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 # annotation = ast.parse(item.annotation.s).body[0]
                 # if 'value' in annotation.value.__dict__:
                 type_py = annotation.id
-                self.meta_info[self.scope]['attr'][item.target.id] = type_py
+                self.meta_info[self.scope]['attr'][item.target.attr] = type_py
 
                 if type_py is 'List':
                     if item.value.func.id is not 'plist': 
@@ -490,10 +510,10 @@ class SourceGenerator(ExplicitNodeVisitor):
                         # ann = item.annotation.slice.value.elts[0].id
                         # dims = Num_or_Name(item.annotation.slice.value.elts[1])
                         if isinstance(dims, str):
-                            self.typed_record[self.scope][item.target.id] = \
+                            self.typed_record[self.scope][item.target.attr] = \
                                 'List[' + ann + ', ' + dims + ']'
                         else:
-                            self.typed_record[self.scope][item.target.id] = \
+                            self.typed_record[self.scope][item.target.attr] = \
                                 'List[' + ann + ', ' + str(dims) + ']'
 
                         if  ann in pmt_temp_types:
@@ -507,7 +527,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                         array_size = len(dim_list)
                             # array_size = str(Num_or_Name(item.value.args[1]))
                             # self.statement([], ann, ' ', item.target, '[', array_size, '];')
-                        self.write('%s' %ann, ' ', '%s' %item.target.id, \
+                        self.write('%s' %ann, ' ', '%s' %item.target.attr, \
                             '[%s' %array_size, '];\n', dest = 'hdr')
                 else:
                     # not a List
@@ -515,73 +535,88 @@ class SourceGenerator(ExplicitNodeVisitor):
 
                     # check for user-defined types
                     if ann in usr_temp_types:
-                        self.write('struct %s' %ann, ' ',  item.target.id, '___;\n', dest = 'hdr')
-                        self.write('struct %s *' %ann, ' ',  item.target.id, ';\n', dest = 'hdr')
+                        self.write('struct %s' %ann, ' ',  item.target.attr, '___;\n', dest = 'hdr')
+                        self.write('struct %s *' %ann, ' ',  item.target.attr, ';\n', dest = 'hdr')
                         # self.statement(node, node.annotation, ' ', node.target, '= &', node.target, '___;')
                     else:
                         type_c = pmt_temp_types[type_py]
-                        self.write('%s' %type_c, ' ', '%s' %item.target.id, ';\n', dest = 'hdr')
+                        self.write('%s' %type_c, ' ', '%s' %item.target.attr, ';\n', dest = 'hdr')
 
                         # self.conditional_write(' = ', item.value, ';')
-                        self.typed_record[self.scope][item.target.id] = type_py
+                        self.typed_record[self.scope][item.target.attr] = type_py
+            else:
+                # TODO(andrea): need to support constructor arguments
+                raise cgenException('Unsupported attribute of type {}'.format(item.name), self.lineno)
                 # else:
                 #     type_py = annotation.id
                 #     type_c = pmt_temp_types[type_py]
                 #     self.write('%s' %type_c, ' ', '%s' %item.target.id, ';\n', dest = 'hdr')
                 #     # self.conditional_write(' = ', item.value, ';')
                 #     self.typed_record[self.scope][item.target.id] = type_py
-            elif isinstance(item, ast.FunctionDef):
-                self.meta_info[self.scope]['methods'][item.name] = dict()
-                # build argument mangling
-                f_name_len = len(item.name)
-                pre_mangl = '_Z%s' %f_name_len 
-                if item.args.args[0].arg is not 'self':
-                    raise cgenException('First argument in method {} \
-                        must be \'self\'. You have \'{}\''.format(item.name, \
-                        item.args.args[0].arg), item.lineno)
-                else: 
-                    # store self argument
-                    self_arg = item.args.args[0]
-                    # pop self from argument list
-                    item.args.args.pop(0)
 
-                post_mangl = self.build_arg_mangling(item.args)
-                
-                if hasattr(self.get_returns(item), 'id'):
-                    ret_type = self.get_returns(item).id
-                else:
-                    ret_type = self.get_returns(item).value
-
-                self.meta_info[self.scope]['methods'][item.name]['return_type'] = ret_type
-
-                if ret_type is None: 
-                    ret_type = 'None'
-
-                if  ret_type in pmt_temp_types:
-                    ret_type = pmt_temp_types[ret_type]
-                else:
-
-                    raise cgenException ('Usage of non existing type \
-                        \033[91m{}\033[0m'.format(ann), item.lineno)
-                    # raise cgenException ('Usage of non existing type {}'.format(ret_type))
-
-                if len(item.args.args) > 0:  
-                    self.write('%s (*%s%s%s' % (ret_type, pre_mangl, \
-                        item.name, post_mangl) , ')', '(%s *self, ' %name, \
-                        dest = 'hdr')
-                else:
-                    self.write('%s (*%s%s%s' % (ret_type, pre_mangl, \
-                            item.name, post_mangl) , ')', '(%s *self' %name, \
-                            dest = 'hdr')
-
-
-                args_list = self.visit_arguments(item.args, 'hdr')
-                self.meta_info[self.scope]['methods'][item.name]['args'] = args_list
-                self.write(');\n', dest = 'hdr')
-                # insert back self argument 
-                item.args.args.insert(0, self_arg)
-            else:
+    def write_class(self, *params, name):
+        """ self.write is a closure for performance (to reduce the number
+            of attribute lookups).
+        """
+        self.meta_info[self.scope]['attr'] = dict()
+        self.meta_info[self.scope]['methods'] = dict()
+        for item in params:
+            if not isinstance(item, ast.FunctionDef):
                 raise cgenException('Classes can only contain attributes and methods', item.lineno)
+            # additional treatment of  __init__ (declare attributes)
+            if item.name == '__init__':
+                self.write_instance_attributes(item.body, name=name)
+
+            self.meta_info[self.scope]['methods'][item.name] = dict()
+            # build argument mangling
+            f_name_len = len(item.name)
+            pre_mangl = '_Z%s' %f_name_len 
+            if item.args.args[0].arg is not 'self':
+                raise cgenException('First argument in method {} \
+                    must be \'self\'. You have \'{}\''.format(item.name, \
+                    item.args.args[0].arg), item.lineno)
+            else: 
+                # store self argument
+                self_arg = item.args.args[0]
+                # pop self from argument list
+                item.args.args.pop(0)
+
+            post_mangl = self.build_arg_mangling(item.args)
+            
+            if hasattr(self.get_returns(item), 'id'):
+                ret_type = self.get_returns(item).id
+            else:
+                ret_type = self.get_returns(item).value
+
+            self.meta_info[self.scope]['methods'][item.name]['return_type'] = ret_type
+
+            if ret_type is None: 
+                ret_type = 'None'
+
+            if  ret_type in pmt_temp_types:
+                ret_type = pmt_temp_types[ret_type]
+            else:
+
+                raise cgenException ('Usage of non existing type \
+                    \033[91m{}\033[0m'.format(ann), item.lineno)
+                # raise cgenException ('Usage of non existing type {}'.format(ret_type))
+
+            if len(item.args.args) > 0:  
+                self.write('%s (*%s%s%s' % (ret_type, pre_mangl, \
+                    item.name, post_mangl) , ')', '(%s *self, ' %name, \
+                    dest = 'hdr')
+            else:
+                self.write('%s (*%s%s%s' % (ret_type, pre_mangl, \
+                        item.name, post_mangl) , ')', '(%s *self' %name, \
+                        dest = 'hdr')
+
+
+            args_list = self.visit_arguments(item.args, 'hdr')
+            self.meta_info[self.scope]['methods'][item.name]['args'] = args_list
+            # TODO(andrea): implicit call to visit() in write() - make explicit
+            self.write(');\n', dest = 'hdr')
+            # insert back self argument 
+            item.args.args.insert(0, self_arg)
         
     def write_class_method_prototypes(self, *params, name):
         """ self.write is a closure for performance (to reduce the number
@@ -629,11 +664,11 @@ class SourceGenerator(ExplicitNodeVisitor):
                 # insert back self argument 
                 item.args.args.insert(0, self_arg)
     
-    def write_class_init(self, *params, name):
+    def write_class_constructor(self, *params, name):
         """ self.write is a closure for performance (to reduce the number
             of attribute lookups).
         """
-        self.write('void ', name, '_init(struct ', name, ' *object){', dest = 'src')
+        self.write('void ', name, '_constructor(struct ', name, ' *object){', dest = 'src')
         self.indentation += 1
         for item in params:
             if isinstance(item, ast.AnnAssign):
@@ -717,7 +752,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                             ' initialization.\n', item.lineno)
                 elif ann in usr_temp_types:
                     self.write('\nobject->', item.target.id, ' = &(object->', item.target.id, '___);\n', dest = 'src')
-                    self.write(ann, '_init(object->', item.target.id, ');\n', dest='src')
+                    self.write(ann, '_constructor(object->', item.target.id, ');\n', dest='src')
                 else:
                     if item.value != None:
                         if hasattr(item.value, 'value') is False:
@@ -756,6 +791,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                 # insert back self argument 
                 item.args.args.insert(0, self_arg)
 
+        # call __init__
+        self.write('\n\tobject->_Z8__init__(object);\n', dest = 'src')
         self.write('\n}\n', dest = 'src')
         self.indentation -=1
     
@@ -944,6 +981,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.write(',' if trailing else '', dest = 'src')
 
     # Statements
+    # TODO(andrea): make visit_Assign and visit_AnnAssign fully consistent
     def visit_Assign(self, node):
         if 'targets' in node.__dict__:
             if len(node.targets) != 1:
@@ -971,7 +1009,7 @@ class SourceGenerator(ExplicitNodeVisitor):
             else:
                 if node.targets[0].id not in self.typed_record[self.scope]:
                     raise cgenException('Unknown variable {}.'.format(node.targets[0].id), node.lineno)
-            if type(node.targets[0]) == ast.Subscript: 
+            if isinstance(node.targets[0], ast.Subscript): 
                 if target in self.typed_record[scope]: 
                     # map subscript for pmats to blasfeo el assign
                     if self.typed_record[scope][target] == 'pmat':
@@ -1090,7 +1128,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                                         value of type {} not implemented'.format(sub_type), node.lineno)
 
                                 # check if subscripted expression is used in the value
-                                if type(node.value) == ast.Subscript:
+                                if isinstance(node.value, ast.Subscript):
                                     # if value is a pmat
                                     value = node.value.value.id
                                     if value in self.typed_record[self.scope]:
@@ -1122,7 +1160,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                                     self.statement([], 'c_pmt_pvec_set_el(', target, ', {}'.format(index), ', {}'.format(value), ');')
                                 return
 
-            elif type(node.value) == ast.Subscript:
+            elif isinstance(node.value, ast.Subscript):
                 target = node.targets[0].id
                 if target not in self.typed_record[self.scope]:
                     raise cgenException('Undefined variable {}.'.format(target), node.lineno)
@@ -1156,7 +1194,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                             value_expr = 'c_pmt_pvec_get_el(' + value + ', {})'.format(index_value) 
                             self.statement([], target, ' = {}'.format(value_expr), ';')
                             return
-            elif 'id' in node.targets[0].__dict__: 
+            elif isinstance(node.targets[0], ast.Name): 
 
                 # check for Assigns targeting pmats
                 target = node.targets[0].id
@@ -1197,7 +1235,6 @@ class SourceGenerator(ExplicitNodeVisitor):
                                             node.lineno)
 
                             # elif self.typed_record[self.scope][node.value] == 'float':
-                            #     import pdb; pdb.set_trace()
                             #     value = Num_or_Name(node.value)
                             #     self.statement([], 'c_pmt_pmat_set_el(', target.value.id, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value_expr), ');')
 
@@ -1223,7 +1260,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                                             node.lineno)
 
 
-            elif 'attr' in node.targets[0].__dict__: 
+            elif isinstance(node.targets[0], ast.Attribute): 
                 # Assign targeting a user-defined class (C struct)
                 struct_name = node.targets[0].value.id
                 if struct_name in self.typed_record[self.scope]:
@@ -1237,6 +1274,7 @@ class SourceGenerator(ExplicitNodeVisitor):
             else:
                 raise cgenException('Could not resolve Assign node.', node.lineno)
 
+        # default assignment
         set_precedence(node, node.value, *node.targets)
         self.newline(node)
         for target in node.targets:
@@ -1261,6 +1299,34 @@ class SourceGenerator(ExplicitNodeVisitor):
             raise cgenException('Cannot declare variable without initialization.', node.lineno)
 
         ann = node.annotation.id
+
+        # check for attributes
+        if hasattr(node.target, 'value'):
+            if isinstance(node.target, ast.Attribute):
+            # if hasattr(node.target.value, 'attr'):
+                if node.target.value.id != 'self' and node.target.attr not in self.typed_record[self.scope]:
+                    raise cgenException('Unknown variable {}.'.format( \
+                        node.target.attr), node.lineno)
+                # TODO(andrea): need to handle attributes recursively
+                target = node.target.attr
+                obj_name = node.target.value.id
+                # TODO(andrea): need to compute local scope (find strings 
+                # that contain scope and have a string in common with self.scope)
+                # this assumes that the class has been defined in the global scope
+
+                # do not update scope if an instance attribute is being defined
+                if node.target.value.id != 'self':
+                    scope = 'global@' + self.typed_record[self.scope][obj_name]
+            else:
+                if node.target.value.id not in self.typed_record[self.scope]:
+                    raise cgenException('variable {} already defined.'.format(node.target.value.id), node.lineno)
+
+                target = node.target.value.id
+                scope = self.scope
+        else:
+            if node.target.id in self.typed_record[self.scope]:
+                raise cgenException('variable {} already defined.'.format(node.target.id), node.lineno)
+
         # check if a CasADi function is being declared (and skip)
         if ann == 'ca':
             return
@@ -1345,7 +1411,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                 else:
                     raise cgenException('Undefined variable {} of type dims.'.format(dim2), node.lineno)
             # self.heap64_record[self.scope] = self.heap64_record[self.scope] + int(dim1)*int(dim2)*self.size_of_double
-            self.heap64_record[self.scope] = self.heap64_record[self.scope] + '+' + str(dim1) + '*' + str(dim2) + '*' + str(self.size_of_double)
+            self.heap64_record[self.scope] = self.heap64_record[self.scope] + '+' + str(dim1) + \
+                '*' + str(dim2) + '*' + str(self.size_of_double)
         # or pvec[<n>]
         elif ann == 'pvec':
             if node.value.func.id != 'pvec':
@@ -1359,7 +1426,8 @@ class SourceGenerator(ExplicitNodeVisitor):
 
         # or dims
         elif ann == 'dims':
-            check_expression(node.value, tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]), tuple([ast.USub]),('dims'), tuple([ast.Num]), self.dim_record)
+            check_expression(node.value, tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]), \
+                tuple([ast.USub]),('dims'), tuple([ast.Num]), self.dim_record)
             value = astu.unparse(node.value)
             self.write('#define %s %s\n' %(node.target.id, value), dest='hdr')
             self.dim_record[node.target.id] = value
@@ -1373,7 +1441,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                 self.dim_record[node.target.id].append([])
                 for j in range(len(node.value.elts[i].elts)):
                     self.dim_record[node.target.id][i].append(node.value.elts[i].elts[j].n)
-                    self.write('#define %s_%s_%s %s\n' %(node.target.id, i, j, node.value.elts[i].elts[j].n), dest='hdr')
+                    self.write('#define %s_%s_%s %s\n' %(node.target.id, i, j, \
+                        node.value.elts[i].elts[j].n), dest='hdr')
 
         # check if annotation corresponds to user-defined class name
         elif ann in usr_temp_types:
@@ -1381,19 +1450,37 @@ class SourceGenerator(ExplicitNodeVisitor):
             node.annotation.id = usr_temp_types[ann]
             self.statement([], 'struct ', class_name, ' ', node.target, '___;')
             self.statement(node, node.annotation, ' ', node.target, '= &', node.target, '___;')
-            self.statement([], class_name, '_init(', node.target, '); //')
+            self.statement([], class_name, '_constructor(', node.target, '); //')
         else:
             if  ann in pmt_temp_types:
                 c_ann = pmt_temp_types[ann]
-                self.statement(node, c_ann, ' ', node.target.id)
-                self.conditional_write(' = ', node.value, ';', dest = 'src')
+                if isinstance(node.target, ast.Attribute): 
+                    # annotated assign that defined an attribute (i.e. <self>.<attr_name> : <type> = <value>)
+                    if node.target.value.id != 'self':
+                        raise cgenException('invalid AnnAssign on attribute. AnnAssign on attributes can only be used to '
+                            'define instance attributes', self.lineno)
+                    else:
+                        if isinstance(node.value, ast.Name):
+                            if node.value.id not in self.typed_record:
+                                raise cgenException('Unknown variable {}.'.format(node.value.id), node.lineno)
+                        attr_value = Num_or_Name(node.value)
+                        attr_name = node.target.attr 
+                        import pdb; pdb.set_trace()
+                        self.statement([], node.target.value.id, '->', attr_name, ' = ', str(attr_value), ';')
+
+                else:
+                    self.statement(node, c_ann, ' ', node.target.id)
+                    self.conditional_write(' = ', node.value, ';', dest = 'src')
             else:
                 raise cgenException('\033[;1mUsage of non existing type\033[0;0m'
                     ' \033[1;31m{}\033[0;0m.'.format(ann), node.lineno)
 
         # print('typed_record = \n', self.typed_record, '\n\n')
         # print('var_dim_record = \n', self.var_dim_record, '\n\n')
-        self.typed_record[self.scope][node.target.id] = ann
+
+        # AnnAssigns on attributes are only supported for instance attributes
+        if not isinstance(node.target, ast.Attribute): 
+            self.typed_record[self.scope][node.target.id] = ann
 
         # # switch to avoid double ';'
         # if type(node.value) != ast.Call:
