@@ -20,6 +20,7 @@ import casadi as ca
 import time
 import re
 from collections import OrderedDict
+import numexpr
 
 size_of_pointer = 8
 size_of_int = 4
@@ -203,6 +204,15 @@ def pmt_main(script_path, stdout, stderr, args = None):
         # resolve dims and dimv values
         dim_vars = resolve_dims_value(dim_vars)
 
+        # evaluate numeric expressions
+        for key, value in dim_vars.items():
+            if isinstance(value, list):
+                for i in range(len(value)):
+                    for j in range(len(value[i])):
+                        dim_vars[key][i][j] = str(numexpr.evaluate(str(value[i][j])))
+            else:
+                dim_vars[key] = str(numexpr.evaluate(str(value)))
+
         # load log file
         with open('__pmt_cache__/heap64.json') as f:
             heap64_data = json.load(f)
@@ -215,8 +225,26 @@ def pmt_main(script_path, stdout, stderr, args = None):
                     heap64_data[key] = heap64_data[key].replace(item, dim_vars[item])
                     print('heap (post)', heap64_data[key])
 
+        # evaluate numeric expressions
+        for key, value in heap64_data.items():
+            heap64_data[key] = str(numexpr.evaluate(str(value)))
 
-        import pdb; pdb.set_trace()
+        # load log file (8-byte aligned)
+        with open('__pmt_cache__/heap64.json') as f:
+            heap8_data = json.load(f)
+
+        # resolve values of heap usage in calls
+        for key, value in heap8_data.items():
+            for item in dim_vars:
+                if item in heap8_data[key]:
+                    print('heap (pre)', heap8_data[key])
+                    heap8_data[key] = heap8_data[key].replace(item, dim_vars[item])
+                    print('heap (post)', heap8_data[key])
+
+        # evaluate numeric expressions
+        for key, value in heap8_data.items():
+            heap8_data[key] = str(numexpr.evaluate(str(value)))
+
         visitor = ast_visitor()
         visitor.visit(tree_copy) 
         call_graph = visitor.callees

@@ -369,8 +369,10 @@ class SourceGenerator(ExplicitNodeVisitor):
 
         self.typed_record = {'global': dict()}
         self.meta_info = {'global': dict()}
-        self.heap8_record = {'global': dict()}
-        self.heap64_record = {'global': dict()}
+        # self.heap8_record = {'global': dict()}
+        self.heap8_record = {'global': "0"}
+        # self.heap64_record = {'global': dict()}
+        self.heap64_record = {'global': "0"}
         self.scope = 'global'
         self.var_dim_record = {'global': dict()}
         self.dim_record = dict()
