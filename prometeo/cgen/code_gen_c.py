@@ -31,6 +31,7 @@ import astpretty as ap
 import os
 import json
 from jinja2 import Template
+from collections import OrderedDict
 
 pmt_temp_functions = {\
         'pmat': 'c_pmt_create_pmat', \
@@ -168,25 +169,25 @@ def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False
     os.chdir(pmt_cache_dir)
     json_file = 'typed_record.json'
     with open(json_file, 'w') as f:
-        json.dump(generator.typed_record, f, indent=4, sort_keys=True)
+        json.dump(OrderedDict(generator.typed_record), f, indent=4)
     json_file = 'meta_info.json'
     with open(json_file, 'w') as f:
-        json.dump(generator.meta_info, f, indent=3, sort_keys=True)
+        json.dump(OrderedDict(generator.meta_info), f, indent=3)
     json_file = 'var_dim_record.json'
     with open(json_file, 'w') as f:
-        json.dump(generator.var_dim_record, f, indent=4, sort_keys=True)
+        json.dump(OrderedDict(generator.var_dim_record), f, indent=4)
     json_file = 'dim_record.json'
     with open(json_file, 'w') as f:
-        json.dump(generator.dim_record, f, indent=4, sort_keys=True)
+        json.dump(OrderedDict(generator.dim_record), f, indent=4)
     json_file = 'usr_types.json'
     with open(json_file, 'w') as f:
-        json.dump(usr_temp_types, f, indent=4, sort_keys=True)
+        json.dump(OrderedDict(usr_temp_types), f, indent=4)
     json_file = 'heap8.json'
     with open(json_file, 'w') as f:
-        json.dump(generator.heap8_record, f, indent=4, sort_keys=True)
+        json.dump(OrderedDict(generator.heap8_record), f, indent=4)
     json_file = 'heap64.json'
     with open(json_file, 'w') as f:
-        json.dump(generator.heap64_record, f, indent=4, sort_keys=True)
+        json.dump(OrderedDict(generator.heap64_record), f, indent=4)
     os.chdir('..')
 
     return generator.result
@@ -1324,15 +1325,28 @@ class SourceGenerator(ExplicitNodeVisitor):
             if node.value.func.id != 'pmat':
                 raise cgenException('pmat objects need to be declared calling', 
                     ' the pmat(<n>, <m>) constructor.', node.lineno)
-            dim1 = Num_or_Name(node.value.args[0])
-            dim2 = Num_or_Name(node.value.args[1])
+
+            if not check_expression(node.value.args[0], tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]), 
+                tuple([ast.USub]),('dims'), tuple([ast.Num]), self.dim_record):
+                raise cgenException('Invalid dimension expression in pmat constructor ({})'.format(node.value.args[0]), self.lineno)
+
+            if not check_expression(node.value.args[1], tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]), 
+                tuple([ast.USub]),('dims'), tuple([ast.Num]), self.dim_record):
+                raise cgenException('Invalid dimension expression in pmat constructor ({})'.format(node.value.args[1]), self.lineno)
+
+            dim1 = astu.unparse(node.value.args[0]).replace('\n','')
+            dim2 = astu.unparse(node.value.args[1]).replace('\n','')
+            # dim1 = Num_or_Name(node.value.args[0])
+            # dim2 = Num_or_Name(node.value.args[1])
+
+            value = astu.unparse(node.value)
             self.var_dim_record[self.scope][node.target.id] = [dim1, dim2]
             node.annotation.id = pmt_temp_types[ann]
             self.statement(node, node.annotation, ' ', node.target)
             self.conditional_write(' = ', node.value, '', dest = 'src')
             # increment scoped heap usage (3 pointers and 6 ints for pmats)
-            self.heap8_record[self.scope] = self.heap8_record[self.scope] + '+' + '3*' + str(self.size_of_pointer)
-            self.heap8_record[self.scope] = self.heap8_record[self.scope] + '+' + '6*' + str(self.size_of_int)
+            self.heap8_record[self.scope] = self.heap8_record[self.scope] + '+' + '3*' + str(self.size_of_pointer).replace('\n','')
+            self.heap8_record[self.scope] = self.heap8_record[self.scope] + '+' + '6*' + str(self.size_of_int).replace('\n','')
             # check is dims is not a numerical value
             if isinstance(dim1, str):
                 if dim1 in self.dim_record:
@@ -1345,11 +1359,19 @@ class SourceGenerator(ExplicitNodeVisitor):
                 else:
                     raise cgenException('Undefined variable {} of type dims.'.format(dim2), node.lineno)
             # self.heap64_record[self.scope] = self.heap64_record[self.scope] + int(dim1)*int(dim2)*self.size_of_double
-            self.heap64_record[self.scope] = self.heap64_record[self.scope] + '+' + str(dim1) + '*' + str(dim2) + '*' + str(self.size_of_double)
+            self.heap64_record[self.scope] = self.heap64_record[self.scope] + '+' + \
+                str(dim1).replace('\n','') + '*' + str(dim2).replace('\n','') \
+                + '*' + str(self.size_of_double).replace('\n','')
         # or pvec[<n>]
         elif ann == 'pvec':
             if node.value.func.id != 'pvec':
                 raise cgenException('pvec objects need to be declared calling the pvec(<n>, <m>) constructor.', node.lineno)
+
+            if not check_expression(node.value.args[0], tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]), 
+                tuple([ast.USub]),('dims'), tuple([ast.Num]), self.dim_record):
+                raise cgenException('Invalid dimension expression in pvec constructor ({})'.format(node.value.args[0]), self.lineno)
+
+            dim1 = astu.unparse(node.value.args[0]).replace('\n','')
             dim1 = Num_or_Name(node.value.args[0])
             self.var_dim_record[self.scope][node.target.id] = [dim1]
             node.annotation.id = pmt_temp_types[ann]
@@ -1359,10 +1381,13 @@ class SourceGenerator(ExplicitNodeVisitor):
 
         # or dims
         elif ann == 'dims':
-            check_expression(node.value, tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]), tuple([ast.USub]),('dims'), tuple([ast.Num]), self.dim_record)
-            value = astu.unparse(node.value)
-            self.write('#define %s %s\n' %(node.target.id, value), dest='hdr')
-            self.dim_record[node.target.id] = value
+            if not check_expression(node.value, tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]), \
+                    tuple([ast.USub]),('dims'), tuple([ast.Num]), self.dim_record):
+                raise cgenException('Invalid expression for dimension', self.lineno)
+
+            dim_value = astu.unparse(node.value).replace('\n','')
+            self.write('#define %s %s\n' %(node.target.id, dim_value), dest='hdr')
+            self.dim_record[node.target.id] = dim_value
             # self.write('const int %s = %s;\n' %(node.target.id, node.value.n), dest='hdr')
 
         # or dimv
@@ -1372,8 +1397,13 @@ class SourceGenerator(ExplicitNodeVisitor):
             for i in range(len(node.value.elts)):
                 self.dim_record[node.target.id].append([])
                 for j in range(len(node.value.elts[i].elts)):
-                    self.dim_record[node.target.id][i].append(node.value.elts[i].elts[j].n)
-                    self.write('#define %s_%s_%s %s\n' %(node.target.id, i, j, node.value.elts[i].elts[j].n), dest='hdr')
+                    if not check_expression(node.value.elts[i].elts[j], tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]), \
+                            tuple([ast.USub]),('dims'), tuple([ast.Num]), self.dim_record):
+                        raise cgenException('Invalid expression for dimension', self.lineno)
+
+                    dim_value = astu.unparse(node.value.elts[i].elts[j]).replace('\n','')
+                    self.dim_record[node.target.id][i].append(dim_value)
+                    self.write('#define %s_%s_%s %s\n' %(node.target.id, i, j, dim_value), dest='hdr')
 
         # check if annotation corresponds to user-defined class name
         elif ann in usr_temp_types:

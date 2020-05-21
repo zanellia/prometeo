@@ -2,8 +2,6 @@ from prometeo import *
 
 nm: dims = 4
 nx: dims  = 2*nm
-# nx: dims  = 2
-# sizes: dimv = [[2,2], [2,2], [2,2], [2,2], [2,2]]
 sizes: dimv = [[8,8], [8,8], [8,8], [8,8], [8,8]]
 nu: dims  = nm
 nxu: dims = nx + nu

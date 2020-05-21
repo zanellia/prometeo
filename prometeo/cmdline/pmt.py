@@ -8,6 +8,7 @@ import os
 import platform
 import subprocess
 from strip_hints import strip_file_to_string
+import json
 
 # from prometeo.mem.ast_analyzer import compute_reach_graph
 from prometeo.mem.ast_analyzer import ast_visitor
@@ -17,6 +18,8 @@ from copy import deepcopy
 
 import casadi as ca
 import time
+import re
+from collections import OrderedDict
 
 size_of_pointer = 8
 size_of_int = 4
@@ -133,15 +136,75 @@ def pmt_main(script_path, stdout, stderr, args = None):
         dest_file.close()
 
         # compute heap usage
+
+        # load log files
+        with open('__pmt_cache__/heap64.json') as f:
+            head64_data = json.load(f)
+
+        with open('__pmt_cache__/dim_record.json') as f:
+            dim_vars = json.load(f, object_pairs_hook=OrderedDict)
+
+        # reverse ordered dictionary to apply iterative resolution of expressions
+        dim_vars = OrderedDict(reversed(list(dim_vars.items())))
+
+        for dim_var1_key, dim_var1_value in dim_vars.items():
+            if isinstance(dim_var1_value, list):
+                for i in range(len(dim_var1_value)):
+                    for j in range(len(dim_var1_value[i])):
+
+                        dim_value = dim_var1_value[i][j] 
+                        # check if the value of dim variables contains chars
+                        chars = ''.join(re.split("[^a-zA-Z]*", dim_value)).replace(' ', '')
+
+                        # if there are unresolved dim vars, then chars is non empty
+                        if chars:
+                            for dim_var2_key, dim_var2_value in dim_vars.items():
+                                print(dim_var2_value)
+                                dim_value = dim_var1_value.replace(dim_var2_key, dim_var2_value)
+                                chars = ''.join(re.split("[^a-zA-Z]*", dim_value)).replace(' ', '')
+                                if not chars:
+                                    break
+
+                        if chars:
+                            raise Exception('Could not resolve value {} of dims \
+                                variable {}'.format(dim_var1_value, dim_var1_key))
+
+                        dim_var1_value[i][j] = dim_value
+
+            else:
+                # check if the value of dim variables contains chars
+                chars = ''.join(re.split("[^a-zA-Z]*", dim_var1_value)).replace(' ', '')
+
+                # if there are unresolved dim vars, than chars is non empty
+                if chars:
+                    for dim_var2_key, dim_var2_value in dim_vars.items():
+                        print('key2 = {}, value2 = {}'.format(dim_var2_key, dim_var2_value))
+                        print('key1 = {}, value1 = {}'.format(dim_var1_key, dim_var1_value))
+                        print(dim_var2_value)
+                        if not isinstance(dim_var2_value, list):
+                            dim_var1_value = dim_var1_value.replace(dim_var2_key, dim_var2_value)
+                            print('key1 = {}, value1_mod = {}'.format(dim_var1_key, dim_var1_value))
+                            chars = ''.join(re.split("[^a-zA-Z]*", dim_var1_value)).replace(' ', '')
+                            if not chars:
+                                break
+
+                if chars:
+                    raise Exception('Could not resolve value {} of dims variable \
+                        {}'.format(dim_var1_value, dim_var1_key))
+
+            dim_vars[dim_var1_key] = dim_var1_value
+
+        import pdb; pdb.set_trace()
+
         visitor = ast_visitor()
-        # import pdb; pdb.set_trace()
         visitor.visit(tree_copy) 
         call_graph = visitor.callees
         typed_record = visitor.typed_record
         # print('\ncall graph:\n\n', call_graph, '\n\n')
 
         reach_map = compute_reach_graph(call_graph, typed_record)
-        # print('reach_map:\n\n', reach_map, '\n\n')
+        print('reach_map:\n\n', reach_map, '\n\n')
+        import pdb; pdb.set_trace()
 
         # check that there are no cycles containing memory allocations
         for method in reach_map:
@@ -206,5 +269,6 @@ def pmt_main(script_path, stdout, stderr, args = None):
             print(outs.decode())
 
         if proc.returncode: 
+            import pdb; pdb.set_trace()
             raise Exception('Command {} failed with the above error.'
              ' Full command is:\n\n {}'.format(cmd, outs.decode()))
