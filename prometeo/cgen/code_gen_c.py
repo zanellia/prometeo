@@ -484,10 +484,14 @@ class SourceGenerator(ExplicitNodeVisitor):
                         dims = Num_or_Name(item.value.args[1])
                         # ann = item.annotation.slice.value.elts[0].id
                         # dims = Num_or_Name(item.annotation.slice.value.elts[1])
+
+
                         if isinstance(dims, str):
+                            # dimension argument if a variable
                             self.typed_record[self.scope][item.target.id] = \
                                 'List[' + ann + ', ' + dims + ']'
                         else:
+                            # dimension argument is an integer
                             self.typed_record[self.scope][item.target.id] = \
                                 'List[' + ann + ', ' + str(dims) + ']'
 
@@ -681,6 +685,16 @@ class SourceGenerator(ExplicitNodeVisitor):
                         dim1 = Num_or_Name(item.value.args[0])
                         dim2 = Num_or_Name(item.value.args[1])
                         self.var_dim_record[self.scope][item.target.id] = [dim1, dim2]
+
+                        # increment scoped heap usage (3 pointers and 6 ints for pmats)
+                        self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
+                            '+' + '3*' + str(self.size_of_pointer).replace('\n','')
+                        self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
+                            '+' + '6*' + str(self.size_of_int).replace('\n','')
+
+                        self.heap64_record[self.scope] = self.heap64_record[self.scope] + \
+                                '+' + dim1 + '*' + dim2 + '*' + \
+                                str(self.size_of_double).replace('\n','')
                     else:
                         # pvec
                         if item.value.func.id != 'pvec':
@@ -1289,14 +1303,14 @@ class SourceGenerator(ExplicitNodeVisitor):
                 lann = pmt_temp_types[lann]
             else:
                 raise cgenException ('Usage of non existing type {}.'.format(lann), node.lineno)
-            # check is dims is not a numerical value
+
+            # check if dims is not a numerical value
             if isinstance(dims, str):
                 dim_list = self.dim_record[dims]
                 array_size = len(dim_list)
             else:
                 array_size = dims
-                # array_size = str(Num_or_Name(node.value.args[1]))
-                # self.statement([], lann, ' ', node.target, '[', array_size, '];')
+
             self.write('%s' %lann, ' ', '%s' %node.target.id, '[%s' %array_size, '];\n', dest = 'src')
             if lann == 'struct pmat *':
                 # build init for List of pmats
@@ -1312,7 +1326,6 @@ class SourceGenerator(ExplicitNodeVisitor):
                     self.statement([], node.target.id, \
                         '[', str(i),'] = c_pmt_create_pvec(', \
                         str(dim_list[i][0]), ');')
-            # self.conditional_write(' = ', node.value, '', dest = 'src')
 
         # pmat[<n>,<m>]
         elif ann == 'pmat':
@@ -1330,32 +1343,23 @@ class SourceGenerator(ExplicitNodeVisitor):
 
             dim1 = astu.unparse(node.value.args[0]).replace('\n','')
             dim2 = astu.unparse(node.value.args[1]).replace('\n','')
-            # dim1 = Num_or_Name(node.value.args[0])
-            # dim2 = Num_or_Name(node.value.args[1])
 
             value = astu.unparse(node.value)
             self.var_dim_record[self.scope][node.target.id] = [dim1, dim2]
             node.annotation.id = pmt_temp_types[ann]
             self.statement(node, node.annotation, ' ', node.target)
             self.conditional_write(' = ', node.value, '', dest = 'src')
+
             # increment scoped heap usage (3 pointers and 6 ints for pmats)
-            self.heap8_record[self.scope] = self.heap8_record[self.scope] + '+' + '3*' + str(self.size_of_pointer).replace('\n','')
-            self.heap8_record[self.scope] = self.heap8_record[self.scope] + '+' + '6*' + str(self.size_of_int).replace('\n','')
-            # check is dims is not a numerical value
-            if isinstance(dim1, str):
-                if dim1 in self.dim_record:
-                    dim1 = self.dim_record[dim1]
-                else:
-                    raise cgenException('Undefined variable {} of type dims.'.format(dim1), node.lineno)
-            if isinstance(dim2, str):
-                if dim2 in self.dim_record:
-                    dim2 = self.dim_record[dim2]
-                else:
-                    raise cgenException('Undefined variable {} of type dims.'.format(dim2), node.lineno)
-            # self.heap64_record[self.scope] = self.heap64_record[self.scope] + int(dim1)*int(dim2)*self.size_of_double
-            self.heap64_record[self.scope] = self.heap64_record[self.scope] + '+' + \
-                str(dim1).replace('\n','') + '*' + str(dim2).replace('\n','') \
-                + '*' + str(self.size_of_double).replace('\n','')
+            self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
+                '+' + '3*' + str(self.size_of_pointer).replace('\n','')
+            self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
+                '+' + '6*' + str(self.size_of_int).replace('\n','')
+
+            self.heap64_record[self.scope] = self.heap64_record[self.scope] + \
+                    '+' + dim1 + '*' + dim2 + '*' + \
+                    str(self.size_of_double).replace('\n','')
+
         # or pvec[<n>]
         elif ann == 'pvec':
             if node.value.func.id != 'pvec':

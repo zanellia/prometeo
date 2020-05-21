@@ -224,7 +224,42 @@ class ast_visitor(ExplicitNodeVisitor):
     def visit_UnaryOp(self, node):
         return
 
+def merge_call_graphs(dict1, dict2):
+    ''' 
+    Merge call graphs represented by dictionaries of the form 
+    { <caller> : <calles> (set)}. No recursive merging.
+    '''
+    union_dict = deepcopy(dict1)
+
+    for key, value in dict2.items():
+        if key in union_dict:
+            union_dict[key] = value.union(union_dict[key])
+        else:
+            union_dict[key] = value 
+ 
+    return union_dict 
+
 def compute_reach_graph(call_graph, typed_record):
+    """
+    Compute reachability map associated with a given call graph.
+
+    Parameters
+    ----------
+    call_graph : dict
+        dictionary with structure { <caller> : <calles> (set)} containing 
+        the call graph computed inspecting the Python AST. 
+
+    typed_record : dict
+        dictionary containing the meta-information extracted by prometeo's
+        parser.
+
+    Returns
+    -------
+    reach_map : dict
+        dictionary with structure { <caller> : <reachable_methods> ([str])} 
+        containing the reachability map.
+
+    """
     # get unresolved calls
     all_methods = list(call_graph.keys())
     # calls = list(call_graph.values())
@@ -268,7 +303,7 @@ def compute_reach_graph(call_graph, typed_record):
                         break
 
     # update call_graph with unresolved calls
-    call_graph.update(r_unresolved_callers)
+    call_graph = merge_call_graphs(call_graph, r_unresolved_callers)
 
     # check that there are no unresolved calls
     # TODO(andrea): this is a bit ugly
@@ -292,12 +327,25 @@ def compute_reach_graph(call_graph, typed_record):
             r_unresolved_callers[caller] = unresolved_callers[caller]
 
     if r_unresolved_callers != dict():
-        raise Exception('call graph analyzer -- could not resolve the following calls {}'.format(r_unresolved_callers))
+        raise Exception('call graph analyzer -- could not resolve the \
+            following calls {}'.format(r_unresolved_callers))
 
     reach_map = {}
     for curr_node in call_graph:
         reach_map[curr_node] = get_reach_nodes(call_graph, curr_node, curr_node, [], 1) 
-    return reach_map
+        
+    # eliminate (some) unreachable nodes
+    reach_map_copy = deepcopy(reach_map)
+    for n_outer_k, n_outer_v in reach_map.items():
+        if n_outer_k != 'global@main':
+            reachable = False
+            for n_inner_k, n_inner_v in reach_map.items():
+                if n_outer_k in n_inner_v:
+                    reachable = True
+            if not reachable:
+                reach_map_copy.pop(n_outer_k)
+
+    return reach_map_copy
 
 def get_reach_nodes(call_graph, curr_call, root, reach_nodes_h, root_flag):
     if not call_graph[curr_call] and not root_flag:

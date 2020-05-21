@@ -150,10 +150,15 @@ class Graph:
         self.start = start
         self.end = end
 
-    def compute_shortes_path(self):
+    def compute_shortes_path(self, max_iter=10000):
         """
         Compute shortest path (worst-case memory usage) from self.start to self.end 
         using Dijsktra's algorithm.
+
+        Parameters
+        ---------
+        max_iter : int
+            mximum number of iterations
 
         Returns
         -------
@@ -168,10 +173,12 @@ class Graph:
         current_node = unvisited_nodes[self.start]
 
         terminate = False
-        while not terminate:
+
+        for i in range(max_iter):
             # look at all neighbors of current node
             for neighbor_name in current_node.neighbors:
-                # TODO(andrea): this should not be necessary... *all* reachable nodes
+                # print('visiting neighbor ', neighbor_name)
+                # TODO(andrea): this should not be necessary... *all* reachable node
                 # at this stage should be in the call graph (need to update list of methods...)
                 # print('neighbor_name =', neighbor_name)
                 if neighbor_name in self.nodes:
@@ -180,22 +187,47 @@ class Graph:
                     else:
                         neighbor = unvisited_nodes[neighbor_name]
 
+                    new_dist = current_node.tentative_distance \
+                        + current_node.weight
+
+                    # print('new dist = ', new_dist)
+                    # print('neighbor dist = ', neighbor.tentative_distance)
                     if current_node.tentative_distance + current_node.weight < \
                         neighbor.tentative_distance:
                         # update tentative distance
+                        new_dist = current_node.tentative_distance \
+                            + current_node.weight
+
+                        # print('updating tentative_distance of node {} to value {}'.format(neighbor_name, new_dist))
                         neighbor.tentative_distance = current_node.tentative_distance \
                             + current_node.weight
+
+            if terminate:
+                break
 
             # remove current node from unvisited set
             del unvisited_nodes[current_node.name]
             visited_nodes[current_node.name] = current_node
 
+            # print('current node = ', current_node.name)
+            # print('removed node = ', current_node.name)
+
             # no unvisited nodes left
             if not bool(unvisited_nodes):
                 terminate = True
             else:
-                # update current node
-                current_node = list(unvisited_nodes.items())[0][1]
+                found_new_current_node = False
+                for i in range(len(unvisited_nodes)):
+                    for visited_node_k, visited_node_v in visited_nodes.items():
+                        if list(unvisited_nodes.items())[i][1].name in \
+                                visited_nodes[visited_node_k].neighbors:
+                            found_new_current_node = True
+                            # update current node
+                            current_node = list(unvisited_nodes.items())[i][1]
+                            # print('new current node', current_node.name)
+                            break
+                if not found_new_current_node:
+                    raise Exception('Could not find new current node')
 
         path_length = visited_nodes['end'].tentative_distance
 
