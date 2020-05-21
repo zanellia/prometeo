@@ -76,7 +76,6 @@ def resolve_dims_value(dim_vars):
                     # if there are unresolved dim vars, then chars is non empty
                     if chars:
                         for dim_var2_key, dim_var2_value in dim_vars.items():
-                            print(dim_var2_value)
                             dim_value = dim_var1_value.replace(dim_var2_key, dim_var2_value)
                             chars = ''.join(re.split("[^a-zA-Z]*", dim_value)).replace(' ', '')
                             if not chars:
@@ -95,12 +94,8 @@ def resolve_dims_value(dim_vars):
             # if there are unresolved dim vars, than chars is non empty
             if chars:
                 for dim_var2_key, dim_var2_value in dim_vars.items():
-                    print('key2 = {}, value2 = {}'.format(dim_var2_key, dim_var2_value))
-                    print('key1 = {}, value1 = {}'.format(dim_var1_key, dim_var1_value))
-                    print(dim_var2_value)
                     if not isinstance(dim_var2_value, list):
                         dim_var1_value = dim_var1_value.replace(dim_var2_key, dim_var2_value)
-                        print('key1 = {}, value1_mod = {}'.format(dim_var1_key, dim_var1_value))
                         chars = ''.join(re.split("[^a-zA-Z]*", dim_var1_value)).replace(' ', '')
                         if not chars:
                             break
@@ -157,7 +152,8 @@ class Graph:
 
     def compute_shortes_path(self):
         """
-        Compute shortest path (worst-case memory usage)from self.start to self.end.
+        Compute shortest path (worst-case memory usage) from self.start to self.end 
+        using Dijsktra's algorithm.
 
         Returns
         -------
@@ -231,8 +227,6 @@ def pmt_main():
 
     if cgen is False:
         post = '''main()'''
-        # code = open(filename).read() + post
-        # exec(code, globals(), globals())
         code_no_hints = strip_file_to_string(filename) + post
 
         tic = time.time()
@@ -241,23 +235,10 @@ def pmt_main():
         print('Execution time = {:0.3f} sec'.format(toc))
     else:
         pmt_path = os.path.dirname(prometeo.__file__)
-        # cmd = 'export MYPYPATH=' + pmt_path + ' & mypy ' + filename
-        # os.system(cmd)
         filename_ = filename.split('.')[0]
         tree = ast.parse(''.join(open(filename)))
-        # tree will be slightly modified by
-        # to source(). Store a copy, for heap usage
-        # analysis:
         tree_copy = deepcopy(tree)
-        # astpretty.pprint(tree)
-        # import pdb; pdb.set_trace()
 
-        # result  = prometeo.cgen.code_gen_c.to_source(tree, filename_, \
-        #         main=True, ___c_pmt_8_heap_size=10000, \
-        #         ___c_pmt_64_heap_size=1000000, \
-        #         size_of_pointer = size_of_pointer, \
-        #         size_of_int = size_of_int, \
-        #         size_of_double = size_of_double)
         try:
             result  = prometeo.cgen.code_gen_c.to_source(tree, filename_, \
                     main=True,
@@ -267,7 +248,8 @@ def pmt_main():
         except prometeo.cgen.code_gen_c.cgenException as e:
             print('\n > Exception -- prometeo code-gen: ', e.message)
             code = ''.join(open(filename))
-            print(' > @ line {}:'.format(e.lineno) + '\033[34m' + code.splitlines()[e.lineno-1] + '\033[0;0m')
+            print(' > @ line {}:'.format(e.lineno) + '\033[34m' + \
+                code.splitlines()[e.lineno-1] + '\033[0;0m')
             print(' > Exiting.\n')
             if debug:
                 raise
@@ -310,9 +292,7 @@ def pmt_main():
         for key, value in heap64_data.items():
             for item in dim_vars:
                 if item in heap64_data[key]:
-                    print('heap (pre)', heap64_data[key])
                     heap64_data[key] = heap64_data[key].replace(item, dim_vars[item])
-                    print('heap (post)', heap64_data[key])
 
         # evaluate numerical expressions
         for key, value in heap64_data.items():
@@ -326,9 +306,7 @@ def pmt_main():
         for key, value in heap8_data.items():
             for item in dim_vars:
                 if item in heap8_data[key]:
-                    print('heap (pre)', heap8_data[key])
                     heap8_data[key] = heap8_data[key].replace(item, dim_vars[item])
-                    print('heap (post)', heap8_data[key])
 
         # evaluate numerical expressions
         for key, value in heap8_data.items():
@@ -341,7 +319,7 @@ def pmt_main():
         # print('\ncall graph:\n\n', call_graph, '\n\n')
 
         reach_map = compute_reach_graph(call_graph, typed_record)
-        print('reach_map:\n\n', reach_map, '\n\n')
+        # print('reach_map:\n\n', reach_map, '\n\n')
 
         # check that there are no cycles containing memory allocations
         for method in reach_map:
