@@ -31,7 +31,7 @@ pmt_functions = {\
     'global@print': [], \
     'global@pparse': [], \
     'global@pparse': [], \
-    } 
+    }
 
 def precedence_setter(AST=ast.AST, get_op_precedence=get_op_precedence,
                       isinstance=isinstance, list=list):
@@ -73,7 +73,7 @@ def flatten(coll):
 
 class ast_visitor(ExplicitNodeVisitor):
     def __init__(self):
-        self.callees = pmt_functions 
+        self.callees = pmt_functions
         self.caller_scope = 'global'
         self.callee_scope = 'global'
         self.in_call = False
@@ -147,7 +147,7 @@ class ast_visitor(ExplicitNodeVisitor):
         if isinstance(node.func, ast.Name):
             self.callees[self.caller_scope].add(self.callee_scope + '@' + node.func.id)
         elif isinstance(node.func, ast.Attribute):
-            self.in_call = True 
+            self.in_call = True
             self.visit(node.func)
             self.callees[self.caller_scope].add(self.callee_scope)
             self.in_call = False
@@ -179,7 +179,7 @@ class ast_visitor(ExplicitNodeVisitor):
                 self.callee_scope = self.callee_scope + '@' + node.value.id + '@' + node.attr
             else:
                 self.callee_scope = self.callee_scope + '@' + node.attr
-        return 
+        return
         # self.visit_ast(node.attr)
 
     def visit_JoinedStr(self, node):
@@ -225,8 +225,8 @@ class ast_visitor(ExplicitNodeVisitor):
         return
 
 def merge_call_graphs(dict1, dict2):
-    ''' 
-    Merge call graphs represented by dictionaries of the form 
+    '''
+    Merge call graphs represented by dictionaries of the form
     { <caller> : <calles> (set)}. No recursive merging.
     '''
     union_dict = deepcopy(dict1)
@@ -235,9 +235,9 @@ def merge_call_graphs(dict1, dict2):
         if key in union_dict:
             union_dict[key] = value.union(union_dict[key])
         else:
-            union_dict[key] = value 
- 
-    return union_dict 
+            union_dict[key] = value
+
+    return union_dict
 
 def compute_reach_graph(call_graph, typed_record):
     """
@@ -246,8 +246,8 @@ def compute_reach_graph(call_graph, typed_record):
     Parameters
     ----------
     call_graph : dict
-        dictionary with structure { <caller> : <calles> (set)} containing 
-        the call graph computed inspecting the Python AST. 
+        dictionary with structure { <caller> : <calles> (set)} containing
+        the call graph computed inspecting the Python AST.
 
     typed_record : dict
         dictionary containing the meta-information extracted by prometeo's
@@ -256,7 +256,7 @@ def compute_reach_graph(call_graph, typed_record):
     Returns
     -------
     reach_map : dict
-        dictionary with structure { <caller> : <reachable_methods> ([str])} 
+        dictionary with structure { <caller> : <reachable_methods> ([str])}
         containing the reachability map.
 
     """
@@ -292,7 +292,7 @@ def compute_reach_graph(call_graph, typed_record):
             for j in range(len(scopes)-1):
                 if curr_scope + '@' + scopes[j+1] in typed_record:
                     curr_scope = curr_scope + '@' + scopes[j+1]
-                else: 
+                else:
                     # try to resolve class name
                     if scopes[j] in typed_record[caller]:
                         scopes[j] = typed_record[caller][scopes[j]]
@@ -332,8 +332,8 @@ def compute_reach_graph(call_graph, typed_record):
 
     reach_map = {}
     for curr_node in call_graph:
-        reach_map[curr_node] = get_reach_nodes(call_graph, curr_node, curr_node, [], 1) 
-        
+        reach_map[curr_node] = get_reach_nodes(call_graph, curr_node, curr_node, [], 1)
+
     # eliminate (some) unreachable nodes
     reach_map_copy = deepcopy(reach_map)
     for n_outer_k, n_outer_v in reach_map.items():
@@ -351,15 +351,15 @@ def get_reach_nodes(call_graph, curr_call, root, reach_nodes_h, root_flag):
     if not call_graph[curr_call] and not root_flag:
         if curr_call not in reach_nodes_h:
             reach_nodes_h += [curr_call]
-        return reach_nodes_h 
+        return reach_nodes_h
     else:
         if curr_call in reach_nodes_h:
             if curr_call not in reach_nodes_h:
                 reach_nodes_h += [curr_call]
-            return reach_nodes_h 
+            return reach_nodes_h
         if root == curr_call and not root_flag:
             reach_nodes_h += ['*']
-            return reach_nodes_h 
+            return reach_nodes_h
         else:
             if curr_call != root:
                 if curr_call not in reach_nodes_h:
