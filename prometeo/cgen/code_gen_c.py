@@ -106,8 +106,7 @@ class cgenException(Exception):
 
 def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False,
               pretty_string=pretty_string, pretty_source=pretty_source,
-              main=False, ___c_pmt_8_heap_size=None, ___c_pmt_64_heap_size=None, 
-              size_of_pointer=8, size_of_int=4, size_of_double=8):
+              main=False, size_of_pointer=8, size_of_int=4, size_of_double=8):
 
     """This function can convert a node tree back into python sourcecode.
     This is useful for debugging purposes, especially if you're dealing with
@@ -127,12 +126,8 @@ def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False
     number information of statement nodes.
 
     """
-    if ___c_pmt_8_heap_size is None or ___c_pmt_64_heap_size is None :
-        error('Need to pass heap_sizes! Exiting.')
-
-    generator = SourceGenerator(indent_with, ___c_pmt_8_heap_size,
-        ___c_pmt_64_heap_size, size_of_pointer, size_of_int, size_of_double,
-        add_line_information, pretty_string)
+    generator = SourceGenerator(indent_with, size_of_pointer, \
+        size_of_int, size_of_double, add_line_information, pretty_string)
     
     generator.result.source.append('#include "stdlib.h"\n')
     # generator.result.source.append('#include "pmat_blasfeo_wrapper.h"\n')
@@ -333,8 +328,7 @@ class SourceGenerator(ExplicitNodeVisitor):
     """
     using_unicode_literals = False
     
-    def __init__(self, indent_with,  ___c_pmt_8_heap_size, ___c_pmt_64_heap_size,
-                size_of_pointer, size_of_int, size_of_double,
+    def __init__(self, indent_with, size_of_pointer, size_of_int, size_of_double,
                 add_line_information=False,pretty_string=pretty_string,
                  # constants
                  len=len, isinstance=isinstance, callable=callable):
@@ -364,8 +358,6 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.size_of_pointer = size_of_pointer
         self.size_of_int = size_of_int
         self.size_of_double = size_of_double
-        self.heap8_size  = ___c_pmt_8_heap_size 
-        self.heap64_size = ___c_pmt_64_heap_size 
 
         self.typed_record = {'global': dict()}
         self.meta_info = {'global': dict()}
@@ -1510,13 +1502,13 @@ class SourceGenerator(ExplicitNodeVisitor):
             self.write('    prometeo_timer timer0, timer1;\n', dest = 'src')
             self.write('    double total_time, execution_time;\n', dest = 'src')
             self.write('    prometeo_tic(&timer0);\n', dest = 'src')
-            self.write('    ___c_pmt_8_heap = malloc(%s); \n' %(self.heap8_size), dest = 'src')
+            self.write('    ___c_pmt_8_heap = malloc(HEAP8_SIZE); \n', dest = 'src')
             self.write('    ___c_pmt_8_heap_head = ___c_pmt_8_heap;\n', dest = 'src')
             self.write('    char * pmem_ptr = (char *)___c_pmt_8_heap;\n', dest = 'src')
             self.write('    align_char_to(8, &pmem_ptr);\n', dest = 'src')
             self.write('    ___c_pmt_8_heap = pmem_ptr;\n', dest = 'src')
             
-            self.write('    ___c_pmt_64_heap = malloc(%s);\n' %(self.heap64_size), dest = 'src')
+            self.write('    ___c_pmt_64_heap = malloc(HEAP64_SIZE);\n', dest = 'src')
             self.write('    ___c_pmt_64_heap_head = ___c_pmt_64_heap;\n', dest = 'src')
             self.write('    pmem_ptr = (char *)___c_pmt_64_heap;\n', dest = 'src')
             self.write('    align_char_to(64, &pmem_ptr);\n', dest = 'src')
