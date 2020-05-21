@@ -136,7 +136,6 @@ def pmt_main(script_path, stdout, stderr, args = None):
         dest_file.close()
 
         # compute heap usage
-
         # load log files
         with open('__pmt_cache__/heap64.json') as f:
             head64_data = json.load(f)
@@ -193,8 +192,6 @@ def pmt_main(script_path, stdout, stderr, args = None):
                         {}'.format(dim_var1_value, dim_var1_key))
 
             dim_vars[dim_var1_key] = dim_var1_value
-
-        import pdb; pdb.set_trace()
 
         visitor = ast_visitor()
         visitor.visit(tree_copy) 
