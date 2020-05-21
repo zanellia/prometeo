@@ -50,6 +50,63 @@ def str2bool(v):
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
 
+def resolve_dims_value(dim_vars):
+    """
+    Resolve value of dims and dimv variables.
+
+    Arguments:
+
+    dim_vars -- ordered dictionary that contains the unresolved dims and dimv variables
+    """
+    for dim_var1_key, dim_var1_value in dim_vars.items():
+        if isinstance(dim_var1_value, list):
+            for i in range(len(dim_var1_value)):
+                for j in range(len(dim_var1_value[i])):
+
+                    dim_value = dim_var1_value[i][j]
+                    # check if the value of dim variables contains chars
+                    chars = ''.join(re.split("[^a-zA-Z]*", dim_value)).replace(' ', '')
+
+                    # if there are unresolved dim vars, then chars is non empty
+                    if chars:
+                        for dim_var2_key, dim_var2_value in dim_vars.items():
+                            print(dim_var2_value)
+                            dim_value = dim_var1_value.replace(dim_var2_key, dim_var2_value)
+                            chars = ''.join(re.split("[^a-zA-Z]*", dim_value)).replace(' ', '')
+                            if not chars:
+                                break
+
+                    if chars:
+                        raise Exception('Could not resolve value {} of dims \
+                            variable {}'.format(dim_var1_value, dim_var1_key))
+
+                    dim_var1_value[i][j] = dim_value
+
+        else:
+            # check if the value of dim variables contains chars
+            chars = ''.join(re.split("[^a-zA-Z]*", dim_var1_value)).replace(' ', '')
+
+            # if there are unresolved dim vars, than chars is non empty
+            if chars:
+                for dim_var2_key, dim_var2_value in dim_vars.items():
+                    print('key2 = {}, value2 = {}'.format(dim_var2_key, dim_var2_value))
+                    print('key1 = {}, value1 = {}'.format(dim_var1_key, dim_var1_value))
+                    print(dim_var2_value)
+                    if not isinstance(dim_var2_value, list):
+                        dim_var1_value = dim_var1_value.replace(dim_var2_key, dim_var2_value)
+                        print('key1 = {}, value1_mod = {}'.format(dim_var1_key, dim_var1_value))
+                        chars = ''.join(re.split("[^a-zA-Z]*", dim_var1_value)).replace(' ', '')
+                        if not chars:
+                            break
+
+            if chars:
+                raise Exception('Could not resolve value {} of dims variable \
+                    {}'.format(dim_var1_value, dim_var1_key))
+
+        dim_vars[dim_var1_key] = dim_var1_value
+
+    return dim_vars
+
 def pmt_main(script_path, stdout, stderr, args = None): 
 
     parser = argparse.ArgumentParser()
@@ -136,63 +193,30 @@ def pmt_main(script_path, stdout, stderr, args = None):
         dest_file.close()
 
         # compute heap usage
-        # load log files
-        with open('__pmt_cache__/heap64.json') as f:
-            head64_data = json.load(f)
-
+        # load log file
         with open('__pmt_cache__/dim_record.json') as f:
             dim_vars = json.load(f, object_pairs_hook=OrderedDict)
 
         # reverse ordered dictionary to apply iterative resolution of expressions
         dim_vars = OrderedDict(reversed(list(dim_vars.items())))
 
-        for dim_var1_key, dim_var1_value in dim_vars.items():
-            if isinstance(dim_var1_value, list):
-                for i in range(len(dim_var1_value)):
-                    for j in range(len(dim_var1_value[i])):
+        # resolve dims and dimv values
+        dim_vars = resolve_dims_value(dim_vars)
 
-                        dim_value = dim_var1_value[i][j] 
-                        # check if the value of dim variables contains chars
-                        chars = ''.join(re.split("[^a-zA-Z]*", dim_value)).replace(' ', '')
+        # load log file
+        with open('__pmt_cache__/heap64.json') as f:
+            heap64_data = json.load(f)
 
-                        # if there are unresolved dim vars, then chars is non empty
-                        if chars:
-                            for dim_var2_key, dim_var2_value in dim_vars.items():
-                                print(dim_var2_value)
-                                dim_value = dim_var1_value.replace(dim_var2_key, dim_var2_value)
-                                chars = ''.join(re.split("[^a-zA-Z]*", dim_value)).replace(' ', '')
-                                if not chars:
-                                    break
+        # resolve values of heap usage in calls
+        for key, value in heap64_data.items():
+            for item in dim_vars:
+                if item in heap64_data[key]:
+                    print('heap (pre)', heap64_data[key])
+                    heap64_data[key] = heap64_data[key].replace(item, dim_vars[item])
+                    print('heap (post)', heap64_data[key])
 
-                        if chars:
-                            raise Exception('Could not resolve value {} of dims \
-                                variable {}'.format(dim_var1_value, dim_var1_key))
 
-                        dim_var1_value[i][j] = dim_value
-
-            else:
-                # check if the value of dim variables contains chars
-                chars = ''.join(re.split("[^a-zA-Z]*", dim_var1_value)).replace(' ', '')
-
-                # if there are unresolved dim vars, than chars is non empty
-                if chars:
-                    for dim_var2_key, dim_var2_value in dim_vars.items():
-                        print('key2 = {}, value2 = {}'.format(dim_var2_key, dim_var2_value))
-                        print('key1 = {}, value1 = {}'.format(dim_var1_key, dim_var1_value))
-                        print(dim_var2_value)
-                        if not isinstance(dim_var2_value, list):
-                            dim_var1_value = dim_var1_value.replace(dim_var2_key, dim_var2_value)
-                            print('key1 = {}, value1_mod = {}'.format(dim_var1_key, dim_var1_value))
-                            chars = ''.join(re.split("[^a-zA-Z]*", dim_var1_value)).replace(' ', '')
-                            if not chars:
-                                break
-
-                if chars:
-                    raise Exception('Could not resolve value {} of dims variable \
-                        {}'.format(dim_var1_value, dim_var1_key))
-
-            dim_vars[dim_var1_key] = dim_var1_value
-
+        import pdb; pdb.set_trace()
         visitor = ast_visitor()
         visitor.visit(tree_copy) 
         call_graph = visitor.callees
