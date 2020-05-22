@@ -153,7 +153,7 @@ class Graph:
     def compute_shortes_path(self, max_iter=10000):
         """
         Compute shortest path (worst-case memory usage) from self.start to self.end
-        using Dijkstra's algorithm.
+        using Dijsktra's algorithm.
 
         Parameters
         ---------
