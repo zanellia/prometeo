@@ -76,7 +76,7 @@ def resolve_dims_value(dim_vars):
                     # if there are unresolved dim vars, then chars is non empty
                     if chars:
                         for dim_var2_key, dim_var2_value in dim_vars.items():
-                            dim_value = dim_var1_value.replace(dim_var2_key, dim_var2_value)
+                            dim_value = re.sub(r'\b' + dim_var2_key + r'\b', dim_var2_value, dim_var1_value)
                             chars = ''.join(re.split("[^a-zA-Z]*", dim_value)).replace(' ', '')
                             if not chars:
                                 break
@@ -95,7 +95,7 @@ def resolve_dims_value(dim_vars):
             if chars:
                 for dim_var2_key, dim_var2_value in dim_vars.items():
                     if not isinstance(dim_var2_value, list):
-                        dim_var1_value = dim_var1_value.replace(dim_var2_key, dim_var2_value)
+                        dim_var1_value = re.sub(r'\b' + dim_var2_key + r'\b', dim_var2_value, dim_var1_value)
                         chars = ''.join(re.split("[^a-zA-Z]*", dim_var1_value)).replace(' ', '')
                         if not chars:
                             break
@@ -153,7 +153,7 @@ class Graph:
     def compute_shortes_path(self, max_iter=10000):
         """
         Compute shortest path (worst-case memory usage) from self.start to self.end
-        using Dijsktra's algorithm.
+        using Dijkstra's algorithm.
 
         Parameters
         ---------
@@ -324,7 +324,7 @@ def pmt_main():
         for key, value in heap64_data.items():
             for item in dim_vars:
                 if item in heap64_data[key]:
-                    heap64_data[key] = heap64_data[key].replace(item, dim_vars[item])
+                    heap64_data[key] = re.sub(r'\b' + item + r'\b', dim_vars[item], heap64_data[key])
 
         # evaluate numerical expressions
         for key, value in heap64_data.items():
@@ -338,7 +338,7 @@ def pmt_main():
         for key, value in heap8_data.items():
             for item in dim_vars:
                 if item in heap8_data[key]:
-                    heap8_data[key] = heap8_data[key].replace(item, dim_vars[item])
+                    heap8_data[key] = re.sub(r'\b' + item + r'\b', dim_vars[item], heap8_data[key])
 
         # evaluate numerical expressions
         for key, value in heap8_data.items():
