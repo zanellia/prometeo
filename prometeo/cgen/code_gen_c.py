@@ -721,6 +721,18 @@ class SourceGenerator(ExplicitNodeVisitor):
                                     item.target.id, \
                                     '[', str(i),'] = c_pmt_create_pvec(', \
                                     str(dim_list[i][0]), ');')
+
+                                # increment scoped heap usage (2 pointers and 3 ints for pvecs)
+                                self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
+                                    '+' + '2*' + str(self.size_of_pointer).replace('\n','')
+                                self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
+                                    '+' + '3*' + str(self.size_of_int).replace('\n','')
+
+                                # TODO(andrea): ask @giaf about better overestimate for blasfeo_dmat memsize
+                                self.heap64_record[self.scope] = self.heap64_record[self.scope] + \
+                                        '+ 2*' + str(dim_list[i][0]) +'*' + \
+                                        str(self.size_of_double).replace('\n','')
+
                         # else: do nothing (no init required for "memoryless" objects)
                 # pmat[<n>,<m>] or pvec[<n>]
                 elif ann in ['pmat', 'pvec']:
@@ -762,6 +774,17 @@ class SourceGenerator(ExplicitNodeVisitor):
                         dim1 = Num_or_Name(item.value.args[0])
                         ann = item.annotation.value.id
                         self.var_dim_record[self.scope][item.target.id] = [dim1]
+
+                        # increment scoped heap usage (2 pointers and 3 ints for pvecs)
+                        self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
+                            '+' + '2*' + str(self.size_of_pointer).replace('\n','')
+                        self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
+                            '+' + '3*' + str(self.size_of_int).replace('\n','')
+
+                        # TODO(andrea): ask @giaf about better overestimate for blasfeo_dmat memsize
+                        self.heap64_record[self.scope] = self.heap64_record[self.scope] + \
+                                '+ 2*' + str(dim1) +'*' + \
+                                str(self.size_of_double).replace('\n','')
                     # add variable to typed record
                     self.typed_record[self.scope][item.target.id] = ann
                     # print('typed_record = \n', self.typed_record, '\n\n')
@@ -1430,11 +1453,21 @@ class SourceGenerator(ExplicitNodeVisitor):
                 raise cgenException('Invalid dimension expression in pvec constructor ({})'.format(node.value.args[0]), self.lineno)
 
             dim1 = astu.unparse(node.value.args[0]).replace('\n','')
-            dim1 = Num_or_Name(node.value.args[0])
             self.var_dim_record[self.scope][node.target.id] = [dim1]
             node.annotation.id = pmt_temp_types[ann]
             self.statement(node, node.annotation, ' ', node.target)
             self.conditional_write(' = ', node.value, '', dest = 'src')
+
+            # increment scoped heap usage (2 pointers and 3 ints for pvecs)
+            self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
+                '+' + '2*' + str(self.size_of_pointer).replace('\n','')
+            self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
+                '+' + '3*' + str(self.size_of_int).replace('\n','')
+
+            # TODO(andrea): ask @giaf about better overestimate for blasfeo_dmat memsize
+            self.heap64_record[self.scope] = self.heap64_record[self.scope] + \
+                    '+ 2*' + dim1 +'*' + \
+                    str(self.size_of_double).replace('\n','')
 
 
         # or dims
