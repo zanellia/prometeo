@@ -273,6 +273,25 @@ def check_expression(node, binops, unops, usr_types, ast_types, record):
 #         return ann_node.value.id + '[' + Num_or_Name(ann_node.slice.value.elts[0]) + \
 #             ',' +  Num_or_Name(ann_node.slice.value.elts[0]) + ']'
 
+# def get_bmat_size(m, n, sizeof_double):
+#     bs = 4
+#     nc = 4 
+#     pm = (m+bs-1)/4*4
+#     cn = (n+nc-1)/4*4
+#     al = bs*nc
+
+#     # if m < n:
+#     #     tmp = (m+al-1)/al*al
+#     # else:
+#     #     tmp = (n+al-1)/al*al
+
+#     # TODO(andrea) better allow for max/min in dim expressions?
+#     # compute overestimate:
+
+#     tmp = (m+al-1)/al*al + (n+al-1)/al*al
+
+#     return pm, cn, tmp
+
 class Delimit(object):
     """A context manager that can add enclosing
        delimiters around the output of a
@@ -689,8 +708,10 @@ class SourceGenerator(ExplicitNodeVisitor):
                                 self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
                                     '+' + '6*' + str(self.size_of_int).replace('\n','')
 
+
+                                # TODO(andrea): ask @giaf about better overestimate for blasfeo_dmat memsize
                                 self.heap64_record[self.scope] = self.heap64_record[self.scope] + \
-                                        '+' + dim1 + '*' + dim2 + '*' + \
+                                        '+ 3*(' + dim1 + '*' + dim2 + ')*' + \
                                         str(self.size_of_double).replace('\n','')
 
                         elif ann == 'pvec':
@@ -729,8 +750,9 @@ class SourceGenerator(ExplicitNodeVisitor):
                         self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
                             '+' + '6*' + str(self.size_of_int).replace('\n','')
 
+                        # TODO(andrea): ask @giaf about better overestimate for blasfeo_dmat memsize
                         self.heap64_record[self.scope] = self.heap64_record[self.scope] + \
-                                '+' + dim1 + '*' + dim2 + '*' + \
+                                '+ 3*(' + dim1 + '*' + dim2 + ')*' + \
                                 str(self.size_of_double).replace('\n','')
                     else:
                         # pvec
@@ -1393,8 +1415,9 @@ class SourceGenerator(ExplicitNodeVisitor):
             self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
                 '+' + '6*' + str(self.size_of_int).replace('\n','')
 
+            # TODO(andrea): ask @giaf about better overestimate for blasfeo_dmat memsize
             self.heap64_record[self.scope] = self.heap64_record[self.scope] + \
-                    '+' + dim1 + '*' + dim2 + '*' + \
+                    '+ 3*(' + dim1 + '*' + dim2 + ')*' + \
                     str(self.size_of_double).replace('\n','')
 
         # or pvec[<n>]

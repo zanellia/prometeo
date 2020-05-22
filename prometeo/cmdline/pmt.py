@@ -419,8 +419,8 @@ def pmt_main():
 
         worst_case_heap_usage_8 = -mem_graph.compute_shortes_path()
 
-        print('\033[;1m > prometeo:\033[0;0m worst-case heap usage analysis completed successfully \
-            \t64-byte aligned: \033[34m{}\033[0;0m bytes, 8-byte aligned: \033[34m{}\033[0;0m bytes'.format(\
+        print('\033[;1m > prometeo:\033[0;0m heap usage analysis completed successfully\n \
+            \033[34m{}\033[0;0m(\033[34m{}\033[0;0m) 64(8)-bytes aligned\n'.format(\
             worst_case_heap_usage_64, worst_case_heap_usage_8))
 
         # generate Makefile
