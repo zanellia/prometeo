@@ -183,6 +183,9 @@ def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False
     json_file = 'heap64.json'
     with open(json_file, 'w') as f:
         json.dump(OrderedDict(generator.heap64_record), f, indent=4)
+    json_file = 'constructor_record.json'
+    with open(json_file, 'w') as f:
+        json.dump(generator.constructor_record, f, indent=4)
     os.chdir('..')
 
     return generator.result
@@ -368,6 +371,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.scope = 'global'
         self.var_dim_record = {'global': dict()}
         self.dim_record = dict()
+        self.constructor_record = []
         self.in_main = False
 
         def write(*params, dest):
@@ -441,13 +445,22 @@ class SourceGenerator(ExplicitNodeVisitor):
 
     def body_class(self, statements, name):
         self.indentation += 1
+
+        # class attributes
         self.write_class_attributes(*statements, name=name)
+
         self.write('};', dest = 'hdr')
         self.indentation -= 1
+
+        # method prototypes
         self.write_class_method_prototypes(*statements, name=name)
 
         self.write('\n', dest = 'src')
+
+        # init
         self.write_class_init(*statements, name=name)
+
+        # methods
         self.write_class_methods(*statements, name=name)
 
 
@@ -662,11 +675,23 @@ class SourceGenerator(ExplicitNodeVisitor):
                         if ann == 'pmat':
                             # build init for List of pmats
                             for i in range(len(dim_list)):
+                                dim1 = dim_list[i][0] 
+                                dim2 = dim_list[i][1] 
                                 self.statement([], 'object->', \
                                     item.target.id, \
                                     '[', str(i),'] = c_pmt_create_pmat(', \
-                                    str(dim_list[i][0]), ', ', \
-                                    str(dim_list[i][1]), ');')
+                                    str(dim1), ', ', \
+                                    str(dim2), ');')
+
+                                # increment scoped heap usage (3 pointers and 6 ints for pmats)
+                                self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
+                                    '+' + '3*' + str(self.size_of_pointer).replace('\n','')
+                                self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
+                                    '+' + '6*' + str(self.size_of_int).replace('\n','')
+
+                                self.heap64_record[self.scope] = self.heap64_record[self.scope] + \
+                                        '+' + dim1 + '*' + dim2 + '*' + \
+                                        str(self.size_of_double).replace('\n','')
 
                         elif ann == 'pvec':
                             # build init for List of pvecs
@@ -682,8 +707,20 @@ class SourceGenerator(ExplicitNodeVisitor):
                         if item.value.func.id != 'pmat':
                             raise cgenException('pmat objects need to be declared calling',
                                 'the pmat(<n>, <m>) constructor\n.', item.lineno)
-                        dim1 = Num_or_Name(item.value.args[0])
-                        dim2 = Num_or_Name(item.value.args[1])
+
+                        if not check_expression(item.value.args[0], tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]),
+                            tuple([ast.USub]),('dims'), tuple([ast.Num]), self.dim_record):
+                            raise cgenException('Invalid dimension expression in \
+                                pmat constructor ({})'.format(item.value.args[0]), self.lineno)
+
+                        if not check_expression(item.value.args[1], tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]),
+                            tuple([ast.USub]),('dims'), tuple([ast.Num]), self.dim_record):
+                            raise cgenException('Invalid dimension expression in \
+                                pmat constructor ({})'.format(item.value.args[1]), self.lineno)
+
+                        dim1 = astu.unparse(item.value.args[0]).replace('\n','')
+                        dim2 = astu.unparse(item.value.args[1]).replace('\n','')
+
                         self.var_dim_record[self.scope][item.target.id] = [dim1, dim2]
 
                         # increment scoped heap usage (3 pointers and 6 ints for pmats)
@@ -1532,7 +1569,7 @@ class SourceGenerator(ExplicitNodeVisitor):
             self.write('\tfree(___c_pmt_8_heap_head);\n', dest='src')
             self.write('\tfree(___c_pmt_64_heap_head);\n', dest='src')
             self.write('\ttotal_time = prometeo_toc(&timer0);\n', dest='src')
-            self.write('\tprintf(\"total time:%f\\n\", total_time);\n', dest='src')
+            self.write('\tprintf(\"total time:%f", total_time);\n', dest='src')
             self.write('\treturn 0;\n', dest='src')
         self.write('}', dest='src')
         if not self.indentation:
@@ -1551,6 +1588,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.var_dim_record[self.scope] = dict()
         self.heap8_record[self.scope] = '0'
         self.heap64_record[self.scope] = '0'
+        self.constructor_record.append(self.scope)
         have_args = []
 
         def paren_or_comma():
@@ -1559,23 +1597,29 @@ class SourceGenerator(ExplicitNodeVisitor):
             else:
                 have_args.append(True)
                 self.write('(')
+
         # add new type to templated types
         usr_temp_types[node.name] = 'struct ' + node.name + ' *'
 
         self.decorators(node, 0)
         self.write('typedef struct %s %s;\n\n' %(node.name, node.name), dest = 'hdr')
         self.write('struct %s' %node.name, dest = 'hdr')
+
         for base in node.bases:
             self.write(paren_or_comma, base)
+
         # keywords not available in early version
         for keyword in self.get_keywords(node):
             self.write(paren_or_comma, keyword.arg or '',
                        '=' if keyword.arg else '**', keyword.value)
         self.conditional_write(paren_or_comma, '*', self.get_starargs(node), dest = 'src')
         self.conditional_write(paren_or_comma, '**', self.get_kwargs(node), dest = 'src')
+
         self.write(have_args and ')' or '', dest = 'src')
         self.write('{\n', dest = 'hdr')
+
         self.body_class(node.body, node.name)
+
         self.scope = descope(self.scope, '@' + node.name)
 
 

@@ -266,6 +266,7 @@ def pmt_main():
         toc = time.time() - tic
         print('Execution time = {:0.3f} sec'.format(toc))
     else:
+        print('\n\033[;1m > prometeo:\033[0;0m starting transpilation')
         pmt_path = os.path.dirname(prometeo.__file__)
         filename_ = filename.split('.')[0]
         tree = ast.parse(''.join(open(filename)))
@@ -296,7 +297,11 @@ def pmt_main():
         dest_file.write(prometeo.cgen.source_repr.pretty_source(result.header))
         dest_file.close()
 
+        print('\033[;1m > prometeo:\033[0;0m code-generation successfully completed')
+
+        print('\033[;1m > prometeo:\033[0;0m starting worst-case heap usage analysis')
         # compute heap usage
+
         # load log file
         with open('__pmt_cache__/dim_record.json') as f:
             dim_vars = json.load(f, object_pairs_hook=OrderedDict)
@@ -351,6 +356,20 @@ def pmt_main():
         # print('\ncall graph:\n\n', call_graph, '\n\n')
 
         reach_map = compute_reach_graph(call_graph, typed_record)
+
+        # update heap usage with memory associated with constructors (escape memory)
+
+        # load log file
+        with open('__pmt_cache__/constructor_record.json') as f:
+            constructors_list = json.load(f)
+
+        for caller, callees in reach_map.items():
+            for callee in callees:
+                # if call is a constructor, then account for escaped memory
+                if callee in constructors_list:
+                    heap64_data[caller] = str(int(heap64_data[caller]) + int(heap64_data[callee]))
+                    heap8_data[caller] = str(int(heap8_data[caller]) + int(heap8_data[callee]))
+
         # print('reach_map:\n\n', reach_map, '\n\n')
 
         # check that there are no cycles containing memory allocations
@@ -400,12 +419,15 @@ def pmt_main():
 
         worst_case_heap_usage_8 = -mem_graph.compute_shortes_path()
 
+        print('\033[;1m > prometeo:\033[0;0m worst-case heap usage analysis completed successfully \
+            \t64-byte aligned: \033[34m{}\033[0;0m bytes, 8-byte aligned: \033[34m{}\033[0;0m bytes'.format(\
+            worst_case_heap_usage_64, worst_case_heap_usage_8))
+
         # generate Makefile
         makefile_code = makefile_template.replace('{{ filename }}', filename_)
 
-        # TODO(andrea): hack! somehow the heap usage seems to be underestimated..
-        makefile_code = makefile_code.replace('{{ HEAP8_SIZE }}', str(100*worst_case_heap_usage_8))
-        makefile_code = makefile_code.replace('{{ HEAP64_SIZE }}', str(100*worst_case_heap_usage_64))
+        makefile_code = makefile_code.replace('{{ HEAP8_SIZE }}', str(worst_case_heap_usage_8))
+        makefile_code = makefile_code.replace('{{ HEAP64_SIZE }}', str(worst_case_heap_usage_64))
 
         makefile_code = makefile_code.replace('\n','', 1)
         makefile_code = makefile_code.replace('{{ INSTALL_DIR }}', os.path.dirname(__file__) + '/..')
@@ -413,6 +435,7 @@ def pmt_main():
         dest_file.write(makefile_code)
         dest_file.close()
 
+        print('\033[;1m > prometeo:\033[0;0m building C code')
         proc = subprocess.Popen(["make", "clean"], stdout=subprocess.PIPE)
 
         try:
@@ -436,6 +459,10 @@ def pmt_main():
         if proc.returncode:
             raise Exception('Command \'make\' failed with the above error.'
              ' Full command is:\n\n {}'.format(outs.decode()))
+
+        print('\033[;1m > prometeo:\033[0;0m successfully built C code')
+
+        print('\033[;1m > prometeo:\033[0;0m running compiled C code:\n')
 
         INSTALL_DIR = os.path.dirname(__file__) + '/..'
 
@@ -472,3 +499,4 @@ def pmt_main():
         if proc.returncode:
             raise Exception('Command {} failed with the above error.'
              ' Full command is:\n\n {}'.format(cmd, outs.decode()))
+        print('\n\033[;1m > prometeo:\033[0;0m exiting\n')
