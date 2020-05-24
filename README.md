@@ -47,7 +47,7 @@ Finally, you can run the examples in `<root>/examples` with `pmt <example_name>.
 
 ### a simple example
 
-The Python code (`examples/simple_example/simple_example.py`)
+The Python code ([`examples/simple_example/simple_example.py`](https://github.com/zanellia/prometeo/blob/master/examples/simple_example/simple_example.py))
 ```python
 from prometeo import *
 
@@ -185,10 +185,10 @@ def main() -> int:
     return 0
 
 ```
-Similarly, the code above (`example/riccati/riccati_array.py`) can be run by the standard Python interpreter using the command `pmt riccati_array.py --cgen=False` and prometeo can generate, compile and run C code using instead `pmt riccati_array.py --cgen=True`.
+Similarly, the code above ([`example/riccati/riccati_array.py`](https://github.com/zanellia/prometeo/blob/master/examples/riccati_example/riccati_array.py)) can be run by the standard Python interpreter using the command `pmt riccati_array.py --cgen=False` and prometeo can generate, compile and run C code using instead `pmt riccati_array.py --cgen=True`.
 
 ### supported Python constructs
-In order to be able to transpile to C, only a subset of the Python language is supported. However, non C-like features such as function overload and classes are supported by prometeo's transpiler. The adapted Riccati example (`examples/riccati/riccati_mass_spring_2.py`) below shows how classes can be created and used.
+In order to be able to transpile to C, only a subset of the Python language is supported. However, non C-like features such as function overload and classes are supported by prometeo's transpiler. The adapted Riccati example ([`examples/riccati/riccati_mass_spring_2.py`](https://github.com/zanellia/prometeo/blob/master/examples/riccati_example/riccati_mass_spring_2.py)) below shows how classes can be created and used.
 
 ```python
 from prometeo import *
