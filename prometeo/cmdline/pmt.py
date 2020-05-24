@@ -180,7 +180,6 @@ class Graph:
                 # print('visiting neighbor ', neighbor_name)
                 # TODO(andrea): this should not be necessary... *all* reachable node
                 # at this stage should be in the call graph (need to update list of methods...)
-                # print('neighbor_name =', neighbor_name)
                 if neighbor_name in self.nodes:
                     if neighbor_name in visited_nodes:
                         neighbor = visited_nodes[neighbor_name]
@@ -198,7 +197,8 @@ class Graph:
                         new_dist = current_node.tentative_distance \
                             + current_node.weight
 
-                        # print('updating tentative_distance of node {} to value {}'.format(neighbor_name, new_dist))
+                        # print('updating tentative_distance of node {} to value \
+                        # {}'.format(neighbor_name, new_dist))
                         neighbor.tentative_distance = current_node.tentative_distance \
                             + current_node.weight
 
@@ -355,7 +355,13 @@ def pmt_main():
         typed_record = visitor.typed_record
         # print('\ncall graph:\n\n', call_graph, '\n\n')
 
-        reach_map = compute_reach_graph(call_graph, typed_record)
+        reach_map, call_graph = compute_reach_graph(call_graph, typed_record)
+
+        # check that there are no cycles containing memory allocations
+        for method in reach_map:
+            if '*' in reach_map[method] and typed_record[method] != dict():
+                raise Exception('\n\nDetected cycle {} containing memory'
+                ' allocation.\n'.format(reach_map[method]))
 
         # update heap usage with memory associated with constructors (escape memory)
 
@@ -363,7 +369,7 @@ def pmt_main():
         with open('__pmt_cache__/constructor_record.json') as f:
             constructors_list = json.load(f)
 
-        for caller, callees in reach_map.items():
+        for caller, callees in call_graph.items():
             for callee in callees:
                 # if call is a constructor, then account for escaped memory
                 if callee in constructors_list:
@@ -372,16 +378,11 @@ def pmt_main():
 
         # print('reach_map:\n\n', reach_map, '\n\n')
 
-        # check that there are no cycles containing memory allocations
-        for method in reach_map:
-            if '*' in reach_map[method] and typed_record[method] != dict():
-                raise Exception('\n\nDetected cycle {} containing memory'
-                ' allocation.\n'.format(reach_map[method]))
 
 
         # build memory graph (64-bytes aligned)
         nodes = []
-        for key, value in reach_map.items():
+        for key, value in call_graph.items():
             if key in heap64_data:
                 heap_usage = int(heap64_data[key])
             else:
@@ -401,7 +402,7 @@ def pmt_main():
 
         # build memory graph (8-bytes aligned)
         nodes = []
-        for key, value in reach_map.items():
+        for key, value in call_graph.items():
             if key in heap8_data:
                 heap_usage = int(heap8_data[key])
             else:

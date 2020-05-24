@@ -259,6 +259,10 @@ def compute_reach_graph(call_graph, typed_record):
         dictionary with structure { <caller> : <reachable_methods> ([str])}
         containing the reachability map.
 
+    call_graph : dict
+        dictionary with structure { <caller> : <reachable_methods> ([str])}
+        containing the call_graph with resolved calls.
+
     """
     # get unresolved calls
     all_methods = list(call_graph.keys())
@@ -320,6 +324,18 @@ def compute_reach_graph(call_graph, typed_record):
                 graph_copy[method].remove(call)
 
     call_graph = deepcopy(graph_copy)
+
+    # remove unreachable nodes from call graph
+    for key_outer, value_outer in call_graph.items():
+        reachable = False
+        for key_inner, value_inner in call_graph.items():
+            if key_outer in value_inner:
+                reachable = True
+        if not reachable and key_outer in graph_copy and key_outer != 'global@main':
+            del graph_copy[key_outer]
+
+    call_graph = deepcopy(graph_copy)
+
     # strip empty calls
     r_unresolved_callers = dict()
     for caller in unresolved_callers:
@@ -334,7 +350,8 @@ def compute_reach_graph(call_graph, typed_record):
     for curr_node in call_graph:
         reach_map[curr_node] = get_reach_nodes(call_graph, curr_node, curr_node, [], 1)
 
-    # eliminate (some) unreachable nodes
+    # TODO(andrea): still useful?
+    # eliminate (some) unreachable nodes from reachability map
     reach_map_copy = deepcopy(reach_map)
     for n_outer_k, n_outer_v in reach_map.items():
         if n_outer_k != 'global@main':
@@ -345,7 +362,11 @@ def compute_reach_graph(call_graph, typed_record):
             if not reachable:
                 reach_map_copy.pop(n_outer_k)
 
-    return reach_map_copy
+    # convert sets to lists
+    for key, value in call_graph.items():
+        call_graph[key] = list(value)
+
+    return reach_map_copy, call_graph
 
 def get_reach_nodes(call_graph, curr_call, root, reach_nodes_h, root_flag):
     if not call_graph[curr_call] and not root_flag:
