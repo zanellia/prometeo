@@ -1619,11 +1619,11 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.newline(1)
         if node.name == 'main':
             self.write('\texecution_time = prometeo_toc(&timer1);\n', dest='src')
-            self.write('\tprintf(\"execution time:%f\\n\", execution_time);\n', dest='src')
+            self.write('\tprintf(\"execution time:%fs\\n\", execution_time);\n', dest='src')
             self.write('\tfree(___c_pmt_8_heap_head);\n', dest='src')
             self.write('\tfree(___c_pmt_64_heap_head);\n', dest='src')
             self.write('\ttotal_time = prometeo_toc(&timer0);\n', dest='src')
-            self.write('\tprintf(\"total time:%f", total_time);\n', dest='src')
+            self.write('\tprintf(\"total time:%fs", total_time);\n', dest='src')
             self.write('\treturn 0;\n', dest='src')
         self.write('}', dest='src')
         if not self.indentation:
