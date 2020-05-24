@@ -690,8 +690,8 @@ class SourceGenerator(ExplicitNodeVisitor):
 
                                 # upper bound of blasfeo_dmat memsize
                                 # memsize \leq (ps + m -1)*(nc + n - 1) + (m + n + bs*nc -1)
-                                mem_upper_bound = '(' + str(self.blasfeo_ps) + '*' + dim1 + ' - 1)* ' \
-                                    '(' + str(self.blasfeo_ps) + '+' + dim2 + ' - 1)+(' + dim1 + '+' + dim2 + '+' + \
+                                mem_upper_bound = '(' + str(self.blasfeo_ps) + '+' + dim1 + ' - 1)*' \
+                                    '(' + str(self.blasfeo_nc) + '+' + dim2 + ' - 1)+(' + dim1 + '+' + dim2 + '+' + \
                                     str(self.blasfeo_ps) + '*' + str(self.blasfeo_nc) + ' - 1)'
 
                                 self.heap64_record[self.scope] = self.heap64_record[self.scope] + \
@@ -713,7 +713,7 @@ class SourceGenerator(ExplicitNodeVisitor):
 
                                 # upper bound of blasfeo_dvec memsize
                                 # memsize \leq ps + m -1
-                                mem_upper_bound = '(' + str(self.blasfeo_ps) + '*' + dim1 + ' - 1)'
+                                mem_upper_bound = '(' + str(self.blasfeo_ps) + '+' + dim1 + ' - 1)'
 
                                 self.heap64_record[self.scope] = self.heap64_record[self.scope] + \
                                     '+' + mem_upper_bound + '*' + str(self.size_of_double).replace('\n','')
@@ -749,8 +749,8 @@ class SourceGenerator(ExplicitNodeVisitor):
 
                         # upper bound of blasfeo_dmat memsize
                         # memsize \leq (ps + m -1)*(nc + n - 1) + (m + n + bs*nc -1)
-                        mem_upper_bound = '(' + str(self.blasfeo_ps) + '*' + dim1 + ' - 1)* ' \
-                            '(' + str(self.blasfeo_ps) + '+' + dim2 + ' - 1)+(' + dim1 + '+' + dim2 + '+' + \
+                        mem_upper_bound = '(' + str(self.blasfeo_ps) + '+' + dim1 + ' - 1)* ' \
+                            '(' + str(self.blasfeo_nc) + '+' + dim2 + ' - 1)+(' + dim1 + '+' + dim2 + '+' + \
                             str(self.blasfeo_ps) + '*' + str(self.blasfeo_nc) + ' - 1)'
 
                         self.heap64_record[self.scope] = self.heap64_record[self.scope] + \
@@ -773,7 +773,7 @@ class SourceGenerator(ExplicitNodeVisitor):
 
                         # upper bound of blasfeo_dvec memsize
                         # memsize \leq ps + m -1
-                        mem_upper_bound = '(' + str(self.blasfeo_ps) + '*' + dim1 + ' - 1)'
+                        mem_upper_bound = '(' + str(self.blasfeo_ps) + '+' + dim1 + ' - 1)'
 
                         self.heap64_record[self.scope] = self.heap64_record[self.scope] + \
                             '+' + mem_upper_bound + '*' + str(self.size_of_double).replace('\n','')
@@ -1433,8 +1433,8 @@ class SourceGenerator(ExplicitNodeVisitor):
 
             # upper bound of blasfeo_dmat memsize
             # memsize \leq (ps + m -1)*(nc + n - 1) + (m + n + bs*nc -1)
-            mem_upper_bound = '(' + str(self.blasfeo_ps) + '*' + dim1 + ' - 1)* ' \
-                '(' + str(self.blasfeo_ps) + '+' + dim2 + ' - 1)+(' + dim1 + '+' + dim2 + '+' + \
+            mem_upper_bound = '(' + str(self.blasfeo_ps) + '+' + dim1 + ' - 1)* ' \
+                '(' + str(self.blasfeo_nc) + '+' + dim2 + ' - 1)+(' + dim1 + '+' + dim2 + '+' + \
                 str(self.blasfeo_ps) + '*' + str(self.blasfeo_nc) + ' - 1)'
 
             self.heap64_record[self.scope] = self.heap64_record[self.scope] + \
@@ -1463,7 +1463,7 @@ class SourceGenerator(ExplicitNodeVisitor):
 
             # upper bound of blasfeo_dvec memsize
             # memsize \leq ps + m -1
-            mem_upper_bound = '(' + str(self.blasfeo_ps) + '*' + dim1 + ' - 1)'
+            mem_upper_bound = '(' + str(self.blasfeo_ps) + '+' + dim1 + ' - 1)'
 
             self.heap64_record[self.scope] = self.heap64_record[self.scope] + \
                 '+' + mem_upper_bound + '*' + str(self.size_of_double).replace('\n','')
