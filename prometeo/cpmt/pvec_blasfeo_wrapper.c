@@ -37,7 +37,7 @@ void c_pmt_assign_and_advance_blasfeo_dvec(int m, struct blasfeo_dvec **bvec) {
 
     // advance global heap address
     int memsize = (*bvec)->memsize;
-    // make_int_multiple_of(64, memsize);
+    make_int_multiple_of(64, memsize);
     ___c_pmt_64_heap += memsize;	
 
     // zero allocated memory

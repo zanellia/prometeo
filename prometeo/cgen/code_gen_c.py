@@ -190,7 +190,6 @@ def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False
 
     return generator.result
 
-
 def precedence_setter(AST=ast.AST, get_op_precedence=get_op_precedence,
                       isinstance=isinstance, list=list):
     """ This only uses a closure for performance reasons,
@@ -212,7 +211,6 @@ def precedence_setter(AST=ast.AST, get_op_precedence=get_op_precedence,
                 assert node is None, node
 
     return set_precedence
-
 
 set_precedence = precedence_setter()
 
@@ -265,32 +263,12 @@ def check_expression(node, binops, unops, usr_types, ast_types, record):
         else:
             raise cgenException('could not resolve expression {}\n'.format(astu.unparse(node)), node.lineno)
 
-
 # def process_annotation(ann_node):
 #     if isinstance(ann_node, ast.Name):
 #         return ann_node.id
 #     elif isinstance(ann_node, ast.Subscript):
 #         return ann_node.value.id + '[' + Num_or_Name(ann_node.slice.value.elts[0]) + \
 #             ',' +  Num_or_Name(ann_node.slice.value.elts[0]) + ']'
-
-# def get_bmat_size(m, n, sizeof_double):
-#     bs = 4
-#     nc = 4 
-#     pm = (m+bs-1)/4*4
-#     cn = (n+nc-1)/4*4
-#     al = bs*nc
-
-#     # if m < n:
-#     #     tmp = (m+al-1)/al*al
-#     # else:
-#     #     tmp = (n+al-1)/al*al
-
-#     # TODO(andrea) better allow for max/min in dim expressions?
-#     # compute overestimate:
-
-#     tmp = (m+al-1)/al*al + (n+al-1)/al*al
-
-#     return pm, cn, tmp
 
 class Delimit(object):
     """A context manager that can add enclosing
@@ -350,10 +328,9 @@ class SourceGenerator(ExplicitNodeVisitor):
     """
     using_unicode_literals = False
 
-    def __init__(self, indent_with, size_of_pointer, size_of_int, size_of_double,
+    def __init__(self, indent_with, size_of_pointer, size_of_int, size_of_double, \
                 add_line_information=False,pretty_string=pretty_string,
-                 # constants
-                 len=len, isinstance=isinstance, callable=callable):
+                blasfeo_ps = 4, blasfeo_nc = 4):
 
         self.result = namedtuple('result', 'source header')
         self.result.source = []
@@ -380,6 +357,9 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.size_of_pointer = size_of_pointer
         self.size_of_int = size_of_int
         self.size_of_double = size_of_double
+
+        self.blasfeo_ps = blasfeo_ps
+        self.blasfeo_nc = blasfeo_nc
 
         self.typed_record = {'global': dict()}
         self.meta_info = {'global': dict()}
@@ -708,11 +688,14 @@ class SourceGenerator(ExplicitNodeVisitor):
                                 self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
                                     '+' + '6*' + str(self.size_of_int).replace('\n','')
 
+                                # upper bound of blasfeo_dmat memsize
+                                # memsize \leq (ps + m -1)*(nc + n - 1) + (m + n + bs*nc -1)
+                                mem_upper_bound = '(' + str(self.blasfeo_ps) + '*' + dim1 + ' - 1)* ' \
+                                    '(' + str(self.blasfeo_ps) + '+' + dim2 + ' - 1)+(' + dim1 + '+' + dim2 + '+' + \
+                                    str(self.blasfeo_ps) + '*' + str(self.blasfeo_nc) + ' - 1)'
 
-                                # TODO(andrea): ask @giaf about better overestimate for blasfeo_dmat memsize
                                 self.heap64_record[self.scope] = self.heap64_record[self.scope] + \
-                                        '+ 3*(' + dim1 + '*' + dim2 + ')*' + \
-                                        str(self.size_of_double).replace('\n','')
+                                    '+' + mem_upper_bound + '*' + str(self.size_of_double).replace('\n','')
 
                         elif ann == 'pvec':
                             # build init for List of pvecs
@@ -728,10 +711,12 @@ class SourceGenerator(ExplicitNodeVisitor):
                                 self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
                                     '+' + '3*' + str(self.size_of_int).replace('\n','')
 
-                                # TODO(andrea): ask @giaf about better overestimate for blasfeo_dmat memsize
+                                # upper bound of blasfeo_dvec memsize
+                                # memsize \leq ps + m -1
+                                mem_upper_bound = '(' + str(self.blasfeo_ps) + '*' + dim1 + ' - 1)'
+
                                 self.heap64_record[self.scope] = self.heap64_record[self.scope] + \
-                                        '+ 2*' + str(dim_list[i][0]) +'*' + \
-                                        str(self.size_of_double).replace('\n','')
+                                    '+' + mem_upper_bound + '*' + str(self.size_of_double).replace('\n','')
 
                         # else: do nothing (no init required for "memoryless" objects)
                 # pmat[<n>,<m>] or pvec[<n>]
@@ -762,10 +747,15 @@ class SourceGenerator(ExplicitNodeVisitor):
                         self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
                             '+' + '6*' + str(self.size_of_int).replace('\n','')
 
-                        # TODO(andrea): ask @giaf about better overestimate for blasfeo_dmat memsize
+                        # upper bound of blasfeo_dmat memsize
+                        # memsize \leq (ps + m -1)*(nc + n - 1) + (m + n + bs*nc -1)
+                        mem_upper_bound = '(' + str(self.blasfeo_ps) + '*' + dim1 + ' - 1)* ' \
+                            '(' + str(self.blasfeo_ps) + '+' + dim2 + ' - 1)+(' + dim1 + '+' + dim2 + '+' + \
+                            str(self.blasfeo_ps) + '*' + str(self.blasfeo_nc) + ' - 1)'
+
                         self.heap64_record[self.scope] = self.heap64_record[self.scope] + \
-                                '+ 3*(' + dim1 + '*' + dim2 + ')*' + \
-                                str(self.size_of_double).replace('\n','')
+                            '+' + mem_upper_bound + '*' + str(self.size_of_double).replace('\n','')
+
                     else:
                         # pvec
                         if item.value.func.id != 'pvec':
@@ -781,10 +771,13 @@ class SourceGenerator(ExplicitNodeVisitor):
                         self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
                             '+' + '3*' + str(self.size_of_int).replace('\n','')
 
-                        # TODO(andrea): ask @giaf about better overestimate for blasfeo_dmat memsize
+                        # upper bound of blasfeo_dvec memsize
+                        # memsize \leq ps + m -1
+                        mem_upper_bound = '(' + str(self.blasfeo_ps) + '*' + dim1 + ' - 1)'
+
                         self.heap64_record[self.scope] = self.heap64_record[self.scope] + \
-                                '+ 2*' + str(dim1) +'*' + \
-                                str(self.size_of_double).replace('\n','')
+                            '+' + mem_upper_bound + '*' + str(self.size_of_double).replace('\n','')
+
                     # add variable to typed record
                     self.typed_record[self.scope][item.target.id] = ann
                     # print('typed_record = \n', self.typed_record, '\n\n')
@@ -1438,10 +1431,14 @@ class SourceGenerator(ExplicitNodeVisitor):
             self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
                 '+' + '6*' + str(self.size_of_int).replace('\n','')
 
-            # TODO(andrea): ask @giaf about better overestimate for blasfeo_dmat memsize
+            # upper bound of blasfeo_dmat memsize
+            # memsize \leq (ps + m -1)*(nc + n - 1) + (m + n + bs*nc -1)
+            mem_upper_bound = '(' + str(self.blasfeo_ps) + '*' + dim1 + ' - 1)* ' \
+                '(' + str(self.blasfeo_ps) + '+' + dim2 + ' - 1)+(' + dim1 + '+' + dim2 + '+' + \
+                str(self.blasfeo_ps) + '*' + str(self.blasfeo_nc) + ' - 1)'
+
             self.heap64_record[self.scope] = self.heap64_record[self.scope] + \
-                    '+ 3*(' + dim1 + '*' + dim2 + ')*' + \
-                    str(self.size_of_double).replace('\n','')
+                '+' + mem_upper_bound + '*' + str(self.size_of_double).replace('\n','')
 
         # or pvec[<n>]
         elif ann == 'pvec':
@@ -1464,11 +1461,12 @@ class SourceGenerator(ExplicitNodeVisitor):
             self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
                 '+' + '3*' + str(self.size_of_int).replace('\n','')
 
-            # TODO(andrea): ask @giaf about better overestimate for blasfeo_dmat memsize
-            self.heap64_record[self.scope] = self.heap64_record[self.scope] + \
-                    '+ 2*' + dim1 +'*' + \
-                    str(self.size_of_double).replace('\n','')
+            # upper bound of blasfeo_dvec memsize
+            # memsize \leq ps + m -1
+            mem_upper_bound = '(' + str(self.blasfeo_ps) + '*' + dim1 + ' - 1)'
 
+            self.heap64_record[self.scope] = self.heap64_record[self.scope] + \
+                '+' + mem_upper_bound + '*' + str(self.size_of_double).replace('\n','')
 
         # or dims
         elif ann == 'dims':
