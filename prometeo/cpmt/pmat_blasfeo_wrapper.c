@@ -32,14 +32,14 @@ void c_pmt_assign_and_advance_blasfeo_dmat(int m, int n, struct blasfeo_dmat **b
 
     // assign current address of global heap to memory in blasfeo dmat
     char *pmem_ptr = (char *)___c_pmt_64_heap;
-    align_char_to(64, &pmem_ptr);
+    // align_char_to(64, &pmem_ptr);
     ___c_pmt_64_heap = pmem_ptr;
     assert((size_t) ___c_pmt_64_heap % 64 == 0 && "dmat not 64-byte aligned!");
     blasfeo_create_dmat(m, n, *bmat, ___c_pmt_64_heap);
 
     // advance global heap address
     int memsize = (*bmat)->memsize;
-    // make_int_multiple_of(64, memsize);
+    make_int_multiple_of(64, &memsize);
     ___c_pmt_64_heap += memsize;	
 
     // zero allocated memory
