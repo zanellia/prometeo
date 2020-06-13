@@ -4,7 +4,7 @@ import sys
 from prometeo.cmdline import pmt_main
 
 def console_entry() -> None:
-    pmt_main(None, sys.stdout, sys.stderr)
+    pmt_main()
 
 if __name__ == '__main__':
-    pmt_main(None, sys.stdout, sys.stderr)
+    pmt_main()

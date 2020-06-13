@@ -30,7 +30,8 @@ setup(name='prometeo-dsl',
         'multipledispatch',
         'pyparsing',
         'casadi==3.5.1',
-        'jinja2'
+        'jinja2',
+        'numexpr'
     ],
     package_data={'': \
         ['lib/prometeo/libcpmt.so', \

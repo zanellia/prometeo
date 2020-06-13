@@ -47,7 +47,7 @@ Finally, you can run the examples in `<root>/examples` with `pmt <example_name>.
 
 ### a simple example
 
-The Python code
+The Python code (`examples/simple_example/simple_example.py`)
 ```python
 from prometeo import *
 
@@ -63,7 +63,6 @@ def main() -> int:
     B: pmat = pmat(n, n)
     for i in range(10):
         B[0, i] = 2.0
-
 
     C: pmat = pmat(n, n)
     C = A * B
@@ -128,10 +127,77 @@ which relies on the high-performance linear algebra package BLASFEO. The generat
 ```python
 from prometeo import *
 
-sizes: dimv = [[2,2], [2,2], [2,2], [2,2], [2,2]]
-nx: dims  = 2
-nxu: dims = 4
-nu: dims  = 2
+nx:  dims = 2
+nu:  dims = 2
+nxu: dims = nx + nu
+N:   dims = 5
+
+def main() -> int:
+
+    # number of repetitions for timing
+    nrep : int = 10000
+
+    A: pmat = pmat(nx, nx)
+    A[0,0] = 0.8
+    A[0,1] = 0.1
+    A[1,0] = 0.3
+    A[1,1] = 0.8
+
+    B: pmat = pmat(nx, nu)
+    B[0,0] = 1.0  
+    B[1,1] = 1.0
+
+    Q: pmat = pmat(nx, nx)
+    Q[0,0] = 1.0  
+    Q[1,1] = 1.0
+
+    R: pmat = pmat(nu, nu)
+    R[0,0] = 1.0  
+    R[1,1] = 1.0
+
+    A: pmat = pmat(nx, nx)
+    B: pmat = pmat(nx, nu)
+    Q: pmat = pmat(nx, nx)
+    R: pmat = pmat(nu, nu)
+
+    RSQ: pmat = pmat(nxu, nxu)
+    Lxx: pmat = pmat(nx, nx)
+    M: pmat = pmat(nxu, nxu)
+    w_nxu_nx: pmat = pmat(nxu, nx)
+    BAt : pmat = pmat(nxu, nx)
+    BA : pmat = pmat(nx, nxu)
+    pmat_hcat(B, A, BA)
+    pmat_tran(BA, BAt)
+
+    RSQ[0:nu,0:nu] = R
+    RSQ[nu:nu+nx,nu:nu+nx] = Q
+
+    # array-type Riccati factorization
+    for i in range(nrep):
+        pmt_potrf(Q, Lxx)
+        M[nu:nu+nx,nu:nu+nx] = Lxx
+        for i in range(1, N):
+            pmt_trmm_rlnn(Lxx, BAt, w_nxu_nx)
+            pmt_syrk_ln(w_nxu_nx, w_nxu_nx, RSQ, M)
+            pmt_potrf(M, M)
+            Lxx[0:nx,0:nx] = M[nu:nu+nx,nu:nu+nx]
+
+    return 0
+
+```
+Similarly, the code above (`example/riccati/riccati_array.py`) can be run by the standard Python interpreter using the command `pmt riccati_array.py --cgen=False` and prometeo can generate, compile and run C code using instead `pmt riccati_array.py --cgen=True`.
+
+### supported Python constructs
+In order to be able to transpile to C, only a subset of the Python language is supported. However, non C-like features such as function overload and classes are supported by prometeo's transpiler. The adapted Riccati example (`examples/riccati/riccati_mass_spring_2.py`) below shows how classes can be created and used.
+
+```python
+from prometeo import *
+
+nm: dims = 4
+nx: dims  = 2*nm
+sizes: dimv = [[8,8], [8,8], [8,8], [8,8], [8,8]]
+nu: dims  = nm
+nxu: dims = nx + nu
 N:  dims  = 5
 
 class qp_data:
@@ -153,13 +219,13 @@ class qp_data:
         BAtP: pmat = pmat(nxu, nx)
         pmat_copy(self.Q[N-1], self.P[N-1])
 
+        pmat_hcat(self.B[N-1], self.A[N-1], BA)
+        pmat_copy(self.Q[N-1], Q)
+        pmat_copy(self.R[N-1], R)
         for i in range(1, N):
-            pmat_hcat(self.B[N-i], self.A[N-i], BA)
             pmat_fill(BAtP, 0.0)
             pmt_gemm_tn(BA, self.P[N-i], BAtP, BAtP)
 
-            pmat_copy(self.Q[N-i], Q)
-            pmat_copy(self.R[N-i], R)
             pmat_fill(M, 0.0)
             M[0:nu,0:nu] = R
             M[nu:nu+nx,nu:nu+nx] = Q
@@ -170,37 +236,64 @@ class qp_data:
 
             Mxx[0:nx, 0:nx] = L[nu:nu+nx, nu:nu+nx]
 
-            pmat_fill(self.P[N-i-1], 0.0)
+            # pmat_fill(self.P[N-i-1], 0.0)
             pmt_gemm_nt(Mxx, Mxx, self.P[N-i-1], self.P[N-i-1])
-            pmat_print(self.P[N-i-1])
+            # pmat_print(self.P[N-i-1])
 
         return
 
 def main() -> int:
 
     A: pmat = pmat(nx, nx)
-    A[0,0] = 0.8
-    A[0,1] = 0.1
-    A[1,0] = 0.3
-    A[1,1] = 0.8
+    Ac11 : pmat = pmat(nm,nm)
+    Ac12 : pmat = pmat(nm,nm)
+    for i in range(nm):
+        Ac12[i,i] = 1.0
+
+    Ac21 : pmat = pmat(nm,nm)
+    for i in range(nm):
+        Ac21[i,i] = -2.0
+
+    for i in range(nm-1):
+        Ac21[i+1,i] = 1.0
+        Ac21[i,i+1] = 1.0
+
+    Ac22 : pmat = pmat(nm,nm)
+
+    for i in range(nm):
+        for j in range(nm):
+            A[i,j] = Ac11[i,j]
+
+    for i in range(nm):
+        for j in range(nm):
+            A[i,nm+j] = Ac12[i,j]
+
+    for i in range(nm):
+        for j in range(nm):
+            A[nm+i,j] = Ac21[i,j]
+
+    for i in range(nm):
+        for j in range(nm):
+            A[nm+i,nm+j] = Ac22[i,j]
+
+    tmp : float = 0.0
+    for i in range(nx):
+        tmp = A[i,i]
+        tmp = tmp + 1.0
+        A[i,i] = tmp
 
     B: pmat = pmat(nx, nu)
-    B[0,0] = 1.0  
-    B[0,1] = 0.0
-    B[1,0] = 0.0
-    B[1,1] = 1.0
+
+    for i in range(nu):
+        B[nm+i,i] = 1.0
 
     Q: pmat = pmat(nx, nx)
-    Q[0,0] = 1.0  
-    Q[0,1] = 0.0
-    Q[1,0] = 0.0
-    Q[1,1] = 1.0
+    for i in range(nx):
+        Q[i,i] = 1.0
 
     R: pmat = pmat(nu, nu)
-    R[0,0] = 1.0  
-    R[0,1] = 0.0
-    R[1,0] = 0.0
-    R[1,1] = 1.0
+    for i in range(nu):
+        R[i,i] = 1.0
 
     qp : qp_data = qp_data() 
 
@@ -220,148 +313,6 @@ def main() -> int:
     
     return 0
 ```
-Similarly, the code above can be run by the standard Python interpreter using the command `pmt dgemm.py --cgen=False` and prometeo can generate compile and run the following high-performance C code using instead `pmt dgemm.py --cgen=True`:
-```c
-#include "stdlib.h"
-#include "riccati.h"
-void * ___c_pmt_8_heap;
-void * ___c_pmt_64_heap;
-void * ___c_pmt_8_heap_head;
-void * ___c_pmt_64_heap_head;
 
-#include "prometeo.h"
-
-void qp_data_init(struct qp_data *object){
-    object->A[0] = c_pmt_create_pmat(2, 2);
-    object->A[1] = c_pmt_create_pmat(2, 2);
-    object->A[2] = c_pmt_create_pmat(2, 2);
-    object->A[3] = c_pmt_create_pmat(2, 2);
-    object->A[4] = c_pmt_create_pmat(2, 2);
-    object->B[0] = c_pmt_create_pmat(2, 2);
-    object->B[1] = c_pmt_create_pmat(2, 2);
-    object->B[2] = c_pmt_create_pmat(2, 2);
-    object->B[3] = c_pmt_create_pmat(2, 2);
-    object->B[4] = c_pmt_create_pmat(2, 2);
-    object->Q[0] = c_pmt_create_pmat(2, 2);
-    object->Q[1] = c_pmt_create_pmat(2, 2);
-    object->Q[2] = c_pmt_create_pmat(2, 2);
-    object->Q[3] = c_pmt_create_pmat(2, 2);
-    object->Q[4] = c_pmt_create_pmat(2, 2);
-    object->R[0] = c_pmt_create_pmat(2, 2);
-    object->R[1] = c_pmt_create_pmat(2, 2);
-    object->R[2] = c_pmt_create_pmat(2, 2);
-    object->R[3] = c_pmt_create_pmat(2, 2);
-    object->R[4] = c_pmt_create_pmat(2, 2);
-    object->P[0] = c_pmt_create_pmat(2, 2);
-    object->P[1] = c_pmt_create_pmat(2, 2);
-    object->P[2] = c_pmt_create_pmat(2, 2);
-    object->P[3] = c_pmt_create_pmat(2, 2);
-    object->P[4] = c_pmt_create_pmat(2, 2);
-    object->fact[0] = c_pmt_create_pmat(2, 2);
-    object->fact[1] = c_pmt_create_pmat(2, 2);
-    object->fact[2] = c_pmt_create_pmat(2, 2);
-    object->fact[3] = c_pmt_create_pmat(2, 2);
-    object->fact[4] = c_pmt_create_pmat(2, 2);
-    object->_Z9factorize = &_Z9factorizeqp_data_impl;
-}
-
-
-
-void _Z9factorizeqp_data_impl(qp_data *self) {
-	void *callee_pmt_8_heap = ___c_pmt_8_heap;
-	void *callee_pmt_64_heap = ___c_pmt_64_heap;
-
-    struct pmat * M = c_pmt_create_pmat(nxu, nxu);
-    struct pmat * Mxx = c_pmt_create_pmat(nx, nx);
-    struct pmat * L = c_pmt_create_pmat(nxu, nxu);
-    struct pmat * Q = c_pmt_create_pmat(nx, nx);
-    struct pmat * R = c_pmt_create_pmat(nu, nu);
-    struct pmat * BA = c_pmt_create_pmat(nx, nxu);
-    struct pmat * BAtP = c_pmt_create_pmat(nxu, nx);
-    c_pmt_pmat_copy(self->Q[N - 1], self->P[N - 1]);
-    for(int i = 1; i < N; i+=1) {
-        c_pmt_pmat_hcat(self->B[N - i], self->A[N - i], BA);
-        c_pmt_pmat_fill(BAtP, 0.0);
-        c_pmt_gemm_tn(BA, self->P[N - i], BAtP, BAtP);
-        c_pmt_pmat_copy(self->Q[N - i], Q);
-        c_pmt_pmat_copy(self->R[N - i], R);
-        c_pmt_pmat_fill(M, 0.0);
-        c_pmt_gecp(nu-0, nu-0, R, 0, 0, M, 0, 0);
-        c_pmt_gecp((nu + nx)-nu, (nu + nx)-nu, Q, 0, 0, M, nu, nu);
-        c_pmt_gemm_nn(BAtP, BA, M, M);
-        c_pmt_pmat_fill(L, 0.0);
-        c_pmt_potrf(M, L);
-        c_pmt_gecp(nx-0, nx-0, L, nu, nu, Mxx, 0, 0);
-        c_pmt_pmat_fill(self->P[N - i - 1], 0.0);
-        c_pmt_gemm_nt(Mxx, Mxx, self->P[N - i - 1], self->P[N - i - 1]);
-        c_pmt_pmat_print(self->P[N - i - 1]);
-    }
-
-	___c_pmt_8_heap = callee_pmt_8_heap;
-	___c_pmt_64_heap = callee_pmt_64_heap;
-
-    return ;
-}int main() {
-    ___c_pmt_8_heap = malloc(10000); 
-    ___c_pmt_8_heap_head = ___c_pmt_8_heap;
-    char * pmem_ptr = (char *)___c_pmt_8_heap;
-    align_char_to(8, &pmem_ptr);
-    ___c_pmt_8_heap = pmem_ptr;
-    ___c_pmt_64_heap = malloc(1000000);
-    ___c_pmt_64_heap_head = ___c_pmt_64_heap;
-    pmem_ptr = (char *)___c_pmt_64_heap;
-    align_char_to(64, &pmem_ptr);
-    ___c_pmt_64_heap = pmem_ptr;
-	void *callee_pmt_8_heap = ___c_pmt_8_heap;
-	void *callee_pmt_64_heap = ___c_pmt_64_heap;
-
-    struct pmat * A = c_pmt_create_pmat(nx, nx);
-    c_pmt_pmat_set_el(A, 0, 0, 0.8);
-    c_pmt_pmat_set_el(A, 0, 1, 0.1);
-    c_pmt_pmat_set_el(A, 1, 0, 0.3);
-    c_pmt_pmat_set_el(A, 1, 1, 0.8);
-    struct pmat * B = c_pmt_create_pmat(nx, nu);
-    c_pmt_pmat_set_el(B, 0, 0, 1.0);
-    c_pmt_pmat_set_el(B, 0, 1, 0.0);
-    c_pmt_pmat_set_el(B, 1, 0, 0.0);
-    c_pmt_pmat_set_el(B, 1, 1, 1.0);
-    struct pmat * Q = c_pmt_create_pmat(nx, nx);
-    c_pmt_pmat_set_el(Q, 0, 0, 1.0);
-    c_pmt_pmat_set_el(Q, 0, 1, 0.0);
-    c_pmt_pmat_set_el(Q, 1, 0, 0.0);
-    c_pmt_pmat_set_el(Q, 1, 1, 1.0);
-    struct pmat * R = c_pmt_create_pmat(nu, nu);
-    c_pmt_pmat_set_el(R, 0, 0, 1.0);
-    c_pmt_pmat_set_el(R, 0, 1, 0.0);
-    c_pmt_pmat_set_el(R, 1, 0, 0.0);
-    c_pmt_pmat_set_el(R, 1, 1, 1.0);
-    struct qp_data qp___;
-    struct qp_data * qp= &qp___;
-    qp_data_init(qp); //
-    for(int i = 0; i < N; i++) {
-        qp->A[i] = A;
-    }
-
-    for(int i = 0; i < N; i++) {
-        qp->B[i] = B;
-    }
-
-    for(int i = 0; i < N; i++) {
-        qp->Q[i] = Q;
-    }
-
-    for(int i = 0; i < N; i++) {
-        qp->R[i] = R;
-    }
-
-    qp->_Z9factorize(qp);
-	___c_pmt_8_heap = callee_pmt_8_heap;
-	___c_pmt_64_heap = callee_pmt_64_heap;
-
-	free(___c_pmt_8_heap_head);
-	free(___c_pmt_64_heap_head);
-	return 0;
-}
-```
-__Disclaimer: prometeo is still at a very preliminary stage and only very few linear algebra operations and Python constructs are supported for the time being.__
+__Disclaimer: prometeo is still at a very preliminary stage and only few linear algebra operations and Python constructs are supported for the time being.__
 

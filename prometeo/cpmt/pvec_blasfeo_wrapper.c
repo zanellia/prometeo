@@ -4,6 +4,8 @@
 #include <assert.h>
 #include <blasfeo_common.h>
 
+extern void make_int_multiple_of(int multiple_of, int * n);
+
 struct pvec * c_pmt_create_pvec(int m) {	
     // assign current address of global heap to pvec pointer
     struct pvec *pvec = (struct pvec *) ___c_pmt_8_heap;
@@ -30,14 +32,14 @@ void c_pmt_assign_and_advance_blasfeo_dvec(int m, struct blasfeo_dvec **bvec) {
 
     // assign current address of global heap to memory in blasfeo dvec
     char *pmem_ptr = (char *)___c_pmt_64_heap; 
-    align_char_to(64, &pmem_ptr);
+    // align_char_to(64, &pmem_ptr);
     ___c_pmt_64_heap = pmem_ptr;
     assert((size_t) ___c_pmt_64_heap % 64 == 0 && "dvec not 64-byte aligned!");
     blasfeo_create_dvec(m, *bvec, ___c_pmt_64_heap);
 
     // advance global heap address
     int memsize = (*bvec)->memsize;
-    // make_int_multiple_of(64, memsize);
+    make_int_multiple_of(64, &memsize);
     ___c_pmt_64_heap += memsize;	
 
     // zero allocated memory
