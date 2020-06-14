@@ -28,11 +28,6 @@ def main() -> int:
     R[0,0] = 1.0  
     R[1,1] = 1.0
 
-    A: pmat = pmat(nx, nx)
-    B: pmat = pmat(nx, nu)
-    Q: pmat = pmat(nx, nx)
-    R: pmat = pmat(nu, nu)
-
     RSQ: pmat = pmat(nxu, nxu)
     Lxx: pmat = pmat(nx, nx)
     M: pmat = pmat(nxu, nxu)

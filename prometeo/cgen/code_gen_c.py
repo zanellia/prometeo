@@ -619,14 +619,14 @@ class SourceGenerator(ExplicitNodeVisitor):
 
             self.meta_info[self.scope]['methods'][item.name]['return_type'] = ret_type
 
-                if len(item.args.args) > 0:
-                    self.write('%s (*%s%s%s' % (ret_type, pre_mangl, \
-                        item.name, post_mangl) , ')', '(%s *self, ' %name, \
+            if len(item.args.args) > 0:
+                self.write('%s (*%s%s%s' % (ret_type, pre_mangl, \
+                    item.name, post_mangl) , ')', '(%s *self, ' %name, \
+                    dest = 'hdr')
+            else:
+                self.write('%s (*%s%s%s' % (ret_type, pre_mangl, \
+                        item.name, post_mangl) , ')', '(%s *self' %name, \
                         dest = 'hdr')
-                else:
-                    self.write('%s (*%s%s%s' % (ret_type, pre_mangl, \
-                            item.name, post_mangl) , ')', '(%s *self' %name, \
-                            dest = 'hdr')
 
             if  ret_type in pmt_temp_types:
                 ret_type = pmt_temp_types[ret_type]
