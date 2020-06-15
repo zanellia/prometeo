@@ -1540,8 +1540,6 @@ class SourceGenerator(ExplicitNodeVisitor):
             else:
                 self.statement(node, node.annotation, ' ', node.target)
                 self.conditional_write(' = ', node.value, '', dest = 'src')
-            self.statement(node, node.annotation, ' ', node.target)
-            self.conditional_write(' = ', node.value, '', dest = 'src')
 
             # increment scoped heap usage (2 pointers and 3 ints for pvecs)
             self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
