@@ -8,13 +8,14 @@ nxu: dims = nx + nu
 N:  dims  = 5
 
 class qp_data:
-    A: List = plist(pmat, sizes)
-    B: List = plist(pmat, sizes)
-    Q: List = plist(pmat, sizes)
-    R: List = plist(pmat, sizes)
-    P: List = plist(pmat, sizes)
+    def __init__(self) -> None:
+        self.A: List = plist(pmat, sizes)
+        self.B: List = plist(pmat, sizes)
+        self.Q: List = plist(pmat, sizes)
+        self.R: List = plist(pmat, sizes)
+        self.P: List = plist(pmat, sizes)
 
-    fact: pmat = pmat(nx, nx)
+        # self.fact: pmat = pmat(nx, nx)
 
     def factorize(self) -> None:
         M: pmat = pmat(nxu, nxu)

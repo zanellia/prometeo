@@ -1,4 +1,5 @@
 # Riccati recursion
+# author: Gianluca Frison
 
 import numpy as np
 import scipy as sp

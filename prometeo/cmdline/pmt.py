@@ -226,8 +226,13 @@ class Graph:
                             current_node = list(unvisited_nodes.items())[i][1]
                             # print('new current node', current_node.name)
                             break
+                    if found_new_current_node:
+                        break
                 if not found_new_current_node:
-                    raise Exception('Could not find new current node')
+                    if current_node.name != 'end':
+                        raise Exception('Could not find new current node. Current node is {}'.format(current_node.name))
+                    else:
+                        terminate = True
 
         path_length = visited_nodes['end'].tentative_distance
 
@@ -378,8 +383,6 @@ def pmt_main():
 
         # print('reach_map:\n\n', reach_map, '\n\n')
 
-
-
         # build memory graph (64-bytes aligned)
         nodes = []
         for key, value in call_graph.items():
@@ -429,7 +432,7 @@ def pmt_main():
 
         makefile_code = makefile_code.replace('{{ HEAP8_SIZE }}', str(worst_case_heap_usage_8))
         # NOTE: factor 2 due to alignment
-        makefile_code = makefile_code.replace('{{ HEAP64_SIZE }}', str(2*worst_case_heap_usage_64))
+        makefile_code = makefile_code.replace('{{ HEAP64_SIZE }}', str(worst_case_heap_usage_64))
 
         makefile_code = makefile_code.replace('\n','', 1)
         makefile_code = makefile_code.replace('{{ INSTALL_DIR }}', os.path.dirname(__file__) + '/..')
