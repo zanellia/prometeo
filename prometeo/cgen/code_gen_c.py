@@ -2358,8 +2358,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                 self.visit(node.step)
 
     def visit_Index(self, node):
-        self.current_line = node.lineno
-        self.current_col = node.col_offset
+        self.current_line = node.value.lineno
+        self.current_col = node.value.col_offset
         with self.delimit(node) as delimiters:
             set_precedence(delimiters.p, node.value)
             self.visit(node.value)
