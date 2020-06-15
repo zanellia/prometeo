@@ -723,7 +723,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                                     str(self.blasfeo_ps) + '*' + str(self.blasfeo_nc) + ' - 1)'
 
                                 self.heap64_record[self.scope] = self.heap64_record[self.scope] + \
-                                    '+' + mem_upper_bound + '*' + str(self.size_of_double).replace('\n','')
+                                    '+ (' + mem_upper_bound + ' + 64)*' + str(self.size_of_double).replace('\n','')
 
                         elif ann == 'pvec':
                             # build init for List of pvecs
@@ -744,7 +744,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                                 mem_upper_bound = '(' + str(self.blasfeo_ps) + '+' + dim1 + ' - 1)'
 
                                 self.heap64_record[self.scope] = self.heap64_record[self.scope] + \
-                                    '+' + mem_upper_bound + '*' + str(self.size_of_double).replace('\n','')
+                                    '+ (' + mem_upper_bound + ' + 64)*' + str(self.size_of_double).replace('\n','')
 
                         # else: do nothing (no init required for "memoryless" objects)
                 # pmat[<n>,<m>] or pvec[<n>]
@@ -782,7 +782,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                             str(self.blasfeo_ps) + '*' + str(self.blasfeo_nc) + ' - 1)'
 
                         self.heap64_record[self.scope] = self.heap64_record[self.scope] + \
-                            '+' + mem_upper_bound + '*' + str(self.size_of_double).replace('\n','')
+                            '+ (' + mem_upper_bound + ' + 64)*' + str(self.size_of_double).replace('\n','')
 
                     else:
                         # pvec
@@ -804,7 +804,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                         mem_upper_bound = '(' + str(self.blasfeo_ps) + '+' + dim1 + ' - 1)'
 
                         self.heap64_record[self.scope] = self.heap64_record[self.scope] + \
-                            '+' + mem_upper_bound + '*' + str(self.size_of_double).replace('\n','')
+                            '+ (' + mem_upper_bound + ' + 64)*' + str(self.size_of_double).replace('\n','')
 
                     # # add variable to typed record
                     # self.typed_record[self.scope][item.target.attr] = ann
@@ -1513,13 +1513,13 @@ class SourceGenerator(ExplicitNodeVisitor):
                 '+' + '6*' + str(self.size_of_int).replace('\n','')
 
             # upper bound of blasfeo_dmat memsize
-            # memsize \leq (ps + m -1)*(nc + n - 1) + (m + n + bs*nc -1)
+            # memsize \leq (ps + m -1)*(nc + n - 1) + (m + n + ps*nc -1)
             mem_upper_bound = '(' + str(self.blasfeo_ps) + '+' + dim1 + ' - 1)* ' \
                 '(' + str(self.blasfeo_nc) + '+' + dim2 + ' - 1)+(' + dim1 + '+' + dim2 + '+' + \
                 str(self.blasfeo_ps) + '*' + str(self.blasfeo_nc) + ' - 1)'
 
             self.heap64_record[self.scope] = self.heap64_record[self.scope] + \
-                '+' + mem_upper_bound + '*' + str(self.size_of_double).replace('\n','')
+                '+ (' + mem_upper_bound + ' + 64)*' + str(self.size_of_double).replace('\n','')
 
         # or pvec[<n>]
         elif ann == 'pvec':
@@ -1552,7 +1552,7 @@ class SourceGenerator(ExplicitNodeVisitor):
             mem_upper_bound = '(' + str(self.blasfeo_ps) + '+' + dim1 + ' - 1)'
 
             self.heap64_record[self.scope] = self.heap64_record[self.scope] + \
-                '+' + mem_upper_bound + '*' + str(self.size_of_double).replace('\n','')
+                '+ (' + mem_upper_bound + ' + 64)*' + str(self.size_of_double).replace('\n','')
 
         # or dims
         elif ann == 'dims':

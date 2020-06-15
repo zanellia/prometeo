@@ -432,7 +432,7 @@ def pmt_main():
 
         makefile_code = makefile_code.replace('{{ HEAP8_SIZE }}', str(worst_case_heap_usage_8))
         # NOTE: factor 2 due to alignment
-        makefile_code = makefile_code.replace('{{ HEAP64_SIZE }}', str(2*worst_case_heap_usage_64))
+        makefile_code = makefile_code.replace('{{ HEAP64_SIZE }}', str(worst_case_heap_usage_64))
 
         makefile_code = makefile_code.replace('\n','', 1)
         makefile_code = makefile_code.replace('{{ INSTALL_DIR }}', os.path.dirname(__file__) + '/..')
