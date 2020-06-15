@@ -144,7 +144,12 @@ def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False
     generator.result.header.append('#include "pmt_aux.h"\n')
     generator.result.header.append('#ifdef __cplusplus\nextern "C" {\n#endif\n\n')
 
-    generator.visit(node)
+
+    try:
+        generator.visit(node)
+    except:
+        print('\n > Exception -- prometeo code-gen: \033[1;31mparser error at {}:{}\033[0;0m\n'.format(generator.current_line, generator.current_col))
+        raise
 
     generator.result.source.append('\n')
     if set(generator.result.source[0]) == set('\n'):
@@ -187,6 +192,7 @@ def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False
     with open(json_file, 'w') as f:
         json.dump(generator.constructor_record, f, indent=4)
     os.chdir('..')
+
 
     return generator.result
 
@@ -392,6 +398,9 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.dim_record = dict()
         self.constructor_record = []
         self.in_main = False
+
+        self.current_line = 1
+        self.current_col = 1
 
         def write(*params, dest):
             """ self.write is a closure for performance (to reduce the number
@@ -1069,6 +1078,8 @@ class SourceGenerator(ExplicitNodeVisitor):
 
     # Statements
     def visit_Assign(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         if 'targets' in node.__dict__:
             if len(node.targets) != 1:
                 raise cgenException('Cannot have assignments with a number of \
@@ -1369,11 +1380,15 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.write(';', dest = 'src')
 
     def visit_AugAssign(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         set_precedence(node, node.value, node.target)
         self.statement(node, node.target, get_op_symbol(node.op, ' %s= '),
                        node.value)
 
     def visit_AnnAssign(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         # ap.pprint(node)
         set_precedence(node, node.target, node.annotation)
         set_precedence(Precedence.Comma, node.value)
@@ -1482,7 +1497,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         # pmat[<n>,<m>]
         elif ann == 'pmat':
             if node.value.func.id != 'pmat':
-                raise cgenException('pmat objects need to be declared calling',
+                raise cgenException('pmat objects need to be declared calling' 
                     ' the pmat(<n>, <m>) constructor.', node.lineno)
 
             if not check_expression(node.value.args[0], tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]),
@@ -1636,6 +1651,8 @@ class SourceGenerator(ExplicitNodeVisitor):
         #         self.conditional_write('', dest = 'src')
 
     def visit_ImportFrom(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         include = node.module
         include = include.replace('.','/')
         if node.level is not 0:
@@ -1649,11 +1666,15 @@ class SourceGenerator(ExplicitNodeVisitor):
                        include or '', '.h"\n')
 
     def visit_Import(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         raise cgenException('Unsupported import statement. Use instead from `<...> import *` Exiting.', node.lineno)
         # self.statement(node, 'import ')
         # self.comma_list(node.names)
 
     def visit_Expr(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         if type(node.value) is ast.Call:
             if 'value' in node.value.func.__dict__:
                 var_name = node.value.func.value.id
@@ -1669,6 +1690,8 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.generic_visit(node)
 
     def visit_FunctionDef(self, node, is_async=False):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         if node.name == 'main':
             self.in_main = True
         # ap.pprint(node)
@@ -1742,9 +1765,13 @@ class SourceGenerator(ExplicitNodeVisitor):
 
     # introduced in Python 3.5
     def visit_AsyncFunctionDef(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         self.visit_FunctionDef(node, is_async=True)
 
     def visit_ClassDef(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         self.scope = self.scope + '@' + node.name
         self.typed_record[self.scope] = dict()
         self.meta_info[self.scope] = dict()
@@ -1787,6 +1814,8 @@ class SourceGenerator(ExplicitNodeVisitor):
 
 
     def visit_If(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         set_precedence(node, node.test)
         self.statement(node, 'if(', node.test, ') {')
         self.body(node.body)
@@ -1803,6 +1832,8 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.write('\n}', dest = 'src')
 
     def visit_For(self, node, is_async=False):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         set_precedence(node, node.target)
         prefix = 'is_async ' if is_async else ''
         if len(node.iter.args) == 1:
@@ -1829,9 +1860,13 @@ class SourceGenerator(ExplicitNodeVisitor):
 
     # introduced in Python 3.5
     def visit_AsyncFor(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         self.visit_For(node, is_async=True)
 
     def visit_While(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         set_precedence(node, node.test)
         self.statement(node, 'while(', node.test, ') {')
         self.body_or_else(node)
@@ -1839,6 +1874,8 @@ class SourceGenerator(ExplicitNodeVisitor):
 
 
     def visit_With(self, node, is_async=False):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         prefix = 'is_async ' if is_async else ''
         self.statement(node, '%swith ' % prefix)
         if hasattr(node, 'context_expr'):  # Python < 3.3
@@ -1850,20 +1887,30 @@ class SourceGenerator(ExplicitNodeVisitor):
 
     # new for Python 3.5
     def visit_AsyncWith(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         self.visit_With(node, is_async=True)
 
     # new for Python 3.3
     def visit_withitem(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         self.write(node.context_expr)
         self.conditional_write(' as ', node.optional_vars, dest = 'src')
 
     def visit_NameConstant(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         self.write(str(node.value), dest = 'src')
 
     def visit_Pass(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         self.statement(node, 'pass')
 
     def visit_Print(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         # XXX: python 2.6 only
         self.statement(node, 'print ')
         values = node.values
@@ -1873,10 +1920,14 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.comma_list(values, not node.nl)
 
     def visit_Delete(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         self.statement(node, 'del ')
         self.comma_list(node.targets)
 
     def visit_TryExcept(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         self.statement(node, 'try:')
         self.body(node.body)
         self.write(*node.handlers)
@@ -1884,6 +1935,8 @@ class SourceGenerator(ExplicitNodeVisitor):
 
     # new for Python 3.3
     def visit_Try(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         self.statement(node, 'try:')
         self.body(node.body)
         self.write(*node.handlers)
@@ -1893,6 +1946,8 @@ class SourceGenerator(ExplicitNodeVisitor):
             self.body(node.finalbody)
 
     def visit_ExceptHandler(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         self.statement(node, 'except')
         if self.conditional_write(' ', node.type, dest = 'src'):
             self.conditional_write(' as ', node.name, dest = 'src')
@@ -1900,12 +1955,16 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.body(node.body)
 
     def visit_TryFinally(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         self.statement(node, 'try:')
         self.body(node.body)
         self.statement(node, 'finally:')
         self.body(node.finalbody)
 
     def visit_Exec(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         dicts = node.globals, node.locals
         dicts = dicts[::-1] if dicts[0] is None else dicts
         self.statement(node, 'exec ', node.body)
@@ -1913,17 +1972,25 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.conditional_write(', ', dicts[1], dest = 'src')
 
     def visit_Assert(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         set_precedence(node, node.test, node.msg)
         self.statement(node, 'assert ', node.test)
         self.conditional_write(', ', node.msg, dest = 'src')
 
     def visit_Global(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         self.statement(node, 'global ', ', '.join(node.names))
 
     def visit_Nonlocal(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         self.statement(node, 'nonlocal ', ', '.join(node.names))
 
     def visit_Return(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         set_precedence(node, node.value)
         # TODO(andrea): this probably does not support
         # stuff like `return foo()`
@@ -1937,12 +2004,18 @@ class SourceGenerator(ExplicitNodeVisitor):
             self.conditional_write('', node.value, ';', dest = 'src')
 
     def visit_Break(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         self.statement(node, 'break')
 
     def visit_Continue(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         self.statement(node, 'continue')
 
     def visit_Raise(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         # XXX: Python 2.6 / 3.0 compatibility
         self.statement(node, 'raise')
         if self.conditional_write(' ', self.get_exc(node), dest = 'src'):
@@ -1955,6 +2028,8 @@ class SourceGenerator(ExplicitNodeVisitor):
     # Expressions
 
     def visit_Attribute(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
 
         if node.value.id == 'self':
             self.write(node.value, '->', node.attr, dest = 'src')
@@ -1966,6 +2041,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                     of unknown type.'.format(node.value), node.lineno)
 
     def visit_Call(self, node, len=len):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         write = self.write
         want_comma = []
 
@@ -2074,12 +2151,18 @@ class SourceGenerator(ExplicitNodeVisitor):
         write(');', dest = 'src')
 
     def visit_Name(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         self.write(node.id, dest = 'src')
 
     def visit_JoinedStr(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         self.visit_Str(node, True)
 
     def visit_Str(self, node, is_joined=False):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
 
         # embedded is used to control when we might want
         # to use a triple-quoted string.  We determine
@@ -2148,11 +2231,15 @@ class SourceGenerator(ExplicitNodeVisitor):
             self.colinfo = len(result.source) - 1, lf
 
     def visit_Bytes(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         self.write(repr(node.s))
 
     def visit_Num(self, node,
                   # constants
                   new=sys.version_info >= (3, 0)):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         with self.delimit(node) as delimiters:
             s = repr(node.n)
 
@@ -2177,6 +2264,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                     delimiters.discard = not isinstance(op, ast.USub)
 
     def visit_Tuple(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         with self.delimit(node) as delimiters:
             # Two things are special about tuples:
             #   1) We cannot discard the enclosing parentheses if empty
@@ -2186,14 +2275,20 @@ class SourceGenerator(ExplicitNodeVisitor):
             self.comma_list(elts, len(elts) == 1)
 
     def visit_List(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         with self.delimit('[]'):
             self.comma_list(node.elts)
 
     def visit_Set(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         with self.delimit('{}'):
             self.comma_list(node.elts)
 
     def visit_Dict(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         set_precedence(Precedence.Comma, *node.values)
         with self.delimit('{}'):
             for idx, (key, value) in enumerate(zip(node.keys, node.values)):
@@ -2202,6 +2297,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                            ': ' if key else '**', value)
 
     def visit_BinOp(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         op, left, right = node.op, node.left, node.right
         with self.delimit(node, op) as delimiters:
             ispow = isinstance(op, ast.Pow)
@@ -2211,6 +2308,8 @@ class SourceGenerator(ExplicitNodeVisitor):
             self.write(left, get_op_symbol(op, ' %s '), right, dest = 'src')
 
     def visit_BoolOp(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         with self.delimit(node, node.op) as delimiters:
             op = get_op_symbol(node.op, ' %s ')
             set_precedence(delimiters.p + 1, *node.values)
@@ -2218,6 +2317,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                 self.write(idx and op or '', value)
 
     def visit_Compare(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         with self.delimit(node, node.ops[0]) as delimiters:
             set_precedence(delimiters.p + 1, node.left, *node.comparators)
             self.visit(node.left)
@@ -2225,6 +2326,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                 self.write(get_op_symbol(op, ' %s '), right, dest = 'src')
 
     def visit_UnaryOp(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         with self.delimit(node, node.op) as delimiters:
             set_precedence(delimiters.p, node.operand)
             # In Python 2.x, a unary negative of a literal
@@ -2236,10 +2339,14 @@ class SourceGenerator(ExplicitNodeVisitor):
             self.write(sym, ' ' if sym.isalpha() else '', node.operand, dest = 'src')
 
     def visit_Subscript(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         set_precedence(node, node.slice)
         self.write(node.value, '[', node.slice, ']', dest = 'src')
 
     def visit_Slice(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         set_precedence(node, node.lower, node.upper, node.step)
         self.conditional_write(node.lower, dest = 'src')
         self.write(':')
@@ -2251,16 +2358,22 @@ class SourceGenerator(ExplicitNodeVisitor):
                 self.visit(node.step)
 
     def visit_Index(self, node):
+        self.current_line = node.value.lineno
+        self.current_col = node.value.col_offset
         with self.delimit(node) as delimiters:
             set_precedence(delimiters.p, node.value)
             self.visit(node.value)
 
     def visit_ExtSlice(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         dims = node.dims
         set_precedence(node, *dims)
         self.comma_list(dims, len(dims) == 1)
 
     def visit_Yield(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         with self.delimit(node):
             set_precedence(get_op_precedence(node) + 1, node.value)
             self.write('yield')
@@ -2268,15 +2381,21 @@ class SourceGenerator(ExplicitNodeVisitor):
 
     # new for Python 3.3
     def visit_YieldFrom(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         with self.delimit(node):
             self.write('yield from ', node.value)
 
     # new for Python 3.5
     def visit_Await(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         with self.delimit(node):
             self.write('await ', node.value)
 
     def visit_Lambda(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         with self.delimit(node) as delimiters:
             set_precedence(delimiters.p, node.body)
             self.write('lambda ')
@@ -2284,13 +2403,19 @@ class SourceGenerator(ExplicitNodeVisitor):
             self.write(': ', node.body)
 
     def visit_Ellipsis(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         self.write('...')
 
     def visit_ListComp(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         with self.delimit('[]'):
             self.write(node.elt, *node.generators)
 
     def visit_GeneratorExp(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         with self.delimit(node) as delimiters:
             if delimiters.pp == Precedence.call_one_arg:
                 delimiters.discard = True
@@ -2298,23 +2423,33 @@ class SourceGenerator(ExplicitNodeVisitor):
             self.write(node.elt, *node.generators)
 
     def visit_SetComp(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         with self.delimit('{}'):
             self.write(node.elt, *node.generators)
 
     def visit_DictComp(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         with self.delimit('{}'):
             self.write(node.key, ': ', node.value, *node.generators)
 
     def visit_IfExp(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         with self.delimit(node) as delimiters:
             set_precedence(delimiters.p + 1, node.body, node.test)
             set_precedence(delimiters.p, node.orelse)
             self.write(node.body, ' if ', node.test, ' else ', node.orelse)
 
     def visit_Starred(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         self.write('*', node.value)
 
     def visit_Repr(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         # XXX: python 2.6 only
         with self.delimit('``'):
             self.visit(node.value)
@@ -2325,19 +2460,27 @@ class SourceGenerator(ExplicitNodeVisitor):
     visit_Interactive = visit_Module
 
     def visit_Expression(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         self.visit(node.body)
 
     # Helper Nodes
 
     def visit_arg(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         self.write(node.arg)
         self.conditional_write(': ', node.annotation, dest = 'src')
 
     def visit_alias(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         self.write(node.name, dest = 'src')
         self.conditional_write(' as ', node.asname, dest = 'src')
 
     def visit_comprehension(self, node):
+        self.current_line = node.lineno
+        self.current_col = node.col_offset
         set_precedence(node, node.iter, *node.ifs)
         set_precedence(Precedence.comprehension_target, node.target)
         stmt = ' is_async for ' if self.get_is_is_async(node) else ' for '
