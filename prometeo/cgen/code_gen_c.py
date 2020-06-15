@@ -465,7 +465,7 @@ class SourceGenerator(ExplicitNodeVisitor):
     def body_class(self, statements, name):
         self.indentation += 1
 
-        # class attributes
+        # class attributes (header)
         self.write_class(*statements, name=name)
 
         self.write('};', dest = 'hdr')
@@ -578,6 +578,7 @@ class SourceGenerator(ExplicitNodeVisitor):
             # additional treatment of  __init__ (declare attributes)
             if item.name == '__init__':
                 self.write_instance_attributes(item.body, name=name)
+                self.update_constructor_heap(item.body, name=name)
 
             self.meta_info[self.scope]['methods'][item.name] = dict()
             # build argument mangling
@@ -676,12 +677,9 @@ class SourceGenerator(ExplicitNodeVisitor):
                 # insert back self argument
                 item.args.args.insert(0, self_arg)
 
-    def write_class_constructor(self, *params, name):
-        self.write('void ', name, '_constructor(struct ', name, ' *object){', dest = 'src')
-        self.indentation += 1
+
+    def update_constructor_heap(self, params, name):
         for item in params:
-            print(item)
-            import pdb; pdb.set_trace()
             if isinstance(item, ast.AnnAssign):
                 # set_precedence(item, item.target, item.annotation)
                 set_precedence(Precedence.Comma, item.value)
@@ -707,16 +705,10 @@ class SourceGenerator(ExplicitNodeVisitor):
                         else:
                             dim_list = dims
                         if ann == 'pmat':
-                            import pdb; pdb.set_trace()
                             # build init for List of pmats
                             for i in range(len(dim_list)):
                                 dim1 = dim_list[i][0] 
                                 dim2 = dim_list[i][1] 
-                                self.statement([], 'object->', \
-                                    item.target.id, \
-                                    '[', str(i),'] = c_pmt_create_pmat(', \
-                                    str(dim1), ', ', \
-                                    str(dim2), ');')
 
                                 # increment scoped heap usage (3 pointers and 6 ints for pmats)
                                 self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
@@ -737,7 +729,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                             # build init for List of pvecs
                             for i in range(len(dim_list)):
                                 self.statement([], 'object->', \
-                                    item.target.id, \
+                                    item.target.attr, \
                                     '[', str(i),'] = c_pmt_create_pvec(', \
                                     str(dim_list[i][0]), ');')
 
@@ -775,7 +767,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                         dim1 = astu.unparse(item.value.args[0]).replace('\n','')
                         dim2 = astu.unparse(item.value.args[1]).replace('\n','')
 
-                        self.var_dim_record[self.scope][item.target.id] = [dim1, dim2]
+                        self.var_dim_record[self.scope][item.target.attr] = [dim1, dim2]
 
                         # increment scoped heap usage (3 pointers and 6 ints for pmats)
                         self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
@@ -799,7 +791,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                                 'the pvec(<n>, <m>) constructor\n.', item.lineno)
                         dim1 = Num_or_Name(item.value.args[0])
                         ann = item.annotation.value.id
-                        self.var_dim_record[self.scope][item.target.id] = [dim1]
+                        self.var_dim_record[self.scope][item.target.attr] = [dim1]
 
                         # increment scoped heap usage (2 pointers and 3 ints for pvecs)
                         self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
@@ -814,44 +806,51 @@ class SourceGenerator(ExplicitNodeVisitor):
                         self.heap64_record[self.scope] = self.heap64_record[self.scope] + \
                             '+' + mem_upper_bound + '*' + str(self.size_of_double).replace('\n','')
 
-                    # add variable to typed record
-                    self.typed_record[self.scope][item.target.id] = ann
-                    # print('typed_record = \n', self.typed_record, '\n\n')
-                    # print('var_dim_record = \n', self.var_dim_record, '\n\n')
-                    if  ann in pmt_temp_types:
-                        c_ann = pmt_temp_types[ann]
-                        # self.statement(item, c_ann, ' ', item.target.id)
-                    else:
-                        raise cgenException ('Usage of non existing type {}'.format(ann), \
-                            item.lineno)
-                    if item.value != None:
-                        if hasattr(item.value, 'value') is False:
-                            self.conditional_write('\n', 'object->', \
-                                item.target, ' = ', item.value, ';', dest = 'src')
-                        else:
-                            if item.value.value != None:
-                                self.conditional_write('\n', 'object->', \
-                                    item.target, ' = ', item.value, ';', dest = 'src')
-                    else:
-                        raise cgenException('Cannot declare attribute without'
-                            ' initialization.\n', item.lineno)
-                elif ann in usr_temp_types:
-                    self.write('\nobject->', item.target.id, ' = &(object->', item.target.id, '___);\n', dest = 'src')
-                    self.write(ann, '_constructor(object->', item.target.id, ');\n', dest='src')
-                else:
-                    if item.value != None:
-                        if hasattr(item.value, 'value') is False:
-                            self.conditional_write('\n', 'object->', \
-                                item.target, ' = ', item.value, ';', dest = 'src')
-                        else:
-                            if item.value.value != None:
-                                self.conditional_write('\n', 'object->', \
-                                    item.target, ' = ', item.value, ';', dest = 'src')
-                    else:
-                        raise cgenException('Cannot declare attribute without \
-                            initialization.\n', item.lineno)
+                    # # add variable to typed record
+                    # self.typed_record[self.scope][item.target.attr] = ann
+                    # # print('typed_record = \n', self.typed_record, '\n\n')
+                    # # print('var_dim_record = \n', self.var_dim_record, '\n\n')
+                    # if  ann in pmt_temp_types:
+                    #     c_ann = pmt_temp_types[ann]
+                    #     # self.statement(item, c_ann, ' ', item.target.attr)
+                    # else:
+                    #     raise cgenException ('Usage of non existing type {}'.format(ann), \
+                    #         item.lineno)
+                    # if item.value != None:
+                    #     if hasattr(item.value, 'value') is False:
+                    #         self.conditional_write('\n', 'object->', \
+                    #             item.target, ' = ', item.value, ';', dest = 'src')
+                    #     else:
+                    #         if item.value.value != None:
+                    #             self.conditional_write('\n', 'object->', \
+                    #                 item.target, ' = ', item.value, ';', dest = 'src')
+                    # else:
+                    #     raise cgenException('Cannot declare attribute without'
+                    #         ' initialization.\n', item.lineno)
+                # elif ann in usr_temp_types:
+                    # self.write('\nobject->', item.target.attr, ' = &(object->', item.target.attr, '___);\n', dest = 'src')
+                    # self.write(ann, '_constructor(object->', item.target.attr, ');\n', dest='src')
+                # else:
+                    # if item.value != None:
+                    #     if hasattr(item.value, 'value') is False:
+                    #         self.conditional_write('\n', 'object->', \
+                    #             item.target, ' = ', item.value, ';', dest = 'src')
+                    #     else:
+                    #         if item.value.value != None:
+                    #             self.conditional_write('\n', 'object->', \
+                    #                 item.target, ' = ', item.value, ';', dest = 'src')
+                    # else:
+                    #     raise cgenException('Cannot declare attribute without \
+                    #         initialization.\n', item.lineno)
 
-            elif isinstance(item, ast.FunctionDef):
+
+
+
+    def write_class_constructor(self, *params, name):
+        self.write('void ', name, '_constructor(struct ', name, ' *object){', dest = 'src')
+        self.indentation += 1
+        for item in params:
+            if isinstance(item, ast.FunctionDef):
                 # build argument mangling
                 f_name_len = len(item.name)
                 pre_mangl = '_Z%s' %f_name_len
@@ -875,6 +874,9 @@ class SourceGenerator(ExplicitNodeVisitor):
                 arg_mangl = self.build_arg_mangling(item.args)
                 # insert back self argument
                 item.args.args.insert(0, self_arg)
+
+            else:
+                cgenException('Cannot declare non-method member or class {}'.format(name), self.lineno)
 
         # call __init__ transpiled code inside constructor
         self.write('\n\tobject->_Z8__init__(object);\n', dest = 'src')

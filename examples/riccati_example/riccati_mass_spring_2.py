@@ -15,7 +15,7 @@ class qp_data:
         self.R: List = plist(pmat, sizes)
         self.P: List = plist(pmat, sizes)
 
-        self.fact: pmat = pmat(nx, nx)
+        # self.fact: pmat = pmat(nx, nx)
 
     def factorize(self) -> None:
         M: pmat = pmat(nxu, nxu)

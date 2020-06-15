@@ -189,16 +189,16 @@ class Graph:
                     new_dist = current_node.tentative_distance \
                         + current_node.weight
 
-                    print('new dist = ', new_dist)
-                    print('neighbor dist = ', neighbor.tentative_distance)
+                    # print('new dist = ', new_dist)
+                    # print('neighbor dist = ', neighbor.tentative_distance)
                     if current_node.tentative_distance + current_node.weight < \
                         neighbor.tentative_distance:
                         # update tentative distance
                         new_dist = current_node.tentative_distance \
                             + current_node.weight
 
-                        print('updating tentative_distance of node {} to value \
-                        {}'.format(neighbor_name, new_dist))
+                        # print('updating tentative_distance of node {} to value \
+                        # {}'.format(neighbor_name, new_dist))
                         neighbor.tentative_distance = current_node.tentative_distance \
                             + current_node.weight
 
@@ -209,8 +209,8 @@ class Graph:
             del unvisited_nodes[current_node.name]
             visited_nodes[current_node.name] = current_node
 
-            print('current node = ', current_node.name)
-            print('removed node = ', current_node.name)
+            # print('current node = ', current_node.name)
+            # print('removed node = ', current_node.name)
 
             # no unvisited nodes left
             if not bool(unvisited_nodes):
@@ -224,7 +224,7 @@ class Graph:
                             found_new_current_node = True
                             # update current node
                             current_node = list(unvisited_nodes.items())[i][1]
-                            print('new current node', current_node.name)
+                            # print('new current node', current_node.name)
                             break
                     if found_new_current_node:
                         break
@@ -378,8 +378,8 @@ def pmt_main():
             for callee in callees:
                 # if call is a constructor, then account for escaped memory
                 if callee in constructors_list:
-                    heap64_data[caller] = str(int(heap64_data[caller]) + int(heap64_data[callee + '@__init__']))
-                    heap8_data[caller] = str(int(heap8_data[caller]) + int(heap8_data[callee + '@__init__']))
+                    heap64_data[caller] = str(int(heap64_data[caller]) + int(heap64_data[callee]))
+                    heap8_data[caller] = str(int(heap8_data[caller]) + int(heap8_data[callee]))
 
         # print('reach_map:\n\n', reach_map, '\n\n')
 
@@ -430,9 +430,9 @@ def pmt_main():
         # generate Makefile
         makefile_code = makefile_template.replace('{{ filename }}', filename_)
 
-        makefile_code = makefile_code.replace('{{ HEAP8_SIZE }}', str(10*worst_case_heap_usage_8))
+        makefile_code = makefile_code.replace('{{ HEAP8_SIZE }}', str(worst_case_heap_usage_8))
         # NOTE: factor 2 due to alignment
-        makefile_code = makefile_code.replace('{{ HEAP64_SIZE }}', str(10*2*worst_case_heap_usage_64))
+        makefile_code = makefile_code.replace('{{ HEAP64_SIZE }}', str(2*worst_case_heap_usage_64))
 
         makefile_code = makefile_code.replace('\n','', 1)
         makefile_code = makefile_code.replace('{{ INSTALL_DIR }}', os.path.dirname(__file__) + '/..')
