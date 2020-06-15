@@ -483,10 +483,13 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.write_class_methods(*statements, name=name)
 
 
-    def write_instance_attributes(self, *params, name):
+    def write_instance_attributes(self, params, name):
+        """
+        Add instance attributes to struct definition in the header.
+        """
         for item in params:
             if isinstance(item, ast.AnnAssign):
-               # skip non-attribute declarations
+                # skip non-attribute declarations
                 if isinstance(item.target, ast.Name):
                     break
                 if item.target.value.id != 'self':
@@ -677,6 +680,8 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.write('void ', name, '_constructor(struct ', name, ' *object){', dest = 'src')
         self.indentation += 1
         for item in params:
+            print(item)
+            import pdb; pdb.set_trace()
             if isinstance(item, ast.AnnAssign):
                 # set_precedence(item, item.target, item.annotation)
                 set_precedence(Precedence.Comma, item.value)
@@ -702,6 +707,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                         else:
                             dim_list = dims
                         if ann == 'pmat':
+                            import pdb; pdb.set_trace()
                             # build init for List of pmats
                             for i in range(len(dim_list)):
                                 dim1 = dim_list[i][0] 
@@ -870,6 +876,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                 # insert back self argument
                 item.args.args.insert(0, self_arg)
 
+        # call __init__ transpiled code inside constructor
+        self.write('\n\tobject->_Z8__init__(object);\n', dest = 'src')
         self.write('\n}\n', dest = 'src')
         self.indentation -=1
 
@@ -1428,9 +1436,9 @@ class SourceGenerator(ExplicitNodeVisitor):
             lann = node.value.args[0].id
             dims = Num_or_Name(node.value.args[1])
             if isinstance(dims, str):
-                self.typed_record[self.scope][node.target.id] = 'List[' + lann + ', ' + dims + ']'
+                self.typed_record[self.scope][target] = 'List[' + lann + ', ' + dims + ']'
             else:
-                self.typed_record[self.scope][node.target.id] = 'List[' + lann + ', ' + str(dims) + ']'
+                self.typed_record[self.scope][target] = 'List[' + lann + ', ' + str(dims) + ']'
             if  lann in pmt_temp_types:
                 lann = pmt_temp_types[lann]
             else:
@@ -1486,15 +1494,15 @@ class SourceGenerator(ExplicitNodeVisitor):
             dim1 = astu.unparse(node.value.args[0]).replace('\n','')
             dim2 = astu.unparse(node.value.args[1]).replace('\n','')
 
-            value = astu.unparse(node.value)
-            self.var_dim_record[self.scope][node.target.id] = [dim1, dim2]
+            # value = astu.unparse(node.value)
+            self.var_dim_record[self.scope][target] = [dim1, dim2]
+            node.annotation.id = pmt_temp_types[ann]
             # assume that AnnAssigns on attributes are only used to declare instance attributes
             if isinstance(node.target, ast.Attribute):
                 self.write('\nself->' + str(node.target.attr) + ' = ', node.value, '\n', dest = 'src') 
             else:
                 self.statement(node, node.annotation, ' ', node.target)
                 self.conditional_write(' = ', node.value, '', dest = 'src')
-            node.annotation.id = pmt_temp_types[ann]
 
             # increment scoped heap usage (3 pointers and 6 ints for pmats)
             self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
@@ -1673,9 +1681,9 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.decorators(node, 1 if self.indentation else 2)
         # self.write()
         returns = self.get_returns(node)
-        if item.returns is None:
+        if returns is None:
             raise cgenException('Missing return annotation on method {}'.format(\
-                item.name), node.lineno)
+                node.name), node.lineno)
 
         if isinstance(returns, ast.NameConstant):
             return_type_py = str(returns.value)
