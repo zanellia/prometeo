@@ -15,8 +15,6 @@ class qp_data:
         self.R: List = plist(pmat, sizes)
         self.P: List = plist(pmat, sizes)
 
-        # self.fact: pmat = pmat(nx, nx)
-
     def factorize(self) -> None:
         M: pmat = pmat(nxu, nxu)
         Mxx: pmat = pmat(nx, nx)
@@ -44,9 +42,8 @@ class qp_data:
 
             Mxx[0:nx, 0:nx] = L[nu:nu+nx, nu:nu+nx]
 
-            # pmat_fill(self.P[N-i-1], 0.0)
             pmt_gemm_nt(Mxx, Mxx, self.P[N-i-1], self.P[N-i-1])
-            # pmat_print(self.P[N-i-1])
+            pmat_print(self.P[N-i-1])
 
         return
 
