@@ -14,16 +14,22 @@ def main() -> int:
         B[0, i] = 2.0
 
     C: pmat = pmat(r, r)
-    D: pmat = pmat(r, r)
 
+    print("A:\n")
     pmat_print(A)
+    print("B:\n")
     pmat_print(B)
-    pmt_gemm(A.T, B, C, alpha=1.0, beta=0.1)
-    # pmt_gemm(A, B, C, D)
+    print("gemm(A, B, C):\n")
     pmt_gemm(A, B, C)
-    # pmt_gemm(A.T, B, C)
-    # pmt_gemm(A, B, C)
-    # pmt_gemm(A, B, C)
+    pmat_print(C)
+
+    D: pmat = pmat(r, r)
+    pmt_gemm(A, B, C, D)
+    print("gemm(A, B, C, D):\n")
+    pmat_print(C)
+    pmt_gemm(A, B.T, C, alpha=1.0, beta=0.1)
+    print("gemm(A, B.T, C, alpha=1.0, beta=0.1):\n")
+    pmat_print(C)
 
     return 0
 

@@ -111,28 +111,47 @@ class PmtCall:
         self.args = []
         self.keywords = None
 
-def parse_pmt_gemm_args(generator, call):
+def parse_pmt_gemm_args(generator, call, node):
 
     arg0 = call.args[0].name
     arg1 = call.args[1].name
     arg2 = call.args[2].name
+
+    #default keyords arg values
+    alpha = 1.0
+    beta = 0.0
+
+    # loop over keywords
+    for kw in call.keywords:
+        if kw.arg == 'alpha':
+            alpha = kw.value.n
+        if kw.arg == 'beta':
+            beta = kw.value.n
+
     if len(call.args) > 3:
         arg3 = call.args[3].name
     else:
         arg3 = call.args[2].name
 
     if call.args[0].tran:
-        suff1 = 't'
+        tranA = 't'
     else:
-        suff1 = 'n'
+        tranA = 'n'
 
     if call.args[1].tran:
-        suff2 = 't'
+        tranB = 't'
     else:
-        suff2 = 'n'
+        tranB = 'n'
 
-        blasfeo_call = \
-            "blasfeo_dgemm_{4}{5}({0}->bmat->m, {1}->bmat->n, {0}->bmat->n, 1.0, {0}->bmat, 0, 0, {1}->bmat, 0, 0, 1, {2}->bmat, 0, 0, {3}->bmat, 0, 0);\n".format(arg0, arg1, arg2, arg3, suff1, suff2)
+    if call.args[2].tran:
+        raise cgenException('Cannot transpose arg 2 of gemm call', node.lineno)
+
+    if len(call.args) > 3:
+        if call.args[3].tran:
+            raise cgenException('Cannot transpose arg 3 of gemm call', node.lineno)
+
+    blasfeo_call = \
+        "blasfeo_dgemm_{4}{5}({0}->bmat->m, {1}->bmat->n, {0}->bmat->n, {6}, {0}->bmat, 0, 0, {1}->bmat, 0, 0, {7}, {2}->bmat, 0, 0, {3}->bmat, 0, 0);\n".format(arg0, arg1, arg2, arg3, tranA, tranB, alpha, beta)
 
     # import pdb; pdb.set_trace()
     generator.write(blasfeo_call, dest = 'src')
@@ -2184,7 +2203,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 call.args.append(this_arg)
                 call.arg_num += 1
                 call.keywords = keywords
-            blas_api_funs[call.name](self, call)
+            blas_api_funs[call.name](self, call, node)
         else:
             self.visit(node.func)
 
