@@ -10,6 +10,8 @@ Welcome to prometeo's documentation! This is work in progress...
    :maxdepth: 2
    :caption: Contents:
 
+   blas_api/index
+
 
 
 Indices and tables
