@@ -18,6 +18,7 @@ pmt_functions = {\
     'global@pmat_tran': [], \
     'global@pmat_hcat': [], \
     'global@pmat_vcat': [], \
+    'global@pmt_gemm': [], \
     'global@pmt_gemm_nn': [], \
     'global@pmt_gemm_tn': [], \
     'global@pmt_gemm_nt': [], \
