@@ -36,6 +36,7 @@ from collections import OrderedDict
 pmt_temp_functions = {\
         'pmat': 'c_pmt_create_pmat', \
         'pvec': 'c_pmt_create_pvec', \
+        'pmt_gemm': 'c_pmt_gemm_nn', \
         'pmt_gemm_nn': 'c_pmt_gemm_nn', \
         'pmt_gemm_tn': 'c_pmt_gemm_tn', \
         'pmt_gemm_nt': 'c_pmt_gemm_nt', \
@@ -95,6 +96,68 @@ arg_types = {\
         'pvec_copy':   ['pvec', 'pvec', 'pmat', 'pmat'], \
         'pvec_print':  ['pmat', 'pmat', 'pmat', 'pmat'], \
 }
+
+class PmtArg:
+    def __init__(self, name):
+        self.name = name
+        self.type = None
+        self.tran = None
+        self.view = None
+
+class PmtCall:
+    def __init__(self, name):
+        self.name = name
+        self.arg_num = 0
+        self.args = []
+        self.keywords = None
+
+def parse_pmt_gemm_args(generator, call, node):
+
+    arg0 = call.args[0].name
+    arg1 = call.args[1].name
+    arg2 = call.args[2].name
+
+    #default keyords arg values
+    alpha = 1.0
+    beta = 0.0
+
+    # loop over keywords
+    for kw in call.keywords:
+        if kw.arg == 'alpha':
+            alpha = kw.value.n
+        if kw.arg == 'beta':
+            beta = kw.value.n
+
+    if len(call.args) > 3:
+        arg3 = call.args[3].name
+    else:
+        arg3 = call.args[2].name
+
+    if call.args[0].tran:
+        tranA = 't'
+    else:
+        tranA = 'n'
+
+    if call.args[1].tran:
+        tranB = 't'
+    else:
+        tranB = 'n'
+
+    if call.args[2].tran:
+        raise cgenException('Cannot transpose arg 2 of gemm call', node.lineno)
+
+    if len(call.args) > 3:
+        if call.args[3].tran:
+            raise cgenException('Cannot transpose arg 3 of gemm call', node.lineno)
+
+    blasfeo_call = \
+        "blasfeo_dgemm_{4}{5}({0}->bmat->m, {1}->bmat->n, {0}->bmat->n, {6}, {0}->bmat, 0, 0, {1}->bmat, 0, 0, {7}, {2}->bmat, 0, 0, {3}->bmat, 0, 0);\n".format(arg0, arg1, arg2, arg3, tranA, tranB, alpha, beta)
+
+    # import pdb; pdb.set_trace()
+    generator.write(blasfeo_call, dest = 'src')
+    return
+
+blas_api_funs = {'pmt_gemm' : parse_pmt_gemm_args}
 
 usr_temp_types = {}
 
@@ -343,7 +406,6 @@ class Delimit(object):
             result.source[start] = ''
         else:
             result.source.append(self.closing)
-
 
 class SourceGenerator(ExplicitNodeVisitor):
     """This visitor is able to transform a well formed syntax tree into C
@@ -2113,11 +2175,11 @@ class SourceGenerator(ExplicitNodeVisitor):
         p = Precedence.Comma if numargs > 1 else Precedence.call_one_arg
         set_precedence(p, *args)
 
-        if type(node.func) == ast.Name:
+        if isinstance(node.func, ast.Name):
+            func_name = node.func.id
             if  node.func.id in pmt_temp_functions:
-                func_name = node.func.id
                 node.func.id = pmt_temp_functions[func_name]
-        elif type(node.func) == ast.Attribute:
+        elif isinstance(node.func, ast.Attribute):
             # calling a method of a user-defined class
             func_name = node.func.attr
             f_name_len = len(func_name)
@@ -2125,30 +2187,51 @@ class SourceGenerator(ExplicitNodeVisitor):
             post_mangl = self.build_arg_mangling_mod(args)
             node.func.attr = pre_mangl + func_name + post_mangl
 
-        self.visit(node.func)
-        if type(node.func) == ast.Attribute:
-            if len(args) > 0:
-                code = '(' +  node.func.value.id + ', '
-            else:
-                code = '(' +  node.func.value.id
-            write(code, dest = 'src')
+
+        if func_name in blas_api_funs:
+            call = PmtCall(func_name)
+            for arg in args:
+                transpose = False
+                if isinstance(arg, ast.Name):
+                    arg_name = arg.id
+                elif isinstance(arg, ast.Attribute):
+                    if arg.attr == 'T' and self.typed_record[self.scope][arg.value.id]:
+                        transpose = True
+                        arg_name = arg.value.id
+                this_arg = PmtArg(arg_name)
+                this_arg.tran = transpose
+                call.args.append(this_arg)
+                call.arg_num += 1
+                call.keywords = keywords
+            blas_api_funs[call.name](self, call, node)
         else:
-            write('(', dest = 'src')
+            self.visit(node.func)
 
-        for arg in args:
-            write(write_comma, arg, dest = 'src')
+            if isinstance(node.func, ast.Attribute):
+                # calling an object's method
+                if len(args) > 0:
+                    code = '(' +  node.func.value.id + ', '
+                else:
+                    code = '(' +  node.func.value.id
+                write(code, dest = 'src')
+            else:
+                write('(', dest = 'src')
 
-        set_precedence(Precedence.Comma, *(x.value for x in keywords))
-        for keyword in keywords:
-            # a keyword.arg of None indicates dictionary unpacking
-            # (Python >= 3.5)
-            arg = keyword.arg or ''
-            write(write_comma, arg, '=' if arg else '**', keyword.value)
-        # 3.5 no longer has these
-        self.conditional_write(write_comma, '*', starargs, dest = 'src')
-        self.conditional_write(write_comma, '**', kwargs, dest = 'src')
-        # write(');\n', dest = 'src')
-        write(');', dest = 'src')
+            for arg in args:
+                write(write_comma, arg, dest = 'src')
+
+
+            set_precedence(Precedence.Comma, *(x.value for x in keywords))
+            for keyword in keywords:
+                # a keyword.arg of None indicates dictionary unpacking
+                # (Python >= 3.5)
+                arg = keyword.arg or ''
+                write(write_comma, arg, '=' if arg else '**', keyword.value)
+            # 3.5 no longer has these
+            self.conditional_write(write_comma, '*', starargs, dest = 'src')
+            self.conditional_write(write_comma, '**', kwargs, dest = 'src')
+            # write(');\n', dest = 'src')
+            write(');', dest = 'src')
 
     def visit_Name(self, node):
         self.current_line = node.lineno
