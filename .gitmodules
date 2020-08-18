@@ -1,6 +1,3 @@
-[submodule "external/mypy"]
-	path = external/mypy
-	url = https://github.com/zanellia/mypy
 [submodule "external/blasfeo"]
 	path = external/blasfeo
 	url = https://github.com/zanellia/blasfeo
