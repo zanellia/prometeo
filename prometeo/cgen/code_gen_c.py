@@ -1262,7 +1262,10 @@ class SourceGenerator(ExplicitNodeVisitor):
                                 else:
                                     raise cgenException('Undefined variable {}.'.format(value), node.lineno)
                             else:
-                                value = Num_or_Name(node.value)
+                                if not check_expression(node.value, tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]),
+                                        tuple([ast.USub]), ('dims'), tuple([ast.Num, ast.Name]), self.dim_record):
+                                    raise cgenException('Invalid value {}'.format(astu.unparse(node.value)), node.lineno)
+                                value = astu.unparse(node.value)
                                 self.statement([], 'c_pmt_pmat_set_el(', target, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value), ');')
                         return
 
@@ -1564,11 +1567,12 @@ class SourceGenerator(ExplicitNodeVisitor):
 
             if not check_expression(node.value.args[0], tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]),
                 tuple([ast.USub]),('dims'), tuple([ast.Num]), self.dim_record):
-                raise cgenException('Invalid dimension expression in pmat constructor ({})'.format(node.value.args[0]), self.lineno)
+                import pdb; pdb.set_trace()
+                raise cgenException('Invalid dimension expression in pmat constructor ({})'.format(astu.unparse(node.value.args[0])), node.lineno)
 
             if not check_expression(node.value.args[1], tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]),
                 tuple([ast.USub]),('dims'), tuple([ast.Num]), self.dim_record):
-                raise cgenException('Invalid dimension expression in pmat constructor ({})'.format(node.value.args[1]), self.lineno)
+                raise cgenException('Invalid dimension expression in pmat constructor ({})'.format(astu.unparse(node.value.args[1])), node.lineno)
 
             dim1 = astu.unparse(node.value.args[0]).replace('\n','')
             dim2 = astu.unparse(node.value.args[1]).replace('\n','')
