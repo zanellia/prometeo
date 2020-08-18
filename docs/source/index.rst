@@ -19,6 +19,7 @@ features
 6. **self-contained and embeddable :** unlike other similar tools and languages, prometeo targets specifically embedded applications and programs written in prometeo transpile to self-contained C code that does not require linking against the Python run-time library.
 
 .. toctree::
+   :hidden:
    :maxdepth: 2
    :caption: Contents:
 
