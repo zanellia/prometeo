@@ -19,5 +19,6 @@ def main() -> int:
     pmat_print(B)
     C = A * B
     pmat_print(C)
+
     return 0
 

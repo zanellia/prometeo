@@ -36,10 +36,13 @@ from collections import OrderedDict
 pmt_temp_functions = {\
         'pmat': 'c_pmt_create_pmat', \
         'pvec': 'c_pmt_create_pvec', \
-        'pmt_gemm': 'c_pmt_gemm_nn', \
+        'pmt_gemm': 'c_pmt_gemm', \
         'pmt_gemm_nn': 'c_pmt_gemm_nn', \
         'pmt_gemm_tn': 'c_pmt_gemm_tn', \
         'pmt_gemm_nt': 'c_pmt_gemm_nt', \
+        'pmt_gemv': 'c_pmt_gemv', \
+        'pmt_gemv_n': 'c_pmt_gemv_n', \
+        'pmt_gemv_t': 'c_pmt_gemv_t', \
         'pmt_trmm_rlnn': 'c_pmt_trmm_rlnn', \
         'pmt_syrk_ln': 'c_pmt_syrk_ln', \
         'pmt_gead': 'c_pmt_gead', \
@@ -72,30 +75,30 @@ pmt_temp_types = {\
         'dimv': 'dimv', \
         'dims': 'dims'}
 
-arg_types = {\
-        'pmat': ['int', 'int'], \
-        'pvec': ['int'], \
-        'pmt_gemm_nn': ['pmat', 'pmat', 'pmat', 'pmat'], \
-        'pmt_gemm_tn': ['pmat', 'pmat', 'pmat', 'pmat'], \
-        'pmt_trmm_rlnn': ['pmat', 'pmat', 'pmat'], \
-        'pmt_syrk_ln': ['pmat', 'pmat', 'pmat', 'pmat'], \
-        'pmt_gead':    ['float', 'pmat', 'pmat'], \
-        'pmt_getrf':   ['pmat', 'pmat', 'List'], \
-        'pmt_getrsm':  ['pmat', 'List', 'pmat'], \
-        'pmt_getrsv':  ['pmat', 'List', 'pvec'], \
-        'pmt_potrf':   ['pmat', 'pmat'], \
-        'pmt_potrsm':  ['pmat', 'pmat'], \
-        'pmt_potrsv':  ['pmat', 'pvec'], \
-        'pmat_fill':   ['pmat', 'float'], \
-        'pmat_copy':   ['pmat', 'pmat'], \
-        'pmat_tran':   ['pmat', 'pmat'], \
-        'pmat_vcat':   ['pmat', 'pmat', 'pmat'], \
-        'pmat_hcat':   ['pmat', 'pmat', 'pmat'], \
-        'pmat_print':  ['pmat'], \
-        'pvec_fill':   ['pvec', 'float'], \
-        'pvec_copy':   ['pvec', 'pvec', 'pmat', 'pmat'], \
-        'pvec_print':  ['pmat', 'pmat', 'pmat', 'pmat'], \
-}
+# arg_types = {\
+#         'pmat': ['int', 'int'], \
+#         'pvec': ['int'], \
+#         'pmt_gemm_nn': ['pmat', 'pmat', 'pmat', 'pmat'], \
+#         'pmt_gemm_tn': ['pmat', 'pmat', 'pmat', 'pmat'], \
+#         'pmt_trmm_rlnn': ['pmat', 'pmat', 'pmat'], \
+#         'pmt_syrk_ln': ['pmat', 'pmat', 'pmat', 'pmat'], \
+#         'pmt_gead':    ['float', 'pmat', 'pmat'], \
+#         'pmt_getrf':   ['pmat', 'pmat', 'List'], \
+#         'pmt_getrsm':  ['pmat', 'List', 'pmat'], \
+#         'pmt_getrsv':  ['pmat', 'List', 'pvec'], \
+#         'pmt_potrf':   ['pmat', 'pmat'], \
+#         'pmt_potrsm':  ['pmat', 'pmat'], \
+#         'pmt_potrsv':  ['pmat', 'pvec'], \
+#         'pmat_fill':   ['pmat', 'float'], \
+#         'pmat_copy':   ['pmat', 'pmat'], \
+#         'pmat_tran':   ['pmat', 'pmat'], \
+#         'pmat_vcat':   ['pmat', 'pmat', 'pmat'], \
+#         'pmat_hcat':   ['pmat', 'pmat', 'pmat'], \
+#         'pmat_print':  ['pmat'], \
+#         'pvec_fill':   ['pvec', 'float'], \
+#         'pvec_copy':   ['pvec', 'pvec', 'pmat', 'pmat'], \
+#         'pvec_print':  ['pmat', 'pmat', 'pmat', 'pmat'], \
+# }
 
 class PmtArg:
     def __init__(self, name):
@@ -111,7 +114,27 @@ class PmtCall:
         self.args = []
         self.keywords = None
 
+# def check_call_signature(generator, call, allowed_types_pos, 
+#         allowed_types_pos_key):
+
+#     for i in range(len(call.args)):
+#         arg_type = generator.typed_record[generator.scope][call.args[i].name]
+#         if arg_type not in allowed_types_pos[i]:
+#             raise cgenException('Usage of non allowed type {} in call to {}'.format(arg_type, call.name))
+
+#     for i in range(len(call.keywords)):
+#         arg_name = call.keywords[i].arg
+#         arg_type = generator.typed_record[generator.scope][arg_name]
+#         if arg_type not in allowed_types_key[arg_name]:
+#             raise cgenException('Usage of non allowed type {} in call to {}'.format(arg_type, call.name))
+
 def parse_pmt_gemm_args(generator, call, node):
+
+    # check types
+    # allowed_types_pos = [['pmat'], ['pmat'], ['pmat'], ['pmat']]
+    # allowed_types_key = {'beta': ['float', 'int'], 'alpha': ['float', 'int']}
+
+    # check_call_signature(generator, call, allowed_types_pos, allowed_types_key)
 
     arg0 = call.args[0].name
     arg1 = call.args[1].name
@@ -155,9 +178,57 @@ def parse_pmt_gemm_args(generator, call, node):
 
     # import pdb; pdb.set_trace()
     generator.write(blasfeo_call, dest = 'src')
+
     return
 
-blas_api_funs = {'pmt_gemm' : parse_pmt_gemm_args}
+def parse_pmt_gemv_args(generator, call, node):
+
+    arg0 = call.args[0].name
+    arg1 = call.args[1].name
+    arg2 = call.args[2].name
+
+    #default keyords arg values
+    alpha = 1.0
+    beta = 0.0
+
+    # loop over keywords
+    for kw in call.keywords:
+        if kw.arg == 'alpha':
+            alpha = kw.value.n
+        if kw.arg == 'beta':
+            beta = kw.value.n
+
+    if len(call.args) > 3:
+        arg3 = call.args[3].name
+    else:
+        arg3 = call.args[2].name
+
+    if call.args[0].tran:
+        tranA = 't'
+    else:
+        tranA = 'n'
+
+    if call.args[1].tran:
+        raise cgenException('Cannot transpose arg 1 of gemv call', node.lineno)
+    if call.args[2].tran:
+        raise cgenException('Cannot transpose arg 2 of gemv call', node.lineno)
+
+    if len(call.args) > 3:
+        if call.args[3].tran:
+            raise cgenException('Cannot transpose arg 3 of gemv call', node.lineno)
+
+    blasfeo_call = \
+        "blasfeo_dgemv_{4}({0}->bmat->m, {0}->bmat->n, {5}, {0}->bmat, 0, 0, {1}->bvec, 0, {6}, {2}->bvec, 0, {3}->bvec, 0);\n".format(arg0, arg1, arg2, arg3, tranA, alpha, beta)
+
+    # import pdb; pdb.set_trace()
+    generator.write(blasfeo_call, dest = 'src')
+
+    return
+
+blas_api_funs = {\
+        'pmt_gemm' : parse_pmt_gemm_args,\
+        'pmt_gemv' : parse_pmt_gemv_args,\
+        }
 
 usr_temp_types = {}
 

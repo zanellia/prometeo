@@ -4,6 +4,7 @@ r : dims = 4
 
 def main() -> int:
 
+    # LEVEL 3
     A: pmat = pmat(r, r)
     for i in range(r):
         for j in range(r):
@@ -40,6 +41,29 @@ def main() -> int:
     pmt_gemm(A, B.T, C, alpha=0.5, beta=0.5)
     print("gemm(A, B.T, C, alpha=0.0, beta=0.1):\n")
     pmat_print(C)
+
+    # LEVEL 2
+    x: pvec = pvec(r)
+    z: pvec = pvec(r)
+
+    for i in range(r):
+            x[i] = 1.0
+
+    y: pvec = pvec(r)
+    for i in range(r):
+        y[i] = 2.0
+
+    pmt_gemv(A, x, z)
+    print("gemv(A, x, z):\n")
+    pvec_print(z)
+
+    pmt_gemv(A.T, x, z)
+    print("gemv(A.T, x, z):\n")
+    pvec_print(z)
+
+    pmt_gemv(A.T, x, y, z, beta=0.1)
+    print("gemv(A.T, x, y, z, beta=0.1):\n")
+    pvec_print(z)
 
     return 0
 
