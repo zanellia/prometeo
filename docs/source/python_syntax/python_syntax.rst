@@ -115,7 +115,11 @@ that are run only when prometeo code is executed directly from the Python intepr
     
     # pure >
     
-    # some Python code
+    # this is only run by the Python interpreter (--cgen=False) 
+    # and will not be transpiled)
+
+    # some Python code 
+
     import numpy as np
 
     M = np.array([[1.0, 2.0],[0.0, 0.5]])
