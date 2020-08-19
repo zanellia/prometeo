@@ -87,3 +87,39 @@ with :math:`A` lower triangular.
 .. code-block:: python
 
     pmt_trmm(A[.T], B, D, [alpha=1.0], [beta=0.0])
+
+LAPACK
+#######
+
+
+* Cholesky factorization (POTRF) 
+
+.. math::
+
+    C = D\,D^{\top}
+
+with :math:`D` lower triangular and :math:`C` symmetric and positive definite 
+
+.. code-block:: python
+
+    pmt_potrf(C, D)
+
+* LU factorization (GETRF) 
+
+.. math::
+
+    C = L\,P\,U
+
+.. code-block:: python
+
+    pmt_getr(C, D)
+
+* QR factorization (GEQRF) 
+
+.. math::
+
+    C = Q\,R
+
+.. code-block:: python
+
+    pmt_geqrf(C, D)
