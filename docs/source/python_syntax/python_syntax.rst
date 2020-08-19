@@ -98,3 +98,35 @@ For consistency all main functions need to be defined as follows
         ...
 
     return 0
+
+pure Python blocks
+-------------------
+
+In order to be able to use the full potential of the Python language and 
+its vast pool of libraries, it is possible to write *pure Python* blocks 
+that are run only when prometeo code is executed directly from the Python intepreter (when --cgen is set to false). In particular, any line that is enclosed within `# pure >` and `# pure <` will be run only by the Python interpreter, but completely discarded by prometeo's parser. 
+
+
+.. code-block:: python 
+
+    # some prometeo code
+    A : pmat = pmat(n,n)
+    ...
+    
+    # pure >
+    
+    # some Python code
+    import numpy as np
+
+    M = np.array([[1.0, 2.0],[0.0, 0.5]])
+    print(np.linalg.eigvals(M))
+    ...
+
+    # pure <
+
+    # some more prometeo code
+    for i in range(n):
+        for j in range(n):
+            A[i, j] = 1.0
+    ...
+    
