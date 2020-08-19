@@ -1,7 +1,7 @@
-BLAS API
+BLAS/LAPACK API
 ====================================
 
-Below a description of prometeo's BLAS API can be found:
+Below a description of prometeo's BLAS/LAPACK API can be found:
 
 LEVEL 1 BLAS 
 ############
