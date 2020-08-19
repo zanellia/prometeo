@@ -23,6 +23,8 @@ features
    :maxdepth: 2
    :caption: Contents:
 
+   installation/installation
    python_syntax/python_syntax
    blas_api/blas_api
+   performance/performance
 
