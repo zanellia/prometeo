@@ -12,9 +12,13 @@ A variable can be declared as follows
 
 .. code-block:: python
 
-    <var_name> (id) : (type) = <value> 
+    <var_name> : <type> = <value> 
 
-e.g.
+where `<var_name>` must be a valid identifier `<type>` must be a valid 
+prometeo built-in type or a user-defined type and `<value>` must be 
+an valid expression of type `<type>`. 
+
+Example:
 
 .. code-block:: python
 
@@ -43,21 +47,54 @@ A `for` loop takes the form
 
 .. code-block:: python
 
-    for i in range([<start> (num, id)], <end> (num, id)):
+    for i in range([<start>], <end>) 
         ...
+
+where the optional parameter `<start>` must be an expression of type `int` (default value 0) and defines the starting value of the loop's index and  `<end>` must be an expression of type `<int>` which defines its final value. 
+
+function definition
+-------------------
+
+Functions can be defined as follows
+
+
+.. code-block:: python
+
+    def <function_name> (<arg1> :  <arg_1_type>, ...) -> <ret_type> :
+
+        ...
+
+        return <ret_value>
+        
+
 
 class definition
 ----------------
 
 prometeo supports basic classes of the following form
 
-.. code-block:: python
+.. code-block:: python3 
 
-    class <class_name> (id):
-        def __init__(self, <args>):
+    class <name>:
+        def __init__(self, <arg1> : <arg_1_type>, ...) -> None:
+            self.<attribute> : <type> = <value>
             ...
 
-        def <method_name>(self, <args>) : -> <return_type> (type)
+        def <method_name> (self,  <arg1> : <arg_1_type>, ...) -> <ret_type>: 
             ...
 
             return <ret_value>
+
+main function
+-------------
+
+For consistency all main functions need to be defined as follows
+
+
+.. code-block:: python 
+
+    def main() -> int:
+
+        ...
+
+    return 0
