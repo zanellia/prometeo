@@ -274,7 +274,9 @@ def pmt_main():
         print('\n\033[;1m > prometeo:\033[0;0m starting transpilation')
         pmt_path = os.path.dirname(prometeo.__file__)
         filename_ = filename.split('.')[0]
-        tree = ast.parse(''.join(open(filename)))
+        sed_cmd = "sed '/# pure >/,/# pure </d' " + filename_ + '.py'
+        code = ''.join(os.popen(sed_cmd).read())
+        tree = ast.parse(code)
         tree_copy = deepcopy(tree)
 
         try:

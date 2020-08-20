@@ -594,7 +594,7 @@ class SourceGenerator(ExplicitNodeVisitor):
 
 
                         if isinstance(dims, str):
-                            # dimension argument if a variable
+                            # dimension argument of a variable
                             self.typed_record[self.scope][item.target.attr] = \
                                 'List[' + ann + ', ' + dims + ']'
                         else:
@@ -607,10 +607,16 @@ class SourceGenerator(ExplicitNodeVisitor):
                         else:
                             raise cgenException ('Usage of non existing type \
                                 \033[91m{}\033[0m'.format(ann), item.lineno)
-                        # check is dims is not a numerical value
+                        # check if dims is not a numerical value
+                        # TODO(andrea): fix this for numeric values!
                         if isinstance(dims, str):
                             dim_list = self.dim_record[dims]
-                        array_size = len(dim_list)
+                        
+                            if isinstance(dim_list, list):
+                                array_size = len(dim_list)
+                            else:
+                                array_size = dim_list
+
                             # array_size = str(Num_or_Name(item.value.args[1]))
                             # self.statement([], ann, ' ', item.target, '[', array_size, '];')
                         self.write('%s' %ann, ' ', '%s' %item.target.attr, \
@@ -760,6 +766,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 # TODO(andrea): need to fix the code below!
                 ann = item.annotation.id
                 if ann == 'List':
+
                     if item.value.func.id is not 'plist':
                         raise cgenException('Invalid subscripted annotation.',
                                 ' Lists must be created using plist constructor and',
@@ -1529,7 +1536,10 @@ class SourceGenerator(ExplicitNodeVisitor):
             # check if dims is not a numerical value
             if isinstance(dims, str):
                 dim_list = self.dim_record[dims]
-                array_size = len(dim_list)
+                if isinstance(dim_list, list):
+                    array_size = len(dim_list)
+                else:
+                    array_size = dim_list
             else:
                 array_size = dims
 
