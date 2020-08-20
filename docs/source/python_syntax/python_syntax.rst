@@ -24,8 +24,27 @@ Example:
 
     a : int = 1 
 
-Notice that, unlike in Python, type hints are strictly mandatory as they will instruct
-prometeo's parser regarding the type of the variables being defined.
+list declaration
+--------------------
+
+A list can be declared using the `plist` constructor as follows
+
+.. code-block:: python
+
+    <list_name> : List = plist(<type>, <dim>) 
+
+Examples:
+
+.. code-block:: python
+
+    v : List = plist(int, n)
+
+and 
+
+.. code-block:: python
+
+    sizes : dimv = [[2,2], [2,2], [2,2], [2,2], [2,2]]
+    A : List = plist(pmat, sizes)
 
 `if` statement
 ------------
