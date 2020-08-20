@@ -112,7 +112,7 @@ with :math:`D` lower triangular and :math:`C` symmetric and positive definite
 
 .. code-block:: python
 
-    pmt_getr(C, D)
+    pmt_getrf(C, D, ipiv)
 
 * QR factorization (GEQRF) 
 
