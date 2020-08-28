@@ -15,7 +15,7 @@ prometeo programs can be executed from the Python interpreter.
 - __statically typed__ : prometeo uses Python's native type hints to strictly enforce static typing.
 - __deterministic memory usage__ : a specific program structure is required and enforced through static analysis. In this way
 prometeo transpiled programs have a guaranteed maximum heap usage.
-- __fast memory menagement__ : thanks to its static analysis, prometeo can avoid allocating
+- __fast memory management__ : thanks to its static analysis, prometeo can avoid allocating
 and garbage-collecting memory, resulting in faster and safer execution.
 - __self-contained and embeddable__ : unlike other similar tools and languages, prometeo targets specifically embedded applications and programs 
 written in prometeo transpile to self-contained C code that does not require linking against 
