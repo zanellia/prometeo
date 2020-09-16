@@ -1,7 +1,8 @@
 <img src="https://github.com/zanellia/prometeo/blob/master/logo/logo.png" align="left"
      alt="prometeo logo by Andrea Zanelli" width="80" height="120">
 
-![Travis Status](https://travis-ci.org/zanellia/prometeo.svg?branch=master) [![PyPI version fury.io](https://badge.fury.io/py/prometeo-dsl.svg)](https://pypi.python.org/pypi/ansicolortags/)
+![Travis Status](https://travis-ci.org/zanellia/prometeo.svg?branch=master) [![PyPI version fury.io](https://badge.fury.io/py/prometeo-dsl.svg)](https://pypi.python.org/pypi/ansicolortags/) [![Documentation Status](https://readthedocs.org/projects/prometeo/badge/?version=latest)](https://prometeo.readthedocs.io/en/latest/?badge=latest)
+
 
 This is prometeo, an experimental modeling tool for embedded high-performance computing. prometeo provides a 
 domain specific language (DSL) based on a subset of the Python language that allows 
@@ -24,7 +25,7 @@ the Python run-time library.
 ### documentation (preliminary)
 prometeo's documentation can be found on Read the Docs at [https://prometeo.readthedocs.io/en/latest/index.html](https://prometeo.readthedocs.io/en/latest/index.html).
       
-### hello world
+### hello world!
 
 A simple hello world example that shows how to either run a trivial prometeo program from Python or transpile it to C, build it and run it can be found [here](https://github.com/zanellia/prometeo/blob/master/examples/helloworld/helloworld.py). The output shows the outcome of the heap usage analysis and the execution time (in this case there is not much to see :p).
 
