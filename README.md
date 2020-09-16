@@ -29,7 +29,7 @@ prometeo's documentation can be found on Read the Docs at [https://prometeo.read
 A simple hello world example that shows how to either run a trivial prometeo program from Python or transpile it to C, build it and run it can be found [here](https://github.com/zanellia/prometeo/blob/master/examples/helloworld/helloworld.py). The output shows the outcome of the heap usage analysis and the execution time (in this case there is not much to see :p).
 
 <p align="center">
-![](/gifs/helloworld.gif)
+<img src="https://github.com/zanellia/prometeo/blob/master/gifs/helloworld.gif" width="100%" >
 </p>
 
 
