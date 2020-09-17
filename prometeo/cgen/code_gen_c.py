@@ -632,10 +632,10 @@ class SourceGenerator(ExplicitNodeVisitor):
                         # self.statement(node, node.annotation, ' ', node.target, '= &', node.target, '___;')
                     else:
                         type_c = pmt_temp_types[type_py]
-                        self.write('%s' %type_c, ' ', '%s' %item.target.id, ';\n', dest = 'hdr')
+                        self.write('%s' %type_c, ' ', '%s' %item.target.attr, ';\n', dest = 'hdr')
 
                         # self.conditional_write(' = ', item.value, ';')
-                        self.typed_record[self.scope][item.target.id] = type_py
+                        self.typed_record[self.scope][item.target.attr] = type_py
                 # else:
                 #     type_py = annotation.id
                 #     type_c = pmt_temp_types[type_py]
