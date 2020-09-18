@@ -1,5 +1,5 @@
 import ast
-import astpretty
+import astpretty as ap
 # import typing
 import sys
 import argparse
@@ -108,57 +108,42 @@ def resolve_dims_value(dim_vars):
 
     return dim_vars
 
-class Node:
-    def __init__(self, name, neighbors, weight):
-        """
-        Represents a node in the memory graph.
-
-        Parameters
-        ----------
-        name : str
-            name of the node
-        neighbors : list
-            list of strings containing the name of the neighbors.
-        weight : int
-            negative or zero integer number representing the memory usage
-            associated with the node.
-        """
-        self.name = name
-        self.neighbors = neighbors
-        self.weight = weight
-        self.tentative_distance = np.inf
-        self.visited = False
-
 class Graph:
-    def __init__(self, nodes, start, end):
+    def __init__(self, nodes, edges, start, end):
         """
-        Class that describes a graph used to compute the worst-case memory
-        usage of a program.
+        Class that describes a graph used to compute 
+        the worst-case memory usage of a program.
 
         Parameters
         ----------
-        nodes : list
-            list of instances of class Nodes
+        nodes : list of strings
+            list of nodes
+        edges : list of [(v1,v2), weight]
+            list of edges
         start : str
             name start node
         end : str
             name of end node
         """
-        self.nodes = OrderedDict()
-        for item in nodes:
-            self.nodes[item.name] = item
+        self.nodes = dict()
+
+        for i in range(len(nodes)):
+            self.nodes[nodes[i]] = np.infty
+
+        self.nodes[start] = 0
+        self.edges = edges
         self.start = start
         self.end = end
 
     def compute_shortes_path(self, max_iter=10000):
         """
         Compute shortest path (worst-case memory usage) from self.start to self.end
-        using Dijsktra's algorithm.
+        using Bellman-Ford's algorithm.
 
         Parameters
         ---------
         max_iter : int
-            mximum number of iterations
+            maximum number of iterations
 
         Returns
         -------
@@ -166,77 +151,18 @@ class Graph:
         path_length : int
             length of shortest path (-worst-case memory usage)
         """
-        visited_nodes = OrderedDict()
-        unvisited_nodes = deepcopy(self.nodes)
-        unvisited_nodes[self.start].tentative_distance = 0
+        
+        for i in range(len(self.nodes)-1):
+            for j in range(len(self.edges)):
+                v1 = self.edges[j][0][0]
+                v2 = self.edges[j][0][1]
+                d_v1 = self.nodes[v1] 
+                d_v2 = self.nodes[v2] 
+                w = self.edges[j][1]
+                if  d_v1 + w < d_v2:
+                    self.nodes[self.edges[j][0][1]] = d_v1 + w
 
-        current_node = unvisited_nodes[self.start]
-
-        terminate = False
-
-        for i in range(max_iter):
-            # look at all neighbors of current node
-            for neighbor_name in current_node.neighbors:
-                # print('visiting neighbor ', neighbor_name)
-                # TODO(andrea): this should not be necessary... *all* reachable node
-                # at this stage should be in the call graph (need to update list of methods...)
-                if neighbor_name in self.nodes:
-                    if neighbor_name in visited_nodes:
-                        neighbor = visited_nodes[neighbor_name]
-                    else:
-                        neighbor = unvisited_nodes[neighbor_name]
-
-                    new_dist = current_node.tentative_distance \
-                        + current_node.weight
-
-                    # print('new dist = ', new_dist)
-                    # print('neighbor dist = ', neighbor.tentative_distance)
-                    if current_node.tentative_distance + current_node.weight < \
-                        neighbor.tentative_distance:
-                        # update tentative distance
-                        new_dist = current_node.tentative_distance \
-                            + current_node.weight
-
-                        # print('updating tentative_distance of node {} to value \
-                        # {}'.format(neighbor_name, new_dist))
-                        neighbor.tentative_distance = current_node.tentative_distance \
-                            + current_node.weight
-
-            if terminate:
-                break
-
-            # remove current node from unvisited set
-            del unvisited_nodes[current_node.name]
-            visited_nodes[current_node.name] = current_node
-
-            # print('current node = ', current_node.name)
-            # print('removed node = ', current_node.name)
-
-            # no unvisited nodes left
-            if not bool(unvisited_nodes):
-                terminate = True
-            else:
-                found_new_current_node = False
-                for i in range(len(unvisited_nodes)):
-                    for visited_node_k, visited_node_v in visited_nodes.items():
-                        if list(unvisited_nodes.items())[i][1].name in \
-                                visited_nodes[visited_node_k].neighbors:
-                            found_new_current_node = True
-                            # update current node
-                            current_node = list(unvisited_nodes.items())[i][1]
-                            # print('new current node', current_node.name)
-                            break
-                    if found_new_current_node:
-                        break
-                if not found_new_current_node:
-                    if current_node.name != 'end':
-                        raise Exception('Could not find new current node. Current node is {}'.format(current_node.name))
-                    else:
-                        terminate = True
-
-        path_length = visited_nodes['end'].tentative_distance
-
-        return path_length
+        return self.nodes[self.end]
 
 def pmt_main():
     """
@@ -277,6 +203,7 @@ def pmt_main():
         sed_cmd = "sed '/# pure >/,/# pure </d' " + filename_ + '.py'
         code = ''.join(os.popen(sed_cmd).read())
         tree = ast.parse(code)
+        # ap.pprint(tree)
         tree_copy = deepcopy(tree)
 
         try:
@@ -362,7 +289,8 @@ def pmt_main():
         typed_record = visitor.typed_record
         # print('\ncall graph:\n\n', call_graph, '\n\n')
 
-        reach_map, call_graph = compute_reach_graph(call_graph, typed_record)
+        reach_map, call_graph = compute_reach_graph(\
+            call_graph, typed_record)
 
         # check that there are no cycles containing memory allocations
         for method in reach_map:
@@ -370,7 +298,8 @@ def pmt_main():
                 raise Exception('\n\nDetected cycle {} containing memory'
                 ' allocation.\n'.format(reach_map[method]))
 
-        # update heap usage with memory associated with constructors (escape memory)
+        # update heap usage with memory associated with 
+        # constructors (escape memory)
 
         # load log file
         with open('__pmt_cache__/constructor_record.json') as f:
@@ -378,51 +307,72 @@ def pmt_main():
 
         for caller, callees in call_graph.items():
             for callee in callees:
-                # if call is a constructor, then account for escaped memory
+                # if call is a constructor, then account for 
+                # escaped memory
                 if callee in constructors_list:
-                    heap64_data[caller] = str(int(heap64_data[caller]) + int(heap64_data[callee]))
-                    heap8_data[caller] = str(int(heap8_data[caller]) + int(heap8_data[callee]))
+                    heap64_data[caller] = str(int(heap64_data[caller]) 
+                        + int(heap64_data[callee]))
+                    heap8_data[caller] = str(int(heap8_data[caller]) 
+                        + int(heap8_data[callee]))
 
         # print('reach_map:\n\n', reach_map, '\n\n')
 
+        # Bellman-Ford algorithm
         # build memory graph (64-bytes aligned)
         nodes = []
+        edges = []
+
         for key, value in call_graph.items():
-            if key in heap64_data:
-                heap_usage = int(heap64_data[key])
-            else:
-                heap_usage = 0
+            nodes.append(key)
+
+        for key, value in call_graph.items():
+
             # if leaf node
             if not value:
                 value = ['end']
 
-            nodes.append(Node(key, value, -heap_usage))
+            for node in value:
+                if node in heap64_data:
+                    heap_usage = -int(heap64_data[node])
+                else:
+                    heap_usage = 0
+
+                # import pdb; pdb.set_trace()
+                edges.append([(key,node), heap_usage])
+
 
         # add artificial end node
-        nodes.append(Node('end', [], 0))
+        nodes.append('end')
 
-        mem_graph = Graph(nodes, 'global@main', 'end')
-
+        mem_graph = Graph(nodes, edges, 'global@main', 'end')
         worst_case_heap_usage_64 = -mem_graph.compute_shortes_path()
 
         # build memory graph (8-bytes aligned)
         nodes = []
+        edges = []
+
         for key, value in call_graph.items():
-            if key in heap8_data:
-                heap_usage = int(heap8_data[key])
-            else:
-                heap_usage = 0
+            nodes.append(key)
+
+        for key, value in call_graph.items():
+
             # if leaf node
             if not value:
                 value = ['end']
 
-            nodes.append(Node(key, value, -heap_usage))
+            for node in value:
+                if node in heap8_data:
+                    heap_usage = -int(heap8_data[node])
+                else:
+                    heap_usage = 0
+
+                # import pdb; pdb.set_trace()
+                edges.append([(key,node), heap_usage])
 
         # add artificial end node
-        nodes.append(Node('end', [], 0))
+        nodes.append('end')
 
-        mem_graph = Graph(nodes, 'global@main', 'end')
-
+        mem_graph = Graph(nodes, edges, 'global@main', 'end')
         worst_case_heap_usage_8 = -mem_graph.compute_shortes_path()
 
         print('\033[;1m > prometeo:\033[0;0m heap usage analysis completed successfully\n \
