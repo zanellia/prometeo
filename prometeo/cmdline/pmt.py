@@ -109,7 +109,7 @@ def resolve_dims_value(dim_vars):
     return dim_vars
 
 class Graph:
-    def __init__(self, nodes, edges, start, end):
+    def __init__(self, nodes, edges, start, end, heap_start):
         """
         Class that describes a graph used to compute 
         the worst-case memory usage of a program.
@@ -130,7 +130,7 @@ class Graph:
         for i in range(len(nodes)):
             self.nodes[nodes[i]] = np.infty
 
-        self.nodes[start] = 0
+        self.nodes[start] = heap_start
         self.edges = edges
         self.start = start
         self.end = end
@@ -354,7 +354,12 @@ def pmt_main():
         # add artificial end node
         nodes.append('end')
 
-        mem_graph = Graph(nodes, edges, 'global@main', 'end')
+        if 'global@main' in heap64_data:
+            heap_main = -int(heap64_data['global@main'])
+        else:
+            heap_main = 0
+
+        mem_graph = Graph(nodes, edges, 'global@main', 'end', heap_main)
         worst_case_heap_usage_64 = -mem_graph.compute_shortes_path()
 
         # build memory graph (8-bytes aligned)
@@ -382,7 +387,12 @@ def pmt_main():
         # add artificial end node
         nodes.append('end')
 
-        mem_graph = Graph(nodes, edges, 'global@main', 'end')
+        if 'global@main' in heap8_data:
+            heap_main = -int(heap8_data['global@main'])
+        else:
+            heap_main = 0
+
+        mem_graph = Graph(nodes, edges, 'global@main', 'end', heap_main)
         worst_case_heap_usage_8 = -mem_graph.compute_shortes_path()
 
         print('\033[;1m > prometeo:\033[0;0m heap usage analysis completed successfully\n \
