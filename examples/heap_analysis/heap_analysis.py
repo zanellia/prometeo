@@ -14,6 +14,7 @@ def f1() -> None:
     B : pmat = pmat(n,n)
     C : pmat = pmat(n,n)
     f3()
+    f4()
     return
 
 def f2() -> None:
@@ -29,6 +30,14 @@ def f3() -> None:
     C : pmat = pmat(n,n)
     D : pmat = pmat(n,n)
     E : pmat = pmat(n,n)
+    return
+
+def f4() -> None:
+    f5()
+    return
+
+def f5() -> None:
+    f4()
     return
 
 def main() -> int:

@@ -162,6 +162,16 @@ class Graph:
                 if  d_v1 + w < d_v2:
                     self.nodes[self.edges[j][0][1]] = d_v1 + w
 
+        # check for negative cycles
+        for j in range(len(self.edges)):
+            v1 = self.edges[j][0][0]
+            v2 = self.edges[j][0][1]
+            d_v1 = self.nodes[v1] 
+            d_v2 = self.nodes[v2] 
+            w = self.edges[j][1]
+            if  d_v1 + w < d_v2:
+                raise Exception('Negative cycle detected in call graph!')
+
         return self.nodes[self.end]
 
 def pmt_main():
