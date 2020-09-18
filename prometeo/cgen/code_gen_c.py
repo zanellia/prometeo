@@ -1,20 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-Part of the astor library for Python AST manipulation.
+Adapted from the astor library for Python AST manipulation.
 
-License: 3-clause BSD
+Copyright (c) 2018-2020 Andrea Zanelli
 
-Copyright (c) 2008      Armin Ronacher
-Copyright (c) 2012-2017 Patrick Maupin
-Copyright (c) 2013-2017 Berker Peksag
-
-This module converts an AST into Python source code.
-
-Before being version-controlled as part of astor,
-this code came from here (in 2012):
-
-    https://gist.github.com/1250562
-
+This module converts a Python AST into C source code.
 """
 
 import ast
