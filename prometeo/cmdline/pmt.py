@@ -40,8 +40,13 @@ CFLAGS+=-DHEAP64_SIZE=$(HEAP64_SIZE)
 CFLAGS+=-DHEAP8_SIZE=$(HEAP8_SIZE)
 LIBPATH+=-L$(INSTALL_DIR)/lib/blasfeo -L$(INSTALL_DIR)/lib/prometeo
 
-all: $(SRCS)
-	$(CC) $(LIBPATH) -o {{ filename }} $(CFLAGS)  $(SRCS)  -lcpmt -lblasfeo -lm
+{{ CASADI_TARGET }}
+
+sources: $(SRCS)
+\t$(CC) $(LIBPATH) -o {{ filename }} $(CFLAGS)  $(SRCS)  -lcpmt -lblasfeo -lm
+
+all: casadi sources
+
 
 clean:
 	rm -f *.o {{ filename }}
@@ -408,6 +413,21 @@ def pmt_main():
 
         makefile_code = makefile_code.replace('\n','', 1)
         makefile_code = makefile_code.replace('{{ INSTALL_DIR }}', os.path.dirname(__file__) + '/..')
+
+        with open('__pmt_cache__/casadi_funs.json') as f:
+            casadi_funs = json.load(f, object_pairs_hook=OrderedDict)
+        casadi_target_code = '\n\ncasadi: '
+        for item in casadi_funs:
+            fun_name = item.replace('@', '_')
+            casadi_target_code = casadi_target_code + ' ' + fun_name
+
+        for item in casadi_funs:
+            fun_name = item.replace('@', '_')
+            casadi_target_code = casadi_target_code + '\n\n'
+            casadi_target_code = casadi_target_code + fun_name + ': ' + fun_name + '.o ' + fun_name + '__.o\n' 
+            casadi_target_code = casadi_target_code + "\t$(CC) -c " + fun_name + '.o ' + fun_name + '__.o\n'
+
+        makefile_code = makefile_code.replace('{{ CASADI_TARGET }}', casadi_target_code)
         dest_file = open('Makefile', 'w+')
         dest_file.write(makefile_code)
         dest_file.close()

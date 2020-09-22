@@ -1,32 +1,32 @@
-#include "casadi_wrapper_{{ fun.name }}.h"
+#include "casadi_wrapper_{{ fun_descriptor.name }}.h"
 
-void {{ fun.name }}_eval(const double* inputs, double* outputs,
-    int (*{{ fun.name }})(const double**, double**, int*, double*, int)) {
+void {{ fun_descriptor.name }}_eval(const double* inputs, double* outputs,
+    int (*{{ fun_descriptor.name }})(const double**, double**, int*, double*, int)) {
 
-    {{ arg_count = 0 }}
-    {{ offset = 0 }}
-    {% for arg in fun.args %}
+    {% set arg_count = 0 %}
+    {% set offset = 0 %}
+    {% for arg in fun_descriptor.args %}
     const double *in_{{ arg_count }} = inputs + {{ offset }};
-    {{ arg_count = arg_count + 1 }}
-    {{ offset = offset + arg.size[0]*arg.size[1] }}
+    {% set arg_count = arg_count + 1 %}
+    {% set offset = offset + arg['size'][0]*arg['size'][1] %}
     {% endfor %}
 
-    {{ out_count = 0 }}
-    {{ offset = 0 }}
-    {% for out in fun.outs %}
+    {% set out_count = 0 %}
+    {% set offset = 0 %}
+    {% for out in fun_descriptor.outs %}
     const double *out_{{ out_count }} = inputs + {{ offset }};
-    {{ out_count = out_count + 1 }}
-    {{ offset = offset + out.size[0]*out.size[1] }}
+    {% set out_count = out_count + 1 %}
+    {% set offset = offset + out['size'][0]*out['size'][1] %}
     {% endfor %}
 
-    const double* casadi_arg[{{ length(fun.args) }}];
-    double* casadi_res[{{ length(fun.outs) }}];
+    const double* casadi_arg[{{ fun_descriptor.args|length }}];
+    double* casadi_res[{{ fun_descriptor.outs|length }}];
 
-    {% for argnum in range(0, length(fun.args)) %}
+    {% for argnum in range(0, fun_descriptor.args|length) %}
     casadi_arg[{{ argnum }}] = in_{{ argnum }};
     {% endfor %}
 
-    {% for outnum in range(0, length(fun.outs)) %}
+    {% for outnum in range(0, fun_descriptor.outs|length) %}
     casadi_res[{{ outnum }}] = out_{{ outnum }};
     {% endfor %}
 
@@ -34,5 +34,5 @@ void {{ fun.name }}_eval(const double* inputs, double* outputs,
     double* w = 0;
     int mem = 0;
 
-    {{ fun.name }}(casadi_arg, casadi_res, iw, w, mem);
+    {{ fun_descriptor.name }}(casadi_arg, casadi_res, iw, w, mem);
 }

@@ -244,6 +244,9 @@ def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False
     json_file = 'constructor_record.json'
     with open(json_file, 'w') as f:
         json.dump(generator.constructor_record, f, indent=4)
+    json_file = 'casadi_funs.json'
+    with open(json_file, 'w') as f:
+        json.dump(generator.casadi_funs, f, indent=4)
     os.chdir('..')
 
 

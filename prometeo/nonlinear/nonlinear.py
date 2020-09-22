@@ -42,6 +42,8 @@ class pfun:
         ca_var_names = []
         ca_fun_args = ''
         # ca_variables = []
+        fun_descriptor = dict()
+        fun_descriptor['args'] = []
         for var_name, var in variables.items():
             if isinstance(var, pmat):
                 dec_code = 'np_' + var_name + '= pmat_to_numpy(var)'
@@ -57,6 +59,7 @@ class pfun:
                 exec(dec_code)
                 ca_var_names.append(var_name)
                 ca_fun_args = ca_fun_args + ', ca_' + var_name 
+                fun_descriptor['args'].append({'name' : var_name, 'size' : (var.shape[0],var.shape[1])})
             else:
                 raise Exception('Variable {} of unknown type {}'.format(var, type(var)))
 
@@ -75,6 +78,7 @@ class pfun:
 
         ca_expr = untokenize(result).decode('utf-8').replace(" ", "")
         scoped_fun_name = prefix + '_' + fun_name
+        fun_descriptor['name'] = scoped_fun_name 
         dec_code = 'fun = ca.Function(\'' + scoped_fun_name+ '\', [' \
             + ca_fun_args + '], [' + ca_expr + '])'
 
@@ -90,7 +94,14 @@ class pfun:
         # render templated wrapper
         env = Environment(loader=FileSystemLoader(os.path.dirname(os.path.abspath(__file__))))
         tmpl = env.get_template("casadi_wrapper.c.in")
-        code = tmpl.render({'fun_name' : scoped_fun_name})
+        code = tmpl.render(fun_descriptor = fun_descriptor)
+        with open(scoped_fun_name + '__.c', "w+") as f:
+            f.write(code)
+
+        tmpl = env.get_template("casadi_wrapper.h.in")
+        code = tmpl.render(fun_descriptor = fun_descriptor)
+        with open(scoped_fun_name + '__.h', "w+") as f:
+            f.write(code)
 
         os.chdir('..')
 

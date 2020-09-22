@@ -1,9 +1,9 @@
-#ifndef {{ fun.name }}_H_
-#define {{ fun.name }}_H_
+#ifndef {{ fun_descriptor.name }}_H_
+#define {{ fun_descriptor.name }}_H_
 
-int {{ fun.name }}(const double** arg, double** res, int* iw, double* w, int mem);
+int {{ fun_descriptor.name }}(const double** arg, double** res, int* iw, double* w, int mem);
 
-void {{ fun.name}}_eval(const double* in, double* out,
-    int (*{{ fun.name}})(const double**, double**, int*, double*, int));
+void {{ fun_descriptor.name}}_eval(const double* in, double* out,
+    int (*{{ fun_descriptor.name}})(const double**, double**, int*, double*, int));
 
-#endif  // {{ fun.name }}_H_
+#endif  // {{ fun_descriptor.name }}_H_
