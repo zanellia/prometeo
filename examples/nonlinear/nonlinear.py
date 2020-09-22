@@ -2,6 +2,11 @@ from prometeo import *
 
 n: dims  = 2
 
+def my_function(A, v, x) -> None:
+    test_fun : pfun = pfun('test_fun', 'ca.mtimes(A, v) + sin(x)', \
+        {'A': A, 'v': v, 'x': x})
+    return
+
 def main() -> int:
 
     A: pmat = pmat(1, n)
@@ -17,6 +22,7 @@ def main() -> int:
     v[1] = 1.0
 
     x : ca = ca.SX.sym('x', 1, 1) 
+    my_function(A, v, x)
     test_fun : pfun = pfun('test_fun', 'ca.mtimes(A, v) + sin(x)', \
         {'A': A, 'v': v, 'x': x})
     

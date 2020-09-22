@@ -3,6 +3,8 @@ from numpy import *
 from tokenize import tokenize, untokenize, NUMBER, STRING, NAME, OP
 from io import BytesIO
 from ..linalg import pmat, pvec
+import inspect
+import os
 
 def pmat_to_numpy(A):
     np_A = ones((A.m, A.n))
@@ -20,6 +22,12 @@ def pvec_to_numpy(v):
 class pfun:
 
     def __init__(self, fun_name, expr, variables):
+        # get stack
+        stack =  inspect.stack()
+
+        prefix = 'global'
+        for i in range(len(stack)-5, 0, -1):
+            prefix = prefix + '_' + stack[i].function
         # tokenize
         # tokens = tokenize(BytesIO(expr.encode('utf-8')).readline)
         # for token in tokens:
@@ -64,19 +72,19 @@ class pfun:
                 result.append((toknum, tokval))
 
         ca_expr = untokenize(result).decode('utf-8').replace(" ", "")
-        dec_code = 'ca_' + fun_name + ' = ca.Function(\'' + fun_name+ '\', [' \
+        scoped_fun_name = prefix + '_' + fun_name
+        dec_code = 'fun = ca.Function(\'' + scoped_fun_name+ '\', [' \
             + ca_fun_args + '], [' + ca_expr + '])'
 
         exec(dec_code)
         
         # get CasADi function from locals()
-        self._ca_fun = locals()['ca_' + fun_name]
+        self._ca_fun = locals()['fun']
 
         # generate C code
-        self._ca_fun.generate(fun_name + '.c')
+        os.chdir('__pmt_cache__')
+        self._ca_fun.generate(scoped_fun_name + '.c')
+        os.chdir('..')
 
     def __call__(self, args):
         return self._ca_fun(args).full()
-
-
-

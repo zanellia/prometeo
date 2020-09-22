@@ -1567,7 +1567,6 @@ class SourceGenerator(ExplicitNodeVisitor):
 
             if not check_expression(node.value.args[0], tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]),
                 tuple([ast.USub]),('dims'), tuple([ast.Num]), self.dim_record):
-                import pdb; pdb.set_trace()
                 raise cgenException('Invalid dimension expression in pmat constructor ({})'.format(astu.unparse(node.value.args[0])), node.lineno)
 
             if not check_expression(node.value.args[1], tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]),
