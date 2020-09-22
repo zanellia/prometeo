@@ -5,6 +5,8 @@ from io import BytesIO
 from ..linalg import pmat, pvec
 import inspect
 import os
+from jinja2 import Environment
+from jinja2.loaders import FileSystemLoader
 
 def pmat_to_numpy(A):
     np_A = ones((A.m, A.n))
@@ -84,6 +86,12 @@ class pfun:
         # generate C code
         os.chdir('__pmt_cache__')
         self._ca_fun.generate(scoped_fun_name + '.c')
+
+        # render templated wrapper
+        env = Environment(loader=FileSystemLoader(os.path.dirname(os.path.abspath(__file__))))
+        tmpl = env.get_template("casadi_wrapper.c.in")
+        code = tmpl.render({'fun_name' : scoped_fun_name})
+
         os.chdir('..')
 
     def __call__(self, args):

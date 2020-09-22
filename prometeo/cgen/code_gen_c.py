@@ -316,7 +316,7 @@ def check_expression(node, binops, unops, usr_types, ast_types, record):
                 raise cgenException('unsopported BinOp {}\n'.format(astu.unparse(node)), node.lineno)
         elif isinstance(node, ast.UnaryOp):
             if isinstance(node.op, unops):
-                return check_expression(node.operand, binops, unops, usr_types, ast_types)
+                return check_expression(node.operand, binops, unops, usr_types, ast_types, record)
             else:
                 raise cgenException('unsopported UnaryOp {}\n'.format(astu.unparse(node)), node.lineno)
         else:
@@ -446,6 +446,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         # self.heap64_record = {'global': dict()}
         self.heap64_record = {'global': "0"}
         self.scope = 'global'
+        self.casadi_funs = []
         self.var_dim_record = {'global': dict()}
         self.dim_record = dict()
         self.constructor_record = []
@@ -651,6 +652,10 @@ class SourceGenerator(ExplicitNodeVisitor):
             # build argument mangling
             f_name_len = len(item.name)
             pre_mangl = '_Z%s' %f_name_len 
+            if len(item.args.args) < 1:
+                raise cgenException('First argument in method {} \
+                    must be \'self\'. You have \'{}\''.format(item.name, \
+                    item.args.args), item.lineno)
             if item.args.args[0].arg is not 'self':
                 raise cgenException('First argument in method {} \
                     must be \'self\'. You have \'{}\''.format(item.name, \
@@ -748,35 +753,96 @@ class SourceGenerator(ExplicitNodeVisitor):
     def update_constructor_heap(self, params, name):
         for item in params:
             if isinstance(item, ast.AnnAssign):
-                # set_precedence(item, item.target, item.annotation)
-                set_precedence(Precedence.Comma, item.value)
-                need_parens = isinstance(item.target, ast.Name) and not item.simple
-                begin = '(' if need_parens else ''
-                end = ')' if need_parens else ''
-                # TODO(andrea): need to fix the code below!
-                ann = item.annotation.id
-                if ann == 'List':
+                if isinstance(item.target, ast.Attribute):
+                    if item.target.value.id == 'self':
+                        # set_precedence(item, item.target, item.annotation)
+                        set_precedence(Precedence.Comma, item.value)
+                        need_parens = isinstance(item.target, ast.Name) and not item.simple
+                        begin = '(' if need_parens else ''
+                        end = ')' if need_parens else ''
+                        # TODO(andrea): need to fix the code below!
+                        ann = item.annotation.id
+                        if ann == 'List':
 
-                    if item.value.func.id is not 'plist':
-                        raise cgenException('Invalid subscripted annotation.',
-                                ' Lists must be created using plist constructor and',
-                                ' the argument of List[] must be a valid type.\n', \
-                                item.lineno)
-                    else:
-                        # attribute is a List
-                        ann = Num_or_Name(item.value.args[0])
-                        dims = Num_or_Name(item.value.args[1])
-                        # ann = item.annotation.slice.value.elts[0].id
-                        # dims = Num_or_Name(item.annotation.slice.value.elts[1])
-                        if isinstance(dims, str):
-                            dim_list = self.dim_record[dims]
-                        else:
-                            dim_list = dims
-                        if ann == 'pmat':
-                            # build init for List of pmats
-                            for i in range(len(dim_list)):
-                                dim1 = dim_list[i][0] 
-                                dim2 = dim_list[i][1] 
+                            if item.value.func.id is not 'plist':
+                                raise cgenException('Invalid subscripted annotation.',
+                                        ' Lists must be created using plist constructor and',
+                                        ' the argument of List[] must be a valid type.\n', \
+                                        item.lineno)
+                            else:
+                                # attribute is a List
+                                ann = Num_or_Name(item.value.args[0])
+                                dims = Num_or_Name(item.value.args[1])
+                                # ann = item.annotation.slice.value.elts[0].id
+                                # dims = Num_or_Name(item.annotation.slice.value.elts[1])
+                                if isinstance(dims, str):
+                                    dim_list = self.dim_record[dims]
+                                else:
+                                    dim_list = dims
+                                if ann == 'pmat':
+                                    # build init for List of pmats
+                                    for i in range(len(dim_list)):
+                                        dim1 = dim_list[i][0] 
+                                        dim2 = dim_list[i][1] 
+
+                                        # increment scoped heap usage (3 pointers and 6 ints for pmats)
+                                        self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
+                                            '+' + '3*' + str(self.size_of_pointer).replace('\n','')
+                                        self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
+                                            '+' + '6*' + str(self.size_of_int).replace('\n','')
+
+                                        # upper bound of blasfeo_dmat memsize
+                                        # memsize \leq (ps + m -1)*(nc + n - 1) + (m + n + bs*nc -1)
+                                        mem_upper_bound = '(' + str(self.blasfeo_ps) + '+' + dim1 + ' - 1)*' \
+                                            '(' + str(self.blasfeo_nc) + '+' + dim2 + ' - 1)+(' + dim1 + '+' + dim2 + '+' + \
+                                            str(self.blasfeo_ps) + '*' + str(self.blasfeo_nc) + ' - 1)'
+
+                                        self.heap64_record[self.scope] = self.heap64_record[self.scope] + \
+                                            '+ (' + mem_upper_bound + ' + 64)*' + str(self.size_of_double).replace('\n','')
+
+                                elif ann == 'pvec':
+                                    # build init for List of pvecs
+                                    for i in range(len(dim_list)):
+                                        self.statement([], 'object->', \
+                                            item.target.attr, \
+                                            '[', str(i),'] = c_pmt_create_pvec(', \
+                                            str(dim_list[i][0]), ');')
+
+                                        # increment scoped heap usage (2 pointers and 3 ints for pvecs)
+                                        self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
+                                            '+' + '2*' + str(self.size_of_pointer).replace('\n','')
+                                        self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
+                                            '+' + '3*' + str(self.size_of_int).replace('\n','')
+
+                                        # upper bound of blasfeo_dvec memsize
+                                        # memsize \leq ps + m -1
+                                        mem_upper_bound = '(' + str(self.blasfeo_ps) + '+' + dim1 + ' - 1)'
+
+                                        self.heap64_record[self.scope] = self.heap64_record[self.scope] + \
+                                            '+ (' + mem_upper_bound + ' + 64)*' + str(self.size_of_double).replace('\n','')
+
+                                # else: do nothing (no init required for "memoryless" objects)
+                        # pmat[<n>,<m>] or pvec[<n>]
+                        elif ann in ['pmat', 'pvec']:
+                            if ann == 'pmat':
+                                if item.value.func.id != 'pmat':
+                                    raise cgenException('pmat objects need to be declared calling',
+                                        'the pmat(<n>, <m>) constructor\n.', item.lineno)
+
+                                if not check_expression(item.value.args[0], tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]),
+                                    tuple([ast.USub]),('dims'), tuple([ast.Num]), self.dim_record):
+                                    raise cgenException('Invalid dimension expression in \
+                                        pmat constructor ({})'.format(item.value.args[0]), self.lineno)
+
+                                if not check_expression(item.value.args[1], tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]),
+                                    tuple([ast.USub]),('dims'), tuple([ast.Num]), self.dim_record):
+                                    raise cgenException('Invalid dimension expression in \
+                                        pmat constructor ({})'.format(item.value.args[1]), self.lineno)
+
+                                dim1 = astu.unparse(item.value.args[0]).replace('\n','')
+                                dim2 = astu.unparse(item.value.args[1]).replace('\n','')
+
+                                self.var_dim_record[self.scope][item.target.attr] = [dim1, dim2]
 
                                 # increment scoped heap usage (3 pointers and 6 ints for pmats)
                                 self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
@@ -786,20 +852,21 @@ class SourceGenerator(ExplicitNodeVisitor):
 
                                 # upper bound of blasfeo_dmat memsize
                                 # memsize \leq (ps + m -1)*(nc + n - 1) + (m + n + bs*nc -1)
-                                mem_upper_bound = '(' + str(self.blasfeo_ps) + '+' + dim1 + ' - 1)*' \
+                                mem_upper_bound = '(' + str(self.blasfeo_ps) + '+' + dim1 + ' - 1)* ' \
                                     '(' + str(self.blasfeo_nc) + '+' + dim2 + ' - 1)+(' + dim1 + '+' + dim2 + '+' + \
                                     str(self.blasfeo_ps) + '*' + str(self.blasfeo_nc) + ' - 1)'
 
                                 self.heap64_record[self.scope] = self.heap64_record[self.scope] + \
                                     '+ (' + mem_upper_bound + ' + 64)*' + str(self.size_of_double).replace('\n','')
 
-                        elif ann == 'pvec':
-                            # build init for List of pvecs
-                            for i in range(len(dim_list)):
-                                self.statement([], 'object->', \
-                                    item.target.attr, \
-                                    '[', str(i),'] = c_pmt_create_pvec(', \
-                                    str(dim_list[i][0]), ');')
+                            else:
+                                # pvec
+                                if item.value.func.id != 'pvec':
+                                    raise cgenException('pvec objects need to be declared calling',
+                                        'the pvec(<n>, <m>) constructor\n.', item.lineno)
+                                dim1 = Num_or_Name(item.value.args[0])
+                                ann = item.annotation.value.id
+                                self.var_dim_record[self.scope][item.target.attr] = [dim1]
 
                                 # increment scoped heap usage (2 pointers and 3 ints for pvecs)
                                 self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
@@ -814,102 +881,42 @@ class SourceGenerator(ExplicitNodeVisitor):
                                 self.heap64_record[self.scope] = self.heap64_record[self.scope] + \
                                     '+ (' + mem_upper_bound + ' + 64)*' + str(self.size_of_double).replace('\n','')
 
-                        # else: do nothing (no init required for "memoryless" objects)
-                # pmat[<n>,<m>] or pvec[<n>]
-                elif ann in ['pmat', 'pvec']:
-                    if ann == 'pmat':
-                        if item.value.func.id != 'pmat':
-                            raise cgenException('pmat objects need to be declared calling',
-                                'the pmat(<n>, <m>) constructor\n.', item.lineno)
-
-                        if not check_expression(item.value.args[0], tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]),
-                            tuple([ast.USub]),('dims'), tuple([ast.Num]), self.dim_record):
-                            raise cgenException('Invalid dimension expression in \
-                                pmat constructor ({})'.format(item.value.args[0]), self.lineno)
-
-                        if not check_expression(item.value.args[1], tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]),
-                            tuple([ast.USub]),('dims'), tuple([ast.Num]), self.dim_record):
-                            raise cgenException('Invalid dimension expression in \
-                                pmat constructor ({})'.format(item.value.args[1]), self.lineno)
-
-                        dim1 = astu.unparse(item.value.args[0]).replace('\n','')
-                        dim2 = astu.unparse(item.value.args[1]).replace('\n','')
-
-                        self.var_dim_record[self.scope][item.target.attr] = [dim1, dim2]
-
-                        # increment scoped heap usage (3 pointers and 6 ints for pmats)
-                        self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
-                            '+' + '3*' + str(self.size_of_pointer).replace('\n','')
-                        self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
-                            '+' + '6*' + str(self.size_of_int).replace('\n','')
-
-                        # upper bound of blasfeo_dmat memsize
-                        # memsize \leq (ps + m -1)*(nc + n - 1) + (m + n + bs*nc -1)
-                        mem_upper_bound = '(' + str(self.blasfeo_ps) + '+' + dim1 + ' - 1)* ' \
-                            '(' + str(self.blasfeo_nc) + '+' + dim2 + ' - 1)+(' + dim1 + '+' + dim2 + '+' + \
-                            str(self.blasfeo_ps) + '*' + str(self.blasfeo_nc) + ' - 1)'
-
-                        self.heap64_record[self.scope] = self.heap64_record[self.scope] + \
-                            '+ (' + mem_upper_bound + ' + 64)*' + str(self.size_of_double).replace('\n','')
-
-                    else:
-                        # pvec
-                        if item.value.func.id != 'pvec':
-                            raise cgenException('pvec objects need to be declared calling',
-                                'the pvec(<n>, <m>) constructor\n.', item.lineno)
-                        dim1 = Num_or_Name(item.value.args[0])
-                        ann = item.annotation.value.id
-                        self.var_dim_record[self.scope][item.target.attr] = [dim1]
-
-                        # increment scoped heap usage (2 pointers and 3 ints for pvecs)
-                        self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
-                            '+' + '2*' + str(self.size_of_pointer).replace('\n','')
-                        self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
-                            '+' + '3*' + str(self.size_of_int).replace('\n','')
-
-                        # upper bound of blasfeo_dvec memsize
-                        # memsize \leq ps + m -1
-                        mem_upper_bound = '(' + str(self.blasfeo_ps) + '+' + dim1 + ' - 1)'
-
-                        self.heap64_record[self.scope] = self.heap64_record[self.scope] + \
-                            '+ (' + mem_upper_bound + ' + 64)*' + str(self.size_of_double).replace('\n','')
-
-                    # # add variable to typed record
-                    # self.typed_record[self.scope][item.target.attr] = ann
-                    # # print('typed_record = \n', self.typed_record, '\n\n')
-                    # # print('var_dim_record = \n', self.var_dim_record, '\n\n')
-                    # if  ann in pmt_temp_types:
-                    #     c_ann = pmt_temp_types[ann]
-                    #     # self.statement(item, c_ann, ' ', item.target.attr)
-                    # else:
-                    #     raise cgenException ('Usage of non existing type {}'.format(ann), \
-                    #         item.lineno)
-                    # if item.value != None:
-                    #     if hasattr(item.value, 'value') is False:
-                    #         self.conditional_write('\n', 'object->', \
-                    #             item.target, ' = ', item.value, ';', dest = 'src')
-                    #     else:
-                    #         if item.value.value != None:
-                    #             self.conditional_write('\n', 'object->', \
-                    #                 item.target, ' = ', item.value, ';', dest = 'src')
-                    # else:
-                    #     raise cgenException('Cannot declare attribute without'
-                    #         ' initialization.\n', item.lineno)
-                # elif ann in usr_temp_types:
-                    # self.write('\nobject->', item.target.attr, ' = &(object->', item.target.attr, '___);\n', dest = 'src')
-                    # self.write(ann, '_constructor(object->', item.target.attr, ');\n', dest='src')
-                # else:
-                    # if item.value != None:
-                    #     if hasattr(item.value, 'value') is False:
-                    #         self.conditional_write('\n', 'object->', \
-                    #             item.target, ' = ', item.value, ';', dest = 'src')
-                    #     else:
-                    #         if item.value.value != None:
-                    #             self.conditional_write('\n', 'object->', \
-                    #                 item.target, ' = ', item.value, ';', dest = 'src')
-                    # else:
-                    #     raise cgenException('Cannot declare attribute without \
-                    #         initialization.\n', item.lineno)
+                            # # add variable to typed record
+                            # self.typed_record[self.scope][item.target.attr] = ann
+                            # # print('typed_record = \n', self.typed_record, '\n\n')
+                            # # print('var_dim_record = \n', self.var_dim_record, '\n\n')
+                            # if  ann in pmt_temp_types:
+                            #     c_ann = pmt_temp_types[ann]
+                            #     # self.statement(item, c_ann, ' ', item.target.attr)
+                            # else:
+                            #     raise cgenException ('Usage of non existing type {}'.format(ann), \
+                            #         item.lineno)
+                            # if item.value != None:
+                            #     if hasattr(item.value, 'value') is False:
+                            #         self.conditional_write('\n', 'object->', \
+                            #             item.target, ' = ', item.value, ';', dest = 'src')
+                            #     else:
+                            #         if item.value.value != None:
+                            #             self.conditional_write('\n', 'object->', \
+                            #                 item.target, ' = ', item.value, ';', dest = 'src')
+                            # else:
+                            #     raise cgenException('Cannot declare attribute without'
+                            #         ' initialization.\n', item.lineno)
+                        # elif ann in usr_temp_types:
+                            # self.write('\nobject->', item.target.attr, ' = &(object->', item.target.attr, '___);\n', dest = 'src')
+                            # self.write(ann, '_constructor(object->', item.target.attr, ');\n', dest='src')
+                        # else:
+                            # if item.value != None:
+                            #     if hasattr(item.value, 'value') is False:
+                            #         self.conditional_write('\n', 'object->', \
+                            #             item.target, ' = ', item.value, ';', dest = 'src')
+                            #     else:
+                            #         if item.value.value != None:
+                            #             self.conditional_write('\n', 'object->', \
+                            #                 item.target, ' = ', item.value, ';', dest = 'src')
+                            # else:
+                            #     raise cgenException('Cannot declare attribute without \
+                            #         initialization.\n', item.lineno)
 
 
 
@@ -1053,8 +1060,10 @@ class SourceGenerator(ExplicitNodeVisitor):
                     else:
                         raise cgenException('Subscripted type annotation can \
                             be used only with pmat arguments.\n', arg.lineno)
-                else:
+                elif isinstance(arg.annotation, ast.Name):
                     arg_type_py = arg.annotation.id
+                else:
+                    raise cgenException('Invalid function argument without type annotation', arg.lineno)
 
                 args_list[arg.arg] = arg_type_py
                 arg_type_c = pmt_temp_types[arg_type_py]
@@ -1493,12 +1502,17 @@ class SourceGenerator(ExplicitNodeVisitor):
         if ann == 'ca':
             return
         elif ann == 'pfun':
-            self.scope = self.scope + '@' + node.value.args[0].s
-            self.typed_record[self.scope] = dict()
-            self.var_dim_record[self.scope] = dict()
-            self.heap8_record[self.scope] = '0'
-            self.heap64_record[self.scope] = '0'
-            self.scope = descope(self.scope, '@' + node.value.args[0].s)
+            # code = astu.unparse(node)
+            # exec('from prometeo import * \n' + code)
+            # import pdb; pdb.set_trace()
+            if isinstance(node.value, ast.Call):
+                self.scope = self.scope + '@' + node.value.args[0].s
+                self.casadi_funs.append(self.scope)
+                self.typed_record[self.scope] = dict()
+                self.var_dim_record[self.scope] = dict()
+                self.heap8_record[self.scope] = '0'
+                self.heap64_record[self.scope] = '0'
+                self.scope = descope(self.scope, '@' + node.value.args[0].s)
             return
 
         # check if a List is being declared
@@ -2117,6 +2131,12 @@ class SourceGenerator(ExplicitNodeVisitor):
                 write(', ', dest = 'src')
             else:
                 want_comma.append(True)
+
+        # check if we are calling a CasADi function
+        # print(node.func.id)
+        # import pdb; pdb.set_trace()
+        # if node.func.id in self.casadi_funs:
+        #     import pdb; pdb.set_trace()
 
         # treat print separately
         if hasattr(node.func, 'id'):
