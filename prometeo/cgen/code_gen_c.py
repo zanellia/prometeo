@@ -143,7 +143,6 @@ def parse_pmt_gemm_args(generator, call, node):
     blasfeo_call = \
         "blasfeo_dgemm_{4}{5}({0}->bmat->m, {1}->bmat->n, {0}->bmat->n, {6}, {0}->bmat, 0, 0, {1}->bmat, 0, 0, {7}, {2}->bmat, 0, 0, {3}->bmat, 0, 0);\n".format(arg0, arg1, arg2, arg3, tranA, tranB, alpha, beta)
 
-    # import pdb; pdb.set_trace()
     generator.write(blasfeo_call, dest = 'src')
     return
 
@@ -1027,8 +1026,9 @@ class SourceGenerator(ExplicitNodeVisitor):
 
     def else_body(self, elsewhat):
         if elsewhat:
-            self.write('\n', 'else:')
+            self.write('\n', '} else {', dest='src')
             self.body(elsewhat)
+        # self.write('\n}', dest = 'src')
 
     def body_or_else(self, node):
         self.body(node.body)
@@ -1406,7 +1406,6 @@ class SourceGenerator(ExplicitNodeVisitor):
                                             node.lineno)
 
                             # elif self.typed_record[self.scope][node.value] == 'float':
-                            #     import pdb; pdb.set_trace()
                             #     value = Num_or_Name(node.value)
                             #     self.statement([], 'c_pmt_pmat_set_el(', target.value.id, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value_expr), ');')
 
@@ -1507,7 +1506,6 @@ class SourceGenerator(ExplicitNodeVisitor):
         elif ann == 'pfun':
             # code = astu.unparse(node)
             # exec('from prometeo import * \n' + code)
-            # import pdb; pdb.set_trace()
             if isinstance(node.value, ast.Call):
                 self.scope = self.scope + '@' + node.value.args[0].s
                 self.casadi_funs.append(self.scope)
@@ -1906,7 +1904,7 @@ class SourceGenerator(ExplicitNodeVisitor):
             if len(else_) == 1 and isinstance(else_[0], ast.If):
                 node = else_[0]
                 set_precedence(node, node.test)
-                self.write('\n', 'elif ', node.test, ':')
+                self.write('\n', '} else if (', node.test, ') {', dest='src')
                 self.body(node.body)
             else:
                 self.else_body(else_)
@@ -2137,9 +2135,9 @@ class SourceGenerator(ExplicitNodeVisitor):
 
         # check if we are calling a CasADi function
         # print(node.func.id)
-        # import pdb; pdb.set_trace()
-        # if node.func.id in self.casadi_funs:
-        #     import pdb; pdb.set_trace()
+        if isinstance(node.func, ast.Name):
+            if node.func.id in self.casadi_funs:
+                import pdb; pdb.set_trace()
 
         # treat print separately
         if hasattr(node.func, 'id'):

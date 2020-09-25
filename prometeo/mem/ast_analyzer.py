@@ -209,6 +209,9 @@ class ast_visitor(ExplicitNodeVisitor):
     def visit_Import(self, node):
         return
 
+    def visit_If(self, node):
+        return
+
     def visit_AnnAssign(self, node):
         self.visit(node.value)
         return

@@ -445,14 +445,14 @@ def pmt_main():
             raise Exception('Command \'make\' failed with the above error.'
              ' Full command is:\n\n {}'.format(outs.decode()))
 
-        proc = subprocess.Popen(["make"], stdout=subprocess.PIPE)
+        proc = subprocess.Popen(["make", "all"], stdout=subprocess.PIPE)
 
         try:
             outs, errs = proc.communicate(timeout=20)
         except TimeOutExpired:
             proc.kill()
             outs, errs = proc.communicate()
-            print('Command \'make\' timed out.')
+            print('Command \'make \' timed out.')
         if proc.returncode:
             raise Exception('Command \'make\' failed with the above error.'
              ' Full command is:\n\n {}'.format(outs.decode()))
