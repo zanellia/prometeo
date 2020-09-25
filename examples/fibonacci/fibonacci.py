@@ -15,6 +15,16 @@ def Fibonacci(n : int) -> int:
         c : int = a + b
         return c
  
+
+# import time
+# start = time.time()
+# res : int = 0
+
+# res = Fibonacci(40)
+
+# print('%i' %res)
+# end = time.time()
+# print('execution time = ', end - start)
 def main() -> int:
     # Driver Program
  

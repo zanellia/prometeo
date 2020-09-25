@@ -1,0 +1,3 @@
+Nuitka: 12.525257587432861 s
+Python: 27.128 s
+prometeo: 0.699902 s
