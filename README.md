@@ -41,6 +41,15 @@ Since prometeo programs transpile to pure C code that calls the high performance
 <img src="https://github.com/zanellia/prometeo/blob/master/benchmarks/riccati_benchmark.png" width="100%" >
 </p>
 
+Moreover, prometeo can largely outperform state-of-the-art Python compilers such as Nuitka. The table below shows the CPU times obtained on a Fibonacci benchmark (40th Fibonacci number).
+
+|    parser/compiler   | CPU time [s] |
+|:--------------------:|--------------|
+| Python 3.7 (CPython) |    27.128    |
+|        Nuitka        |    12.525    |
+|       prometeo       |     0.700    |
+
+
 ### PyPI installation
 
 prometeo can be installed through PyPI with `pip install prometeo-dsl`. Notice that, since prometeo makes extensive use of [type hints](https://docs.python.org/3.6/library/typing.html) to equip Python code with static typing information, the minimum Python version required is 3.6.
