@@ -2,6 +2,7 @@
      alt="prometeo logo by Andrea Zanelli" width="80" height="120">
 
 ![Travis Status](https://travis-ci.org/zanellia/prometeo.svg?branch=master) [![PyPI version fury.io](https://badge.fury.io/py/prometeo-dsl.svg)](https://pypi.python.org/pypi/ansicolortags/) [![Documentation Status](https://readthedocs.org/projects/prometeo/badge/?version=latest)](https://prometeo.readthedocs.io/en/latest/?badge=latest)
+[![Downloads](https://pepy.tech/badge/prometeo-dsl/month)](https://pepy.tech/project/prometeo-dsl/month)
 
 
 This is prometeo, an experimental modeling tool for embedded high-performance computing. prometeo provides a 
