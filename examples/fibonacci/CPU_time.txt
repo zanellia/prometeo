@@ -1,3 +1,8 @@
 Nuitka: 12.525257587432861 s
 Python: 27.128 s
 prometeo: 0.699902 s
+
+# efficient implementation (10E7 runs)
+Nuitka: 10.039 s
+Python: 11.787 s
+prometeo: 0.657075 s

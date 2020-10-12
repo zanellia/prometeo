@@ -1,36 +1,30 @@
 from prometeo import * 
 
-def Fibonacci(n : int) -> int: 
-    if n<=0:
-        print("Incorrect input")
+def fib(n : int) -> int:
+    a : int = 0
+    b : int = 1
+    for i in range(n):
+        a = b
+        b =  a + b
+    return a
 
-    elif n==1:
-        return 0
+import time
+start = time.time()
+res : int = 0
 
-    elif n==2:
-        return 1
-    else:
-        a : int = Fibonacci(n-1)
-        b : int = Fibonacci(n-2)
-        c : int = a + b
-        return c
+for i in range(10000000):
+    res = fib(30)
+
+print('%i' %res)
+end = time.time()
+print('execution time = ', end - start)
+
+# def main() -> int:
  
+#     res : int = 0
 
-# import time
-# start = time.time()
-# res : int = 0
+#     for i in range(10000000):
+#         res = fib(30)
 
-# res = Fibonacci(40)
-
-# print('%i' %res)
-# end = time.time()
-# print('execution time = ', end - start)
-
-def main() -> int:
- 
-    res : int = 0
-
-    res = Fibonacci(40)
-
-    print('%i' %res)
-    return 0
+#     print('%i' %res)
+#     return 0
