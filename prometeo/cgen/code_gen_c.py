@@ -245,7 +245,6 @@ def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False
         json.dump(OrderedDict(generator.heap64_record), f, indent=4)
     json_file = 'function_record.json'
     with open(json_file, 'w') as f:
-        import pdb; pdb.set_trace()
         json.dump(generator.function_record, f, indent=4)
     json_file = 'casadi_funs.json'
     with open(json_file, 'w') as f:
@@ -456,7 +455,24 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.var_dim_record = {'global': dict()}
         self.dim_record = dict()
         self.constructor_record = []
-        self.function_record = {'global': dict()}
+
+        self.function_record = {
+            'global': {
+                'pmat' : { 
+                    'arg_types' : ["dims", "dims"],
+                    'ret_type': "pmat"
+                },
+                'pvec' : { 
+                    'arg_types' : ["dims"],
+                    'ret_type': "pvec"
+                },
+                'pmat_print' : { 
+                    'arg_types' : ["pmat"],
+                    'ret_type': "None"
+                }
+            }
+        }
+
         self.in_main = False
 
         self.current_line = 1
@@ -1813,7 +1829,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         arg_list = self.visit_arguments(node.args, 'hdr')
 
         if not self.in_main:
-            self.function_record[outer_scope][node.name] = {"args": arg_list,  "ret_type": return_type_py}
+            self.function_record[outer_scope][node.name] = {"arg_types": list(arg_list.values()),  "ret_type": return_type_py}
         
         self.write(');\n', dest = 'hdr')
         # function definition
@@ -2136,6 +2152,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                     of unknown type.'.format(node.value), node.lineno)
 
     def visit_Call(self, node, len=len):
+        # TODO(andrea): add arg type check
         self.current_line = node.lineno
         self.current_col = node.col_offset
         write = self.write
@@ -2255,8 +2272,45 @@ class SourceGenerator(ExplicitNodeVisitor):
             else:
                 write('(', dest = 'src')
 
+            # load function signature
+            if self.scope in self.function_record:
+                scope = self.function_record[self.scope]
+                if func_name in scope:
+                    signature = scope[signature][func_name]
+                elif func_name in self.function_record['global']:
+                    signature = self.function_record['global'][func_name]
+                else:
+                    raise cgenException('Could not resolve function call "{}"'.format(func_name), node.lineno)
+            elif func_name in self.function_record['global']:
+                signature = self.function_record['global'][func_name]
+            else:
+                raise cgenException('Could not resolve function call "{}"'.format(func_name), node.lineno)
+
+            if len(args) != len(signature["arg_types"]):
+                raise cgenException('Wrong number of arguments in call to function {}: expected {} instead of {}.'.format(\
+                    func_name, len(signature["arg_types"]), len(args)), node.lineno)
+            i = 0
             for arg in args:
+                # check arg type
+                if isinstance(arg, ast.Name):
+                    arg_name = arg.id
+                    if arg_name in self.typed_record[self.scope]:
+                        arg_type = self.typed_record[self.scope][arg_name]
+                    elif arg_name in self.typed_record['global']:
+                        arg_type = self.typed_record['global'][arg_name]
+                    elif arg_name in self.dim_record:
+                        arg_type = self.dim_record[arg_name]
+                    else:
+                        raise cgenException('Could not resolve argument "{}"'.format(arg_name), node.lineno)
+                else:
+                    raise cgenException('Feature not implemented: type check on arg expression.', node.lineno)
+
+                if arg_type not in signature["arg_types"][i]:
+                    raise cgenException('Argument {} has wrong type: expected {} instead of {}.'.format(arg_name, \
+                        signature["arg_types"][i], arg_type), node.lineno)
+
                 write(write_comma, arg, dest = 'src')
+                i+=1
 
             set_precedence(Precedence.Comma, *(x.value for x in keywords))
             for keyword in keywords:
