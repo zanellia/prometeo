@@ -242,7 +242,11 @@ def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False
         json.dump(OrderedDict(generator.heap64_record), f, indent=4)
     json_file = 'constructor_record.json'
     with open(json_file, 'w') as f:
-        json.dump(generator.constructor_record, f, indent=4)
+        json.dump(OrderedDict(generator.heap64_record), f, indent=4)
+    json_file = 'function_record.json'
+    with open(json_file, 'w') as f:
+        import pdb; pdb.set_trace()
+        json.dump(generator.function_record, f, indent=4)
     json_file = 'casadi_funs.json'
     with open(json_file, 'w') as f:
         json.dump(generator.casadi_funs, f, indent=4)
@@ -452,6 +456,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.var_dim_record = {'global': dict()}
         self.dim_record = dict()
         self.constructor_record = []
+        self.function_record = {'global': dict()}
         self.in_main = False
 
         self.current_line = 1
@@ -1035,7 +1040,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.else_body(node.orelse)
 
     def visit_arguments(self, node, dest_in):
-        # args_list returned for class meta-info update
+        # args_list returned for meta-info update
         args_list = dict()
         want_comma = []
 
@@ -1775,6 +1780,12 @@ class SourceGenerator(ExplicitNodeVisitor):
         if node.name == 'main':
             self.in_main = True
         # ap.pprint(node)
+        # save current scope (needed to update log)
+        outer_scope = self.scope
+
+        if not outer_scope in self.function_record:
+            self.function_record[outer_scope] = dict()
+
         self.scope = self.scope + '@' + node.name
         self.typed_record[self.scope] = dict()
         self.var_dim_record[self.scope] = dict()
@@ -1799,7 +1810,11 @@ class SourceGenerator(ExplicitNodeVisitor):
         return_type_c = pmt_temp_types[return_type_py]
         # function declaration
         self.write(return_type_c, ' %s' %(node.name), '(', dest = 'hdr')
-        self.visit_arguments(node.args, 'hdr')
+        arg_list = self.visit_arguments(node.args, 'hdr')
+
+        if not self.in_main:
+            self.function_record[outer_scope][node.name] = {"args": arg_list,  "ret_type": return_type_py}
+        
         self.write(');\n', dest = 'hdr')
         # function definition
         self.write(return_type_c, ' %s' %(node.name), '(', dest = 'src')
@@ -2211,7 +2226,6 @@ class SourceGenerator(ExplicitNodeVisitor):
             post_mangl = self.build_arg_mangling_mod(args)
             node.func.attr = pre_mangl + func_name + post_mangl
 
-
         if func_name in blas_api_funs:
             call = PmtCall(func_name)
             for arg in args:
@@ -2243,7 +2257,6 @@ class SourceGenerator(ExplicitNodeVisitor):
 
             for arg in args:
                 write(write_comma, arg, dest = 'src')
-
 
             set_precedence(Precedence.Comma, *(x.value for x in keywords))
             for keyword in keywords:
