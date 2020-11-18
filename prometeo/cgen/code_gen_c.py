@@ -451,6 +451,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         # self.heap64_record = {'global': dict()}
         self.heap64_record = {'global': "0"}
         self.scope = 'global'
+        self.call_scope = 'global'
         self.casadi_funs = []
         self.var_dim_record = {'global': dict()}
         self.dim_record = dict()
@@ -767,7 +768,11 @@ class SourceGenerator(ExplicitNodeVisitor):
                 else:
                     self.write('%s (%s%s%s%s' % (ret_type, pre_mangl, item.name, \
                         post_mangl, name) , '_impl)', '(%s *self' %name, dest = 'hdr')
-                self.visit_arguments(item.args, 'hdr')
+                arg_list = self.visit_arguments(item.args, 'hdr')
+
+                # update function record
+                self.function_record[self.scope] = dict()
+                self.function_record[self.scope][item.name] = {"arg_types": list(arg_list.values()),  "ret_type": ret_type}
                 self.write(');\n', dest = 'hdr')
                 # insert back self argument
                 item.args.args.insert(0, self_arg)
@@ -1702,9 +1707,8 @@ class SourceGenerator(ExplicitNodeVisitor):
             node.annotation.id = usr_temp_types[ann]
             # assume that AnnAssigns on attributes are only used to declare instance attributes
             if isinstance(node.target, ast.Attribute):
-                self.statement([], 'self->', node.annotation, '= & ', node.target, '___;')
-                # self.statement(node, node.annotation, ' ', node.target, '= &', node.target, '___;')
-                self.statement([], 'self->', class_name, '_constructor(', node.target, '); //')
+                self.statement([], 'self->', node.target.attr, '= & ', node.target, '___;')
+                self.statement([], class_name, '_constructor(', node.target, '); //')
             else:
                 self.statement([], 'struct ', class_name, ' ', node.target, '___;')
                 self.statement(node, node.annotation, ' ', node.target, '= &', node.target, '___;')
@@ -2142,14 +2146,28 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.current_line = node.lineno
         self.current_col = node.col_offset
 
-        if node.value.id == 'self':
-            self.write(node.value, '->', node.attr, dest = 'src')
-        else:
-            if  self.typed_record[self.scope][node.value.id] in usr_temp_types:
+        # recurse on attributes
+        if hasattr(node.value, 'value'):
+            self.visit(node.value)
+        elif hasattr(node.value, 'id'):
+            # self.current_attr = self.meta_info[]
+            if node.value.id == 'self':
                 self.write(node.value, '->', node.attr, dest = 'src')
             else:
-                raise cgenException('Accessing attribute of object {} \
-                    of unknown type.'.format(node.value), node.lineno)
+                # get type of outer object
+
+                # TODO(andrea): as of now, only user-defined classes have methods. 
+                # However, things like A.print(), where A is of type pmat, (rather than 
+                # pmat_print(A)) would be quite useful.
+
+                import pdb; pdb.set_trace()
+                if  self.typed_record[self.scope][node.value.id] in usr_temp_types:
+                    self.write(node.value, '->', node.attr, dest = 'src')
+                else:
+                    raise cgenException('Accessing attribute of object {} \
+                        of unknown type.'.format(node.value), node.lineno)
+        else:
+            raise cgenException('Could not resolve attributes', node.lineno)
 
     def visit_Call(self, node, len=len):
         # TODO(andrea): add arg type check
@@ -2231,12 +2249,14 @@ class SourceGenerator(ExplicitNodeVisitor):
         p = Precedence.Comma if numargs > 1 else Precedence.call_one_arg
         set_precedence(p, *args)
 
+        attr = False
         if isinstance(node.func, ast.Name):
             func_name = node.func.id
             if  node.func.id in pmt_temp_functions:
                 node.func.id = pmt_temp_functions[func_name]
         elif isinstance(node.func, ast.Attribute):
             # calling a method of a user-defined class
+            attr = True
             func_name = node.func.attr
             f_name_len = len(func_name)
             pre_mangl = '_Z%s' %f_name_len
@@ -2264,19 +2284,37 @@ class SourceGenerator(ExplicitNodeVisitor):
 
             if isinstance(node.func, ast.Attribute):
                 # calling an object's method
+
+                def get_attr_name(node):
+                    if hasattr(node, 'id'):
+                        return node.id
+                    elif hasattr(node, 'value'):
+                        return get_attr_name(node.value)
+                    else:
+                        raise cgenException('Invalid call to method', node.lineno)
+                        
+                attr_name = get_attr_name(node.func)
+                import pdb; pdb.set_trace()
                 if len(args) > 0:
-                    code = '(' +  node.func.value.id + ', '
+                    code = '(' +  attr_name + ', '
                 else:
-                    code = '(' +  node.func.value.id
+                    code = '(' +  attr_name
                 write(code, dest = 'src')
             else:
                 write('(', dest = 'src')
 
+            if attr:
+                # TODO(andrea): assume that classes ALWAYS live in the global space? Not sure...
+                fun_scope = 'global@' + self.typed_record[self.scope][attr_name]
+            else:
+                fun_scope = self.scope
+
+
             # load function signature
-            if self.scope in self.function_record:
-                scope = self.function_record[self.scope]
+            if fun_scope in self.function_record:
+                scope = self.function_record[fun_scope]
                 if func_name in scope:
-                    signature = scope[signature][func_name]
+                    signature = scope[func_name]
                 elif func_name in self.function_record['global']:
                     signature = self.function_record['global'][func_name]
                 else:
@@ -2289,6 +2327,7 @@ class SourceGenerator(ExplicitNodeVisitor):
             if len(args) != len(signature["arg_types"]):
                 raise cgenException('Wrong number of arguments in call to function {}: expected {} instead of {}.'.format(\
                     func_name, len(signature["arg_types"]), len(args)), node.lineno)
+            
             i = 0
             for arg in args:
                 # check arg type
