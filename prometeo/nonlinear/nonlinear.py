@@ -88,19 +88,23 @@ class pfun:
         self._ca_fun = locals()['fun']
 
         # generate C code
+        if not os.path.exists('__pmt_cache__'):
+            os.makedirs('__pmt_cache__')
         os.chdir('__pmt_cache__')
+
         self._ca_fun.generate(scoped_fun_name + '.c')
+        import pdb; pdb.set_trace()
 
         # render templated wrapper
         env = Environment(loader=FileSystemLoader(os.path.dirname(os.path.abspath(__file__))))
         tmpl = env.get_template("casadi_wrapper.c.in")
         code = tmpl.render(fun_descriptor = fun_descriptor)
-        with open(scoped_fun_name + '__.c', "w+") as f:
+        with open('casadi_wrapper_' + scoped_fun_name + '.c', "w+") as f:
             f.write(code)
 
         tmpl = env.get_template("casadi_wrapper.h.in")
         code = tmpl.render(fun_descriptor = fun_descriptor)
-        with open(scoped_fun_name + '__.h', "w+") as f:
+        with open('casadi_wrapper_' + scoped_fun_name + '.h', "w+") as f:
             f.write(code)
 
         os.chdir('..')

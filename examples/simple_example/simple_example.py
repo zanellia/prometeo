@@ -2,6 +2,9 @@ from prometeo import *
 
 n : dims = 10
 
+def foo(a: int) -> int:
+    return a
+
 def main() -> int:
 
     A: pmat = pmat(n, n)
@@ -15,6 +18,11 @@ def main() -> int:
 
     C: pmat = pmat(n, n)
 
+    a : int = 1
+    b : int = 1
+    # b : float = 1
+    b = foo(b)
+    
     pmat_print(A)
     pmat_print(B)
     C = A * B

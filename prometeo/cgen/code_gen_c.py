@@ -87,6 +87,8 @@ arg_types = {\
         'pvec_print':  ['pmat', 'pmat', 'pmat', 'pmat'], \
 }
 
+native_types = ['int', 'float']
+
 class PmtArg:
     def __init__(self, name):
         self.name = name
@@ -542,6 +544,48 @@ class SourceGenerator(ExplicitNodeVisitor):
         if node is not None and self.add_line_information:
             self.write('# line: %s' % node.lineno, dest = 'src')
             self.new_lines = 1
+
+    def get_type_of_node(self, node, scope):
+        if isinstance(node, ast.Attribute):
+            type_val = self.get_type_of_node_rec(node.value, scope)
+            if node.attr not in self.meta_info[type_val]['attr']:
+                cgenException('Undefined variable or attribute {}'.format(node.attr), node.lineno)
+            if self.meta_info[type_val]['attr'][node.attr] in native_types:
+                type_val = self.meta_info[type_val]['attr'][node.attr]
+            else:
+                type_val = 'global@' + self.meta_info[type_val]['attr'][node.attr]
+            return type_val
+        elif isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Name):
+                if node.func.id not in self.function_record['global']:
+                    raise cgenException('Undefined method {}'.format(node.func.id), node.lineno)
+                type_val = self.function_record['global'][node.func.id]['ret_type']
+                return type_val 
+            type_val = self.get_type_of_node_rec(node.func.value, scope)
+            if node.func.attr not in self.meta_info[type_val]['methods']:
+                raise cgenException('Undefined method {}'.format(node.func.attr), node.lineno)
+            type_val = self.meta_info[type_val]['methods'][node.func.attr]['return_type']
+            return type_val
+
+    def get_type_of_node_rec(self, node, scope):
+        if isinstance(node, ast.Name):
+            if node.id not in self.typed_record[scope]:
+                raise cgenException('Undefined variable or attribute {}'.format(node.id), node.lineno)
+            if self.typed_record[scope][node.id] in native_types:
+                type_val = self.typed_record[scope][node.id]
+            else:
+                type_val = 'global@' + self.typed_record[scope][node.id]
+            return type_val
+        else:
+            if isinstance(node, ast.Attribute):
+                type_val = self.get_type_of_node_rec(node.value, scope)
+                if node.attr not in self.meta_info[type_val]['attr']:
+                    raise cgenException('Undefined variable or attribute {}'.format(node.attr), node.lineno)
+                if self.meta_info[type_val]['attr'][node.attr] in native_types:
+                    type_val = self.meta_info[type_val]['attr'][node.attr]
+                else:
+                    type_val = 'global@' + self.meta_info[type_val]['attr'][node.attr]
+                return type_val
 
     def body(self, statements):
         self.indentation += 1
@@ -1181,6 +1225,9 @@ class SourceGenerator(ExplicitNodeVisitor):
             if len(node.targets) != 1:
                 raise cgenException('Cannot have assignments with a number of \
                     targets other than 1.\n', node.lineno)
+            # TODO(andrea)" get type of target here
+            type_val = self.get_type_of_node(node.value, self.scope)
+            import pdb; pdb.set_trace()
             # check for attributes
             if hasattr(node.targets[0], 'value'):
                 if hasattr(node.targets[0].value, 'attr'):
@@ -1470,6 +1517,9 @@ class SourceGenerator(ExplicitNodeVisitor):
 
             else:
                 raise cgenException('Could not resolve Assign node.', node.lineno)
+        else: 
+            #TODO(andrea): is this necessary?
+            raise cgenException('node has not attribute targets', node.lineno)
 
         set_precedence(node, node.value, *node.targets)
         self.newline(node)
@@ -2318,10 +2368,13 @@ class SourceGenerator(ExplicitNodeVisitor):
                 elif func_name in self.function_record['global']:
                     signature = self.function_record['global'][func_name]
                 else:
+                    import pdb; pdb.set_trace()
                     raise cgenException('Could not resolve function call "{}"'.format(func_name), node.lineno)
             elif func_name in self.function_record['global']:
+                import pdb; pdb.set_trace()
                 signature = self.function_record['global'][func_name]
             else:
+                import pdb; pdb.set_trace()
                 raise cgenException('Could not resolve function call "{}"'.format(func_name), node.lineno)
 
             if len(args) != len(signature["arg_types"]):

@@ -43,7 +43,7 @@ LIBPATH+=-L$(INSTALL_DIR)/lib/blasfeo -L$(INSTALL_DIR)/lib/prometeo
 {{ CASADI_TARGET }}
 
 sources: $(SRCS)
-\t$(CC) $(LIBPATH) -o {{ filename }} $(CFLAGS)  $(SRCS)  -lcpmt -lblasfeo -lm
+\t$(CC) $(LIBPATH) -o {{ filename }} $(CFLAGS)  $(SRCS) $(OBJS) -lcpmt -lblasfeo -lm
 
 all: casadi sources
 
@@ -238,11 +238,11 @@ def pmt_main():
             else:
                 exit()
 
-        dest_file = open(filename_ + '.c', 'w')
+        dest_file = open('__pmt_cache__/' + filename_ + '.c', 'w')
         dest_file.write(prometeo.cgen.source_repr.pretty_source(result.source))
         dest_file.close()
 
-        dest_file = open(filename_ + '.h', 'w')
+        dest_file = open('__pmt_cache__/' + filename_ + '.h', 'w')
         dest_file.write(prometeo.cgen.source_repr.pretty_source(result.header))
         dest_file.close()
 
@@ -416,7 +416,14 @@ def pmt_main():
 
         with open('__pmt_cache__/casadi_funs.json') as f:
             casadi_funs = json.load(f, object_pairs_hook=OrderedDict)
-        casadi_target_code = '\n\ncasadi: '
+
+        casadi_target_code = '\nOBJS = '
+        for item in casadi_funs:
+            fun_name = item.replace('@', '_')
+            casadi_target_code = casadi_target_code + ' ' + 'casadi_wrapper_' + fun_name + '.o ' + fun_name + '.o'
+
+        casadi_target_code = casadi_target_code + '\n\ncasadi: ' 
+
         for item in casadi_funs:
             fun_name = item.replace('@', '_')
             casadi_target_code = casadi_target_code + ' ' + fun_name
@@ -424,15 +431,17 @@ def pmt_main():
         for item in casadi_funs:
             fun_name = item.replace('@', '_')
             casadi_target_code = casadi_target_code + '\n\n'
-            casadi_target_code = casadi_target_code + fun_name + ': ' + fun_name + '.o ' + fun_name + '__.o\n' 
-            casadi_target_code = casadi_target_code + "\t$(CC) -c " + fun_name + '.o ' + fun_name + '__.o\n'
+            casadi_target_code = casadi_target_code + fun_name + ':\n' 
+            casadi_target_code = casadi_target_code + "\t$(CC) -c " + fun_name + '.c ' + 'casadi_wrapper_' + fun_name + '.c\n'
 
         makefile_code = makefile_code.replace('{{ CASADI_TARGET }}', casadi_target_code)
-        dest_file = open('Makefile', 'w+')
+        dest_file = open('__pmt_cache__/Makefile', 'w+')
         dest_file.write(makefile_code)
         dest_file.close()
 
         print('\033[;1m > prometeo:\033[0;0m building C code')
+
+        os.chdir('__pmt_cache__')
         proc = subprocess.Popen(["make", "clean"], stdout=subprocess.PIPE)
 
         try:
@@ -497,3 +506,5 @@ def pmt_main():
             raise Exception('Command {} failed with the above error.'
              ' Full command is:\n\n {}'.format(cmd, outs.decode()))
         print('\n\033[;1m > prometeo:\033[0;0m exiting\n')
+
+        os.chdir('..')
