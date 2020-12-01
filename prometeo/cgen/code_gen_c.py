@@ -546,6 +546,25 @@ class SourceGenerator(ExplicitNodeVisitor):
             self.new_lines = 1
 
     def get_type_of_node(self, node, scope):
+        """
+        Get type of AST node. 
+
+        Parameters
+        ----------
+        node 
+            node whose type we want to determine
+
+        scope
+            current scope
+
+        Returns
+        -------
+            type_val : str
+                type of expression
+            arg_types : dict
+                type of arguments (if a Call node is being analyzed, None otherwise)
+
+        """
         if isinstance(node, ast.Attribute):
             type_val = self.get_type_of_node_rec(node.value, scope)
             if node.attr not in self.meta_info[type_val]['attr']:
@@ -554,18 +573,20 @@ class SourceGenerator(ExplicitNodeVisitor):
                 type_val = self.meta_info[type_val]['attr'][node.attr]
             else:
                 type_val = 'global@' + self.meta_info[type_val]['attr'][node.attr]
-            return type_val
+            return type_val, None
         elif isinstance(node, ast.Call):
             if isinstance(node.func, ast.Name):
                 if node.func.id not in self.function_record['global']:
                     raise cgenException('Undefined method {}'.format(node.func.id), node.lineno)
                 type_val = self.function_record['global'][node.func.id]['ret_type']
-                return type_val 
+                return type_val,  self.function_record['global'][node.func.id]['arg_types']
             type_val = self.get_type_of_node_rec(node.func.value, scope)
             if node.func.attr not in self.meta_info[type_val]['methods']:
                 raise cgenException('Undefined method {}'.format(node.func.attr), node.lineno)
+            arg_types = self.meta_info[type_val]['methods'][node.func.attr]['args']
             type_val = self.meta_info[type_val]['methods'][node.func.attr]['return_type']
-            return type_val
+
+            return type_val, arg_types
 
     def get_type_of_node_rec(self, node, scope):
         if isinstance(node, ast.Name):
@@ -816,7 +837,7 @@ class SourceGenerator(ExplicitNodeVisitor):
 
                 # update function record
                 self.function_record[self.scope] = dict()
-                self.function_record[self.scope][item.name] = {"arg_types": list(arg_list.values()),  "ret_type": ret_type}
+                self.function_record[self.scope][item.name] = {"arg_types": arg_list,  "ret_type": ret_type}
                 self.write(');\n', dest = 'hdr')
                 # insert back self argument
                 item.args.args.insert(0, self_arg)
@@ -1106,7 +1127,7 @@ class SourceGenerator(ExplicitNodeVisitor):
 
     def visit_arguments(self, node, dest_in):
         # args_list returned for meta-info update
-        args_list = dict()
+        args_list = []
         want_comma = []
 
         def write_comma():
@@ -1118,6 +1139,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         def loop_args(args, defaults):
             set_precedence(Precedence.Comma, defaults)
             padding = [None] * (len(args) - len(defaults))
+            arg_list = []
             for arg, default in zip(args, padding + defaults):
                 # fish C type from typed record
                 if hasattr(arg.annotation, 'value'):
@@ -1138,7 +1160,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 else:
                     raise cgenException('Invalid function argument without type annotation', arg.lineno)
 
-                args_list[arg.arg] = arg_type_py
+                args_list.append(arg_type_py)
                 arg_type_c = pmt_temp_types[arg_type_py]
                 self.write(write_comma, arg_type_c,' ',arg.arg, dest = dest_in)
 
@@ -1226,8 +1248,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 raise cgenException('Cannot have assignments with a number of \
                     targets other than 1.\n', node.lineno)
             # TODO(andrea)" get type of target here
-            type_val = self.get_type_of_node(node.value, self.scope)
-            import pdb; pdb.set_trace()
+            type_val, arg_types = self.get_type_of_node(node.value, self.scope)
             # check for attributes
             if hasattr(node.targets[0], 'value'):
                 if hasattr(node.targets[0].value, 'attr'):
@@ -1883,7 +1904,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         arg_list = self.visit_arguments(node.args, 'hdr')
 
         if not self.in_main:
-            self.function_record[outer_scope][node.name] = {"arg_types": list(arg_list.values()),  "ret_type": return_type_py}
+            self.function_record[outer_scope][node.name] = {"arg_types": arg_list,  "ret_type": return_type_py}
         
         self.write(');\n', dest = 'hdr')
         # function definition
@@ -2210,7 +2231,6 @@ class SourceGenerator(ExplicitNodeVisitor):
                 # However, things like A.print(), where A is of type pmat, (rather than 
                 # pmat_print(A)) would be quite useful.
 
-                import pdb; pdb.set_trace()
                 if  self.typed_record[self.scope][node.value.id] in usr_temp_types:
                     self.write(node.value, '->', node.attr, dest = 'src')
                 else:
@@ -2299,7 +2319,10 @@ class SourceGenerator(ExplicitNodeVisitor):
         p = Precedence.Comma if numargs > 1 else Precedence.call_one_arg
         set_precedence(p, *args)
 
+        # load function signature
+        ret_type, arg_types = self.get_type_of_node(node, self.scope)
         attr = False
+
         if isinstance(node.func, ast.Name):
             func_name = node.func.id
             if  node.func.id in pmt_temp_functions:
@@ -2344,7 +2367,6 @@ class SourceGenerator(ExplicitNodeVisitor):
                         raise cgenException('Invalid call to method', node.lineno)
                         
                 attr_name = get_attr_name(node.func)
-                import pdb; pdb.set_trace()
                 if len(args) > 0:
                     code = '(' +  attr_name + ', '
                 else:
@@ -2360,26 +2382,25 @@ class SourceGenerator(ExplicitNodeVisitor):
                 fun_scope = self.scope
 
 
-            # load function signature
-            if fun_scope in self.function_record:
-                scope = self.function_record[fun_scope]
-                if func_name in scope:
-                    signature = scope[func_name]
-                elif func_name in self.function_record['global']:
-                    signature = self.function_record['global'][func_name]
-                else:
-                    import pdb; pdb.set_trace()
-                    raise cgenException('Could not resolve function call "{}"'.format(func_name), node.lineno)
-            elif func_name in self.function_record['global']:
-                import pdb; pdb.set_trace()
-                signature = self.function_record['global'][func_name]
-            else:
-                import pdb; pdb.set_trace()
-                raise cgenException('Could not resolve function call "{}"'.format(func_name), node.lineno)
+            # if fun_scope in self.function_record:
+            #     scope = self.function_record[fun_scope]
+            #     if func_name in scope:
+            #         signature = scope[func_name]
+            #     elif func_name in self.function_record['global']:
+            #         signature = self.function_record['global'][func_name]
+            #     else:
+            #         import pdb; pdb.set_trace()
+            #         raise cgenException('Could not resolve function call "{}"'.format(func_name), node.lineno)
+            # elif func_name in self.function_record['global']:
+            #     import pdb; pdb.set_trace()
+            #     signature = self.function_record['global'][func_name]
+            # else:
+            #     import pdb; pdb.set_trace()
+            #     raise cgenException('Could not resolve function call "{}"'.format(func_name), node.lineno)
 
-            if len(args) != len(signature["arg_types"]):
+            if len(args) != len(arg_types):
                 raise cgenException('Wrong number of arguments in call to function {}: expected {} instead of {}.'.format(\
-                    func_name, len(signature["arg_types"]), len(args)), node.lineno)
+                    func_name, len(arg_types), len(args)), node.lineno)
             
             i = 0
             for arg in args:
@@ -2397,9 +2418,9 @@ class SourceGenerator(ExplicitNodeVisitor):
                 else:
                     raise cgenException('Feature not implemented: type check on arg expression.', node.lineno)
 
-                if arg_type not in signature["arg_types"][i]:
+                if arg_type not in arg_types[i]:
                     raise cgenException('Argument {} has wrong type: expected {} instead of {}.'.format(arg_name, \
-                        signature["arg_types"][i], arg_type), node.lineno)
+                        arg_types[i], arg_type), node.lineno)
 
                 write(write_comma, arg, dest = 'src')
                 i+=1

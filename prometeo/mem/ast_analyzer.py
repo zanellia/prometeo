@@ -143,10 +143,20 @@ class ast_visitor(ExplicitNodeVisitor):
     def visit_Expression(self, node):
         self.visit(node.body)
 
+    def resolve_call(self, node):
+        if isinstance(node, ast.Name):
+            return node.id
+        else:
+            callee = self.resolve_call(node.value)
+            return callee + '@' + node.attr
+
     def visit_Call(self, node, len=len):
-        # ap.pprint(node)
+        ap.pprint(node)
         if isinstance(node.func, ast.Name):
             self.callees[self.caller_scope].add(self.callee_scope + '@' + node.func.id)
+        elif isinstance(node.func, ast.Attribute):
+            callee = self.resolve_call(node.func)
+            self.callees[self.caller_scope].add(self.callee_scope + '@' + callee)
         elif isinstance(node.func, ast.Attribute):
             self.in_call = True
             self.visit(node.func)
