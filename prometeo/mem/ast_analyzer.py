@@ -82,6 +82,10 @@ class ast_visitor(ExplicitNodeVisitor):
 
         with open('__pmt_cache__/typed_record.json', 'r') as f:
             self.typed_record = json.load(f)
+
+        with open('__pmt_cache__/meta_info.json', 'r') as f:
+            self.meta_info = json.load(f)
+
         visit = self.visit
 
         def visit_ast(*params):
@@ -253,7 +257,7 @@ def merge_call_graphs(dict1, dict2):
 
     return union_dict
 
-def compute_reach_graph(call_graph, typed_record):
+def compute_reach_graph(call_graph, typed_record, meta_info):
     """
     Compute reachability map associated with a given call graph.
 
@@ -264,6 +268,10 @@ def compute_reach_graph(call_graph, typed_record):
         the call graph computed inspecting the Python AST.
 
     typed_record : dict
+        dictionary containing the meta-information extracted by prometeo's
+        parser.
+
+    meta_info : dict
         dictionary containing the meta-information extracted by prometeo's
         parser.
 
@@ -284,6 +292,8 @@ def compute_reach_graph(call_graph, typed_record):
     unresolved_calls = set([])
     unresolved_callers = dict()
     graph_copy = deepcopy(call_graph)
+
+    # note: trivial calls are not added to unresolved_callers
     for method in call_graph:
         unresolved_callers[method] = set([])
         for call in call_graph[method]:
@@ -302,26 +312,62 @@ def compute_reach_graph(call_graph, typed_record):
         if unresolved_callers[caller] != set([]):
             r_unresolved_callers[caller] = unresolved_callers[caller]
 
-    # resolve calls
-    for caller in r_unresolved_callers:
-        for call in r_unresolved_callers[caller]:
-            scopes = call.split('@')
-            curr_scope = scopes[0]
-            for j in range(len(scopes)-1):
-                if curr_scope + '@' + scopes[j+1] in typed_record:
-                    curr_scope = curr_scope + '@' + scopes[j+1]
-                else:
-                    # try to resolve class name
-                    if scopes[j] in typed_record[caller]:
-                        scopes[j] = typed_record[caller][scopes[j]]
-                    t_call = '@'.join(scopes)
-                    if t_call in all_methods:
-                        r_unresolved_callers[caller].remove(call)
-                        r_unresolved_callers[caller].add(t_call)
-                        break
+    # TODO(andrea): here again, we assume that classes live in the global scope
+    def resolve_scopes(call, caller, typed_record, meta_info):
+        scopes = call.split('@')
+        if scopes[0] != 'global':
+            raise Exception('Invalid leading scope {}'.format(scopes[0]))
+        if scopes[1] not in typed_record[caller]:
+            import pdb; pdb.set_trace()
+            raise Exception('Could not resolve variable name {}'.format(scopes[1]))
+        else:
+            scopes[1] = typed_record[caller][scopes[1]]
+
+        # here assume that the last scope corresponds to a method and the others to
+        # attributes
+        for i in range(1,len(scopes)-2):
+            if scopes[i+1] not in meta_info['global@' + scopes[i]]["attr"]:
+                raise Exception('Could not resolve attribute {}'.format(scopes[i+1]))
+            else:
+                scopes[i+1] = meta_info['global@' + scopes[i]]["attr"][scopes[i+1]]
+
+        return scopes
+        
+
+
+    r_resolved_callers = dict()
+    # resolve non-trivial calls
+    r_unresolved_callers_copy = deepcopy(r_resolved_callers)
+    for caller in r_unresolved_callers_copy:
+        for call in r_unresolved_callers_copy[caller]:
+            scopes = resolve_scopes(call, caller, typed_record, meta_info)
+            t_call = '@'.join(scopes)
+            if t_call in all_methods:
+                r_unresolved_callers[caller].remove(call)
+                if caller not in r_resolved_callers:
+                    r_resolved_callers[caller] = set([])
+                r_resolved_callers[caller].add(t_call)
+
+    # for caller in r_unresolved_callers:
+    #     for call in r_unresolved_callers[caller]:
+    #         import pdb; pdb.set_trace()
+    #         scopes = call.split('@')
+    #         curr_scope = scopes[0]
+    #         for j in range(len(scopes)-1):
+    #             if curr_scope + '@' + scopes[j+1] in typed_record:
+    #                 curr_scope = curr_scope + '@' + scopes[j+1]
+    #             else:
+    #                 # try to resolve class name
+    #                 if scopes[j] in typed_record[caller]:
+    #                     scopes[j] = typed_record[caller][scopes[j]]
+    #                 t_call = '@'.join(scopes)
+    #                 if t_call in all_methods:
+    #                     r_unresolved_callers[caller].remove(call)
+    #                     r_unresolved_callers[caller].add(t_call)
+    #                     break
 
     # update call_graph with unresolved calls
-    call_graph = merge_call_graphs(call_graph, r_unresolved_callers)
+    call_graph = merge_call_graphs(call_graph, r_resolved_callers)
 
     # check that there are no unresolved calls
     # TODO(andrea): this is a bit ugly

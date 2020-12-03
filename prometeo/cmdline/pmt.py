@@ -239,6 +239,8 @@ def pmt_main():
                 exit()
 
         dest_file = open('__pmt_cache__/' + filename_ + '.c', 'w')
+        print(result.source)
+        import pdb; pdb.set_trace()
         dest_file.write(prometeo.cgen.source_repr.pretty_source(result.source))
         dest_file.close()
 
@@ -302,10 +304,11 @@ def pmt_main():
         visitor.visit(tree_copy)
         call_graph = visitor.callees
         typed_record = visitor.typed_record
+        meta_info = visitor.meta_info
         # print('\ncall graph:\n\n', call_graph, '\n\n')
 
         reach_map, call_graph = compute_reach_graph(\
-            call_graph, typed_record)
+            call_graph, typed_record, meta_info)
 
         # check that there are no cycles containing memory allocations
         for method in reach_map:

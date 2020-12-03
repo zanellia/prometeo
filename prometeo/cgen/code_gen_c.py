@@ -103,6 +103,14 @@ class PmtCall:
         self.args = []
         self.keywords = None
 
+def recurse_attributes(node):
+    if isinstance(node, ast.Name):
+        return node.id
+    elif isinstance(node, ast.Attribute):
+        return recurse_attributes(node.value) + '->' + node.attr 
+    else:
+        raise cgenException('Invalid attribute or method {}'.format(node))
+
 def parse_pmt_gemm_args(generator, call, node):
 
     arg0 = call.args[0].name
@@ -1241,6 +1249,7 @@ class SourceGenerator(ExplicitNodeVisitor):
 
     # Statements
     def visit_Assign(self, node):
+
         self.current_line = node.lineno
         self.current_col = node.col_offset
         if 'targets' in node.__dict__:
@@ -1525,9 +1534,12 @@ class SourceGenerator(ExplicitNodeVisitor):
                                             node.lineno)
 
 
-            elif 'attr' in node.targets[0].__dict__:
+            elif isinstance(node.targets[0], ast.Attribute):
+                print('CHECK THIS')
+                import pdb; pdb.set_trace()
                 # Assign targeting a user-defined class (C struct)
                 struct_name = node.targets[0].value.id
+                code = recurse_attributes(node.targets[0])
                 if struct_name in self.typed_record[self.scope]:
                     attr_value = node.value.n
                     attr_name = node.targets[0].attr
@@ -2212,32 +2224,30 @@ class SourceGenerator(ExplicitNodeVisitor):
             self.conditional_write(', ', node.tback, dest = 'src')
 
     # Expressions
-
     def visit_Attribute(self, node):
+        ap.pprint(node)
         self.current_line = node.lineno
         self.current_col = node.col_offset
 
-        # recurse on attributes
-        if hasattr(node.value, 'value'):
-            self.visit(node.value)
-        elif hasattr(node.value, 'id'):
-            # self.current_attr = self.meta_info[]
-            if node.value.id == 'self':
-                self.write(node.value, '->', node.attr, dest = 'src')
-            else:
-                # get type of outer object
-
-                # TODO(andrea): as of now, only user-defined classes have methods. 
-                # However, things like A.print(), where A is of type pmat, (rather than 
-                # pmat_print(A)) would be quite useful.
-
-                if  self.typed_record[self.scope][node.value.id] in usr_temp_types:
-                    self.write(node.value, '->', node.attr, dest = 'src')
-                else:
-                    raise cgenException('Accessing attribute of object {} \
-                        of unknown type.'.format(node.value), node.lineno)
+        attr_chain = recurse_attributes(node)
+        attr_list = attr_chain.split('->')
+        if attr_list[0] == 'self':
+            self.write(attr_chain, dest = 'src')
         else:
-            raise cgenException('Could not resolve attributes', node.lineno)
+            # get type of outer object
+
+            # TODO(andrea): as of now, only user-defined classes have methods. 
+            # However, things like A.print(), where A is of type pmat, (rather than 
+            # pmat_print(A)) would be quite useful.
+
+            # if  self.typed_record[self.scope][attr_list[0]] in self.meta_info:
+                # check type 
+            type_val, arg_list = self.get_type_of_node(node, self.scope)
+            code = recurse_attributes(node)
+            self.write(attr_chain, dest = 'src')
+            # else:
+            #     raise cgenException('Accessing attribute of object {} \
+            #         of unknown type.'.format(node.value), node.lineno)
 
     def visit_Call(self, node, len=len):
         # TODO(andrea): add arg type check
@@ -2325,16 +2335,36 @@ class SourceGenerator(ExplicitNodeVisitor):
 
         if isinstance(node.func, ast.Name):
             func_name = node.func.id
-            if  node.func.id in pmt_temp_functions:
-                node.func.id = pmt_temp_functions[func_name]
+            if  func_name in pmt_temp_functions:
+                call_code = pmt_temp_functions[func_name] + '('
+            else:
+                call_code = func_name + '('
+
         elif isinstance(node.func, ast.Attribute):
+            def get_attr_name(node):
+                if hasattr(node, 'id'):
+                    return node.id
+                elif hasattr(node, 'value'):
+                    return get_attr_name(node.value)
+                else:
+                    raise cgenException('Invalid call to method', node.lineno)
+            attr_name = get_attr_name(node.func)
             # calling a method of a user-defined class
             attr = True
+            attr_chain = recurse_attributes(node.func)
+            # TODO(andrea): at some point I should mangle ANY function name
+            # then mangling would move inside recurse_attributes()
+
+            # remove unmangled function call 
+            tokens = attr_chain.split('->')
+            tokens = tokens[:-1]
+            attr_chain = '->'.join(tokens)
             func_name = node.func.attr
             f_name_len = len(func_name)
             pre_mangl = '_Z%s' %f_name_len
             post_mangl = self.build_arg_mangling_mod(args)
-            node.func.attr = pre_mangl + func_name + post_mangl
+            call_code = attr_chain + '->' + pre_mangl + func_name + post_mangl + '('
+            # node.func.attr = pre_mangl + func_name + post_mangl
 
         if func_name in blas_api_funs:
             call = PmtCall(func_name)
@@ -2353,27 +2383,26 @@ class SourceGenerator(ExplicitNodeVisitor):
                 call.keywords = keywords
             blas_api_funs[call.name](self, call, node)
         else:
-            self.visit(node.func)
+            print(call_code)
+            write(call_code, dest = 'src')
+            if attr:
+                write(write_comma, attr_chain, dest = 'src')
 
-            if isinstance(node.func, ast.Attribute):
-                # calling an object's method
+            # self.visit(node.func)
 
-                def get_attr_name(node):
-                    if hasattr(node, 'id'):
-                        return node.id
-                    elif hasattr(node, 'value'):
-                        return get_attr_name(node.value)
-                    else:
-                        raise cgenException('Invalid call to method', node.lineno)
+            # if isinstance(node.func, ast.Attribute):
+            #     # calling an object's method
+
                         
-                attr_name = get_attr_name(node.func)
-                if len(args) > 0:
-                    code = '(' +  attr_name + ', '
-                else:
-                    code = '(' +  attr_name
-                write(code, dest = 'src')
-            else:
-                write('(', dest = 'src')
+            #     import pdb; pdb.set_trace()
+            #     if len(args) > 0:
+            #         code = '(' +  attr_name + ', '
+            #     else:
+            #         code = '(' +  attr_name
+            #     write(code, dest = 'src')
+            # else:
+            #     write('(', dest = 'src')
+
 
             if attr:
                 # TODO(andrea): assume that classes ALWAYS live in the global space? Not sure...
@@ -2435,7 +2464,7 @@ class SourceGenerator(ExplicitNodeVisitor):
             self.conditional_write(write_comma, '*', starargs, dest = 'src')
             self.conditional_write(write_comma, '**', kwargs, dest = 'src')
             # write(');\n', dest = 'src')
-            write(');', dest = 'src')
+            write(')', dest = 'src')
 
     def visit_Name(self, node):
         self.current_line = node.lineno
