@@ -236,7 +236,7 @@ def pmt_main():
             if debug:
                 raise
             else:
-                exit()
+                return 1
 
         dest_file = open('__pmt_cache__/' + filename_ + '.c', 'w')
         dest_file.write(prometeo.cgen.source_repr.pretty_source(result.source))
