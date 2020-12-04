@@ -105,7 +105,7 @@ class PmtCall:
 
 def recurse_attributes(node):
     if isinstance(node, ast.Name):
-        return node.id
+        return [node.id]
     elif isinstance(node, ast.Attribute):
         return recurse_attributes(node.value) + '->' + node.attr 
     else:
@@ -647,18 +647,33 @@ class SourceGenerator(ExplicitNodeVisitor):
             return type_l, None
 
         elif isinstance(node, ast.Subscript):
-            if node.value.id not in self.typed_record[scope]:
-                raise cgenException('Undefined variable {}'.format(node.id), node.lineno)
-            elif self.typed_record[scope][node.value.id] == 'pmat' or \
-                    self.typed_record[scope][node.value.id] == 'pvec':
-                return 'int', None
-            elif 'List' in self.typed_record[scope][node.value.id]:
-                raise Exception("Not implemented")
+            if isinstance(node.value, ast.Name):
+                if node.value.id not in self.typed_record[scope]:
+                    raise cgenException('Undefined variable {}'.format(node.id), node.lineno)
+                elif self.typed_record[scope][node.value.id] == 'pmat' or \
+                        self.typed_record[scope][node.value.id] == 'pvec':
+                    return 'int', None
+                elif 'List' in self.typed_record[scope][node.value.id]:
+                    raise Exception("Not implemented")
+            elif isinstance(node.value, ast.Attribute):
+                type_val = self.get_type_of_node(node.value, scope)
+                return type_val
+            else:
+                raise cgenException("Invalid node type {}".format(node.value), node.lineno)
 
         elif isinstance(node, ast.Attribute):
-            type_val = self.get_type_of_node_rec(node.value, scope)
+            # check if first attr is 'self'
+            attr_list = recurse_attributes(node.value)
+            if attr_list[0] == 'self':
+
+                class_scope = '@'.join(scope.split('@')[:-1])
+                type_val = self.get_type_of_node_rec(node.value, class_scope)
+                import pdb; pdb.set_trace()
+            else:
+                type_val = self.get_type_of_node_rec(node.value, scope)
+
             if node.attr not in self.meta_info[type_val]['attr']:
-                cgenException('Undefined variable or attribute {}'.format(node.attr), node.lineno)
+                raise cgenException('Undefined variable or attribute {}'.format(node.attr), node.lineno)
             if self.meta_info[type_val]['attr'][node.attr] in native_types:
                 type_val = self.meta_info[type_val]['attr'][node.attr]
             else:
@@ -683,6 +698,9 @@ class SourceGenerator(ExplicitNodeVisitor):
 
     def get_type_of_node_rec(self, node, scope):
         if isinstance(node, ast.Name):
+            if node.id == 'self':
+                type_val = scope
+                return type_val
             if node.id not in self.typed_record[scope]:
                 raise cgenException('Undefined variable or attribute {}'.format(node.id), node.lineno)
             if self.typed_record[scope][node.id] in native_types:
@@ -726,6 +744,40 @@ class SourceGenerator(ExplicitNodeVisitor):
         # methods
         self.write_class_methods(*statements, name=name)
 
+    def process_list_type(self, node):
+
+        if node.value.func.id is not 'plist':
+            raise cgenException('Cannot create Lists without using'
+                ' plist constructor.', node.lineno)
+        else:
+            if len(node.value.args) != 2:
+                raise cgenException('Type annotations in List \
+                    declaration must have the format \
+                    List[<type>, <sizes>]', node.lineno)
+            # attribute is a List
+            ann = node.value.args[0].id
+            dims = Num_or_Name(node.value.args[1])
+            # ann = node.annotation.slice.value.elts[0].id
+            # dims = Num_or_Name(node.annotation.slice.value.elts[1])
+
+            if isinstance(dims, str):
+                list_type = 'List[' + ann + ', ' + dims + ']'
+            else:
+                list_type = 'List[' + ann + ', ' + str(dims) + ']'
+
+            return list_type
+
+
+            if isinstance(dims, str):
+                # dimension argument is a variable
+                self.typed_record[self.scope][node.target.attr] = \
+                    'List[' + ann + ', ' + dims + ']'
+                    # TODO(andrea): 
+                    # use instead 'dict({type: 'List', "attr": {"ann" : ann, "dims" : dims}})
+            else:
+                # dimension argument is an integer
+                self.typed_record[self.scope][node.target.attr] = \
+                    'List[' + ann + ', ' + str(dims) + ']'
 
     def write_instance_attributes(self, params, name):
         """
@@ -748,52 +800,32 @@ class SourceGenerator(ExplicitNodeVisitor):
                 # annotation = ast.parse(item.annotation.s).body[0]
                 # if 'value' in annotation.value.__dict__:
                 type_py = annotation.id
-                self.meta_info[self.scope]['attr'][item.target.attr] = type_py
+                if type_py is 'List':
+                    list_type = self.process_list_type(item)
+                    self.meta_info[self.scope]['attr'][item.target.attr] = list_type
+                else:
+                    self.meta_info[self.scope]['attr'][item.target.attr] = type_py
+
 
                 if type_py is 'List':
-                    if item.value.func.id is not 'plist':
-                        raise cgenException('Cannot create Lists without using'
-                            ' plist constructor.', item.lineno)
-                    else:
-                        if len(item.value.args) != 2:
-                            raise cgenException('Type annotations in List \
-                                declaration must have the format \
-                                List[<type>, <sizes>]', item.lineno)
-                        # attribute is a List
-                        ann = item.value.args[0].id
-                        dims = Num_or_Name(item.value.args[1])
-                        # ann = item.annotation.slice.value.elts[0].id
-                        # dims = Num_or_Name(item.annotation.slice.value.elts[1])
-
-
-                        if isinstance(dims, str):
-                            # dimension argument of a variable
-                            self.typed_record[self.scope][item.target.attr] = \
-                                'List[' + ann + ', ' + dims + ']'
+                    list_type = self.process_list_type(item)
+                    self.typed_record[self.scope][item.target.attr] = list_type
+                    # check if dims is not a numerical value
+                    # TODO(andrea): fix this for numeric values!
+                    ann = item.value.args[0].id
+                    dims = Num_or_Name(item.value.args[1])
+                    if isinstance(dims, str):
+                        dim_list = self.dim_record[dims]
+                    
+                        if isinstance(dim_list, list):
+                            array_size = len(dim_list)
                         else:
-                            # dimension argument is an integer
-                            self.typed_record[self.scope][item.target.attr] = \
-                                'List[' + ann + ', ' + str(dims) + ']'
+                            array_size = dim_list
 
-                        if  ann in pmt_temp_types:
-                            ann = pmt_temp_types[ann]
-                        else:
-                            raise cgenException ('Usage of non existing type \
-                                \033[91m{}\033[0m'.format(ann), item.lineno)
-                        # check if dims is not a numerical value
-                        # TODO(andrea): fix this for numeric values!
-                        if isinstance(dims, str):
-                            dim_list = self.dim_record[dims]
-                        
-                            if isinstance(dim_list, list):
-                                array_size = len(dim_list)
-                            else:
-                                array_size = dim_list
-
-                            # array_size = str(Num_or_Name(item.value.args[1]))
-                            # self.statement([], ann, ' ', item.target, '[', array_size, '];')
-                        self.write('%s' %ann, ' ', '%s' %item.target.attr, \
-                            '[%s' %array_size, '];\n', dest = 'hdr')
+                        # array_size = str(Num_or_Name(item.value.args[1]))
+                        # self.statement([], ann, ' ', item.target, '[', array_size, '];')
+                    self.write('%s' %ann, ' ', '%s' %item.target.attr, \
+                        '[%s' %array_size, '];\n', dest = 'hdr')
                 else:
                     # not a List
                     ann = type_py
@@ -2533,7 +2565,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                 elif isinstance(arg, ast.Num):
                     arg_type = type(arg.n).__name__
                 else:
-                    raise cgenException('Feature not implemented: type check on arg expression.', node.lineno)
+                    arg_type, s = self.get_type_of_node(arg, self.scope)
+                    # raise cgenException('Feature not implemented: type check on arg expression.', node.lineno)
 
                 if arg_type not in arg_types[i]:
                     raise cgenException('Argument {} has wrong type: expected {} instead of {}.'.format(i, \
