@@ -15,7 +15,7 @@ def main() -> int:
     print('float variable declaration:\n%f\n' %float_var)
 
     # pvec declaration
-    pvec_var : pvec = pvec(3)
+    pvec_var : pvec = pvec(n)
     print('pvec variable declaration:')
     pvec_print(pvec_var)
 

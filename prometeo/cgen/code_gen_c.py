@@ -484,6 +484,54 @@ class SourceGenerator(ExplicitNodeVisitor):
                 'pmt_gemm' : { 
                     'arg_types' : ["pmat", "pmat", "pmat"],
                     'ret_type': "None"
+                },
+                'pmt_gemm_nn' : { 
+                    'arg_types' : ["pmat", "pmat", "pmat"],
+                    'ret_type': "None"
+                },
+                'pmt_gemm_nt' : { 
+                    'arg_types' : ["pmat", "pmat", "pmat"],
+                    'ret_type': "None"
+                },
+                'pmt_gemm_tn' : { 
+                    'arg_types' : ["pmat", "pmat", "pmat"],
+                    'ret_type': "None"
+                },
+                'pmt_gemm_tt' : { 
+                    'arg_types' : ["pmat", "pmat", "pmat"],
+                    'ret_type': "None"
+                },
+                'pmt_gead' : { 
+                    'arg_types' : ["float", "pmat", "pmat"],
+                    'ret_type': "None"
+                },
+                'pmt_potrf' : { 
+                    'arg_types' : ["pmat", "pmat"],
+                    'ret_type': "None"
+                },
+                'pmat_copy' : { 
+                    'arg_types' : ["pmat", "pmat"],
+                    'ret_type': "None"
+                },
+                'pmat_fill' : { 
+                    'arg_types' : ["pmat", "float"],
+                    'ret_type': "None"
+                },
+                'pmat_hcat' : { 
+                    'arg_types' : ["pmat", "pmat"],
+                    'ret_type': "None"
+                },
+                'pmat_vcat' : { 
+                    'arg_types' : ["pmat", "pmat"],
+                    'ret_type': "None"
+                },
+                'pvec_print' : { 
+                    'arg_types' : ["pvec"],
+                    'ret_type': "None"
+                },
+                'pvec_copy' : { 
+                    'arg_types' : ["pvec", "pvec"],
+                    'ret_type': "None"
                 }
             }
         }
@@ -2482,11 +2530,13 @@ class SourceGenerator(ExplicitNodeVisitor):
                         arg_type = self.dim_record[arg_name]
                     else:
                         raise cgenException('Could not resolve argument "{}"'.format(arg_name), node.lineno)
+                elif isinstance(arg, ast.Num):
+                    arg_type = type(arg.n).__name__
                 else:
                     raise cgenException('Feature not implemented: type check on arg expression.', node.lineno)
 
                 if arg_type not in arg_types[i]:
-                    raise cgenException('Argument {} has wrong type: expected {} instead of {}.'.format(arg_name, \
+                    raise cgenException('Argument {} has wrong type: expected {} instead of {}.'.format(i, \
                         arg_types[i], arg_type), node.lineno)
 
                 write(write_comma, arg, dest = 'src')
