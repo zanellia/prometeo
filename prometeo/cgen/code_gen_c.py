@@ -591,6 +591,21 @@ class SourceGenerator(ExplicitNodeVisitor):
 
             return type_val,  None
 
+        elif isinstance(node, ast.BinOp):
+            type_l, s  = self.get_type_of_node(node.left, scope)
+            type_r, s = self.get_type_of_node(node.right, scope)
+            if type_l != type_r:
+                raise cgenException("Type mismatch in BinOp: left = {}, right = {}".format(type_l,type_r), node.lineno)
+            return type_l, None
+
+        elif isinstance(node, ast.Subscript):
+            if node.value.id not in self.typed_record[scope]:
+                raise cgenException('Undefined variable {}'.format(node.id), node.lineno)
+            elif self.typed_record[scope][node.value.id] == 'pmat' or \
+                    self.typed_record[scope][node.value.id] == 'pvec':
+                return 'int', None
+            elif 'List' in self.typed_record[scope][node.value.id]:
+                raise Exception("Not implemented")
 
         elif isinstance(node, ast.Attribute):
             type_val = self.get_type_of_node_rec(node.value, scope)
@@ -1280,7 +1295,6 @@ class SourceGenerator(ExplicitNodeVisitor):
                 raise cgenException('Cannot have assignments with a number of \
                     targets other than 1.\n', node.lineno)
             # TODO(andrea)" get type of value here
-            import pdb; pdb.set_trace()
             type_val, arg_types = self.get_type_of_node(node.value, self.scope)
             # check for attributes
             if hasattr(node.targets[0], 'value'):

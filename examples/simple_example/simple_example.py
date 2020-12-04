@@ -11,6 +11,7 @@ def main() -> int:
     for i in range(nv):
         for j in range(nv):
             A[i, j] = 1.0
+            # A[i, j] = A[i,j]
 
     B: pmat = pmat(nv, nv)
     for i in range(nv):
@@ -20,8 +21,8 @@ def main() -> int:
 
     a : int = 1
     b : int = 1
-    # c : int = 0
-    # c = a + b + b
+    c : int = 1
+    a = (a + b)*c
     # b : float = 1
     b = foo(b)
     
