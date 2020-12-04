@@ -62,30 +62,30 @@ pmt_temp_types = {\
         'dimv': 'dimv', \
         'dims': 'dims'}
 
-arg_types = {\
-        'pmat': ['int', 'int'], \
-        'pvec': ['int'], \
-        'pmt_gemm_nn': ['pmat', 'pmat', 'pmat', 'pmat'], \
-        'pmt_gemm_tn': ['pmat', 'pmat', 'pmat', 'pmat'], \
-        'pmt_trmm_rlnn': ['pmat', 'pmat', 'pmat'], \
-        'pmt_syrk_ln': ['pmat', 'pmat', 'pmat', 'pmat'], \
-        'pmt_gead':    ['float', 'pmat', 'pmat'], \
-        'pmt_getrf':   ['pmat', 'pmat', 'List'], \
-        'pmt_getrsm':  ['pmat', 'List', 'pmat'], \
-        'pmt_getrsv':  ['pmat', 'List', 'pvec'], \
-        'pmt_potrf':   ['pmat', 'pmat'], \
-        'pmt_potrsm':  ['pmat', 'pmat'], \
-        'pmt_potrsv':  ['pmat', 'pvec'], \
-        'pmat_fill':   ['pmat', 'float'], \
-        'pmat_copy':   ['pmat', 'pmat'], \
-        'pmat_tran':   ['pmat', 'pmat'], \
-        'pmat_vcat':   ['pmat', 'pmat', 'pmat'], \
-        'pmat_hcat':   ['pmat', 'pmat', 'pmat'], \
-        'pmat_print':  ['pmat'], \
-        'pvec_fill':   ['pvec', 'float'], \
-        'pvec_copy':   ['pvec', 'pvec', 'pmat', 'pmat'], \
-        'pvec_print':  ['pmat', 'pmat', 'pmat', 'pmat'], \
-}
+# arg_types = {\
+#         'pmat': ['int', 'int'], \
+#         'pvec': ['int'], \
+#         'pmt_gemm_nn': ['pmat', 'pmat', 'pmat', 'pmat'], \
+#         'pmt_gemm_tn': ['pmat', 'pmat', 'pmat', 'pmat'], \
+#         'pmt_trmm_rlnn': ['pmat', 'pmat', 'pmat'], \
+#         'pmt_syrk_ln': ['pmat', 'pmat', 'pmat', 'pmat'], \
+#         'pmt_gead':    ['float', 'pmat', 'pmat'], \
+#         'pmt_getrf':   ['pmat', 'pmat', 'List'], \
+#         'pmt_getrsm':  ['pmat', 'List', 'pmat'], \
+#         'pmt_getrsv':  ['pmat', 'List', 'pvec'], \
+#         'pmt_potrf':   ['pmat', 'pmat'], \
+#         'pmt_potrsm':  ['pmat', 'pmat'], \
+#         'pmt_potrsv':  ['pmat', 'pvec'], \
+#         'pmat_fill':   ['pmat', 'float'], \
+#         'pmat_copy':   ['pmat', 'pmat'], \
+#         'pmat_tran':   ['pmat', 'pmat'], \
+#         'pmat_vcat':   ['pmat', 'pmat', 'pmat'], \
+#         'pmat_hcat':   ['pmat', 'pmat', 'pmat'], \
+#         'pmat_print':  ['pmat'], \
+#         'pvec_fill':   ['pvec', 'float'], \
+#         'pvec_copy':   ['pvec', 'pvec', 'pmat', 'pmat'], \
+#         'pvec_print':  ['pmat', 'pmat', 'pmat', 'pmat'], \
+# }
 
 native_types = ['int', 'float']
 
@@ -502,10 +502,18 @@ class SourceGenerator(ExplicitNodeVisitor):
                     'ret_type': "None"
                 },
                 'pmt_gead' : { 
-                    'arg_types' : ["float", "pmat", "pmat", "pmat"],
+                    'arg_types' : ["float", "pmat", "pmat"],
                     'ret_type': "None"
                 },
                 'pmt_potrf' : { 
+                    'arg_types' : ["pmat", "pmat"],
+                    'ret_type': "None"
+                },
+                'pmt_potrsm' : { 
+                    'arg_types' : ["pmat", "pmat"],
+                    'ret_type': "None"
+                },
+                'pmat_tran' : { 
                     'arg_types' : ["pmat", "pmat"],
                     'ret_type': "None"
                 },

@@ -78,7 +78,7 @@ def main() -> int:
     # test assignments
     M: pmat = pmat(n, n)
 
-    a : pvec = pvec(10)
+    a : pvec = pvec(n)
     a[1] = 3.0
 
     d : float = 10.0
