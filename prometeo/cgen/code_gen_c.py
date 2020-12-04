@@ -664,7 +664,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                     raise cgenException('Undefined variable {}'.format(node.id), node.lineno)
                 elif self.typed_record[scope][node.value.id] == 'pmat' or \
                         self.typed_record[scope][node.value.id] == 'pvec':
-                    return 'int', None
+                    return 'float', None
                 elif 'List' in self.typed_record[scope][node.value.id]:
                     raise Exception("Not implemented")
             elif isinstance(node.value, ast.Attribute):
@@ -1392,6 +1392,9 @@ class SourceGenerator(ExplicitNodeVisitor):
                     targets other than 1.\n', node.lineno)
             # TODO(andrea)" get type of value here
             type_val, arg_types = self.get_type_of_node(node.value, self.scope)
+            type_val_t, arg_types = self.get_type_of_node(node.targets[0], self.scope)
+            if type_val != type_val_t:
+                raise cgenException('Mismatching types in assignment {} = {}'.format(type_val_t, type_val), node.lineno)
             # check for attributes
             if hasattr(node.targets[0], 'value'):
                 if hasattr(node.targets[0].value, 'attr'):
