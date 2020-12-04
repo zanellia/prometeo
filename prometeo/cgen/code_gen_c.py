@@ -480,6 +480,10 @@ class SourceGenerator(ExplicitNodeVisitor):
                 'pmat_print' : { 
                     'arg_types' : ["pmat"],
                     'ret_type': "None"
+                },
+                'pmt_gemm' : { 
+                    'arg_types' : ["pmat", "pmat", "pmat"],
+                    'ret_type': "None"
                 }
             }
         }
@@ -573,7 +577,22 @@ class SourceGenerator(ExplicitNodeVisitor):
                 type of arguments (if a Call node is being analyzed, None otherwise)
 
         """
-        if isinstance(node, ast.Attribute):
+        if isinstance(node, ast.Name):
+            if node.id not in self.typed_record[scope]:
+                raise cgenException('Undefined variable {}'.format(node.id), node.lineno)
+
+            type_val = self.typed_record[scope][node.id]
+
+            return type_val,  None
+
+        elif isinstance(node, ast.Num):
+
+            type_val = type(node.n).__name__
+
+            return type_val,  None
+
+
+        elif isinstance(node, ast.Attribute):
             type_val = self.get_type_of_node_rec(node.value, scope)
             if node.attr not in self.meta_info[type_val]['attr']:
                 cgenException('Undefined variable or attribute {}'.format(node.attr), node.lineno)
@@ -582,13 +601,16 @@ class SourceGenerator(ExplicitNodeVisitor):
             else:
                 type_val = 'global@' + self.meta_info[type_val]['attr'][node.attr]
             return type_val, None
+
         elif isinstance(node, ast.Call):
             if isinstance(node.func, ast.Name):
                 if node.func.id not in self.function_record['global']:
                     raise cgenException('Undefined method {}'.format(node.func.id), node.lineno)
                 type_val = self.function_record['global'][node.func.id]['ret_type']
                 return type_val,  self.function_record['global'][node.func.id]['arg_types']
+
             type_val = self.get_type_of_node_rec(node.func.value, scope)
+
             if node.func.attr not in self.meta_info[type_val]['methods']:
                 raise cgenException('Undefined method {}'.format(node.func.attr), node.lineno)
             arg_types = self.meta_info[type_val]['methods'][node.func.attr]['args']
@@ -943,6 +965,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                                 dim1 = astu.unparse(item.value.args[0]).replace('\n','')
                                 dim2 = astu.unparse(item.value.args[1]).replace('\n','')
 
+                                #TODO(andrea): need to wrap dim names into tokens to avoid name clashes!!!
                                 self.var_dim_record[self.scope][item.target.attr] = [dim1, dim2]
 
                                 # increment scoped heap usage (3 pointers and 6 ints for pmats)
@@ -1256,7 +1279,8 @@ class SourceGenerator(ExplicitNodeVisitor):
             if len(node.targets) != 1:
                 raise cgenException('Cannot have assignments with a number of \
                     targets other than 1.\n', node.lineno)
-            # TODO(andrea)" get type of target here
+            # TODO(andrea)" get type of value here
+            import pdb; pdb.set_trace()
             type_val, arg_types = self.get_type_of_node(node.value, self.scope)
             # check for attributes
             if hasattr(node.targets[0], 'value'):
@@ -2464,7 +2488,7 @@ class SourceGenerator(ExplicitNodeVisitor):
             self.conditional_write(write_comma, '*', starargs, dest = 'src')
             self.conditional_write(write_comma, '**', kwargs, dest = 'src')
             # write(');\n', dest = 'src')
-            write(')', dest = 'src')
+            write(');', dest = 'src')
 
     def visit_Name(self, node):
         self.current_line = node.lineno
