@@ -11,24 +11,22 @@ def main() -> int:
     for i in range(nv):
         for j in range(nv):
             A[i, j] = 1.0
-            # A[i, j] = A[i,j]
 
     B: pmat = pmat(nv, nv)
     for i in range(nv):
         B[0, i] = 2.0
 
-    C: pmat = pmat(nv, nv)
+    D: pmat = pmat(nv, nv)
 
     a : int = 1
     b : int = 1
     c : int = 1
     a = (a + b)*c
-    # b : float = 1
     b = foo(b)
     
     pmat_print(A)
     pmat_print(B)
-    pmt_gemm(A,B,C)
-    pmat_print(C)
+    pmt_gemm(A,B,D)
+    pmat_print(D)
     return 0
 
