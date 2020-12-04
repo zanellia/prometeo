@@ -105,7 +105,7 @@ class PmtCall:
 
 def recurse_attributes(node):
     if isinstance(node, ast.Name):
-        return [node.id]
+        return node.id
     elif isinstance(node, ast.Attribute):
         return recurse_attributes(node.value) + '->' + node.attr 
     else:
@@ -482,27 +482,27 @@ class SourceGenerator(ExplicitNodeVisitor):
                     'ret_type': "None"
                 },
                 'pmt_gemm' : { 
-                    'arg_types' : ["pmat", "pmat", "pmat"],
+                    'arg_types' : ["pmat", "pmat", "pmat", "pmat"],
                     'ret_type': "None"
                 },
                 'pmt_gemm_nn' : { 
-                    'arg_types' : ["pmat", "pmat", "pmat"],
+                    'arg_types' : ["pmat", "pmat", "pmat", "pmat"],
                     'ret_type': "None"
                 },
                 'pmt_gemm_nt' : { 
-                    'arg_types' : ["pmat", "pmat", "pmat"],
+                    'arg_types' : ["pmat", "pmat", "pmat", "pmat"],
                     'ret_type': "None"
                 },
                 'pmt_gemm_tn' : { 
-                    'arg_types' : ["pmat", "pmat", "pmat"],
+                    'arg_types' : ["pmat", "pmat", "pmat", "pmat"],
                     'ret_type': "None"
                 },
                 'pmt_gemm_tt' : { 
-                    'arg_types' : ["pmat", "pmat", "pmat"],
+                    'arg_types' : ["pmat", "pmat", "pmat", "pmat"],
                     'ret_type': "None"
                 },
                 'pmt_gead' : { 
-                    'arg_types' : ["float", "pmat", "pmat"],
+                    'arg_types' : ["float", "pmat", "pmat", "pmat"],
                     'ret_type': "None"
                 },
                 'pmt_potrf' : { 
@@ -518,11 +518,11 @@ class SourceGenerator(ExplicitNodeVisitor):
                     'ret_type': "None"
                 },
                 'pmat_hcat' : { 
-                    'arg_types' : ["pmat", "pmat"],
+                    'arg_types' : ["pmat", "pmat", "pmat"],
                     'ret_type': "None"
                 },
                 'pmat_vcat' : { 
-                    'arg_types' : ["pmat", "pmat"],
+                    'arg_types' : ["pmat", "pmat", "pmat"],
                     'ret_type': "None"
                 },
                 'pvec_print' : { 
@@ -646,6 +646,10 @@ class SourceGenerator(ExplicitNodeVisitor):
                 raise cgenException("Type mismatch in BinOp: left = {}, right = {}".format(type_l,type_r), node.lineno)
             return type_l, None
 
+        elif isinstance(node, ast.UnaryOp):
+            type_val, s  = self.get_type_of_node(node.operand, scope)
+            return type_val, None
+
         elif isinstance(node, ast.Subscript):
             if isinstance(node.value, ast.Name):
                 if node.value.id not in self.typed_record[scope]:
@@ -656,19 +660,22 @@ class SourceGenerator(ExplicitNodeVisitor):
                 elif 'List' in self.typed_record[scope][node.value.id]:
                     raise Exception("Not implemented")
             elif isinstance(node.value, ast.Attribute):
-                type_val = self.get_type_of_node(node.value, scope)
-                return type_val
+                type_val, s = self.get_type_of_node(node.value, scope)
+                # the type of a subscripted List is given by the type of 
+                # its elements
+                return type_val.split('[')[1].split(',')[0], None
             else:
                 raise cgenException("Invalid node type {}".format(node.value), node.lineno)
 
         elif isinstance(node, ast.Attribute):
             # check if first attr is 'self'
-            attr_list = recurse_attributes(node.value)
+            attr_chain = recurse_attributes(node.value)
+            attr_list = attr_chain.split('->')
+
             if attr_list[0] == 'self':
 
                 class_scope = '@'.join(scope.split('@')[:-1])
                 type_val = self.get_type_of_node_rec(node.value, class_scope)
-                import pdb; pdb.set_trace()
             else:
                 type_val = self.get_type_of_node_rec(node.value, scope)
 
@@ -806,13 +813,14 @@ class SourceGenerator(ExplicitNodeVisitor):
                 else:
                     self.meta_info[self.scope]['attr'][item.target.attr] = type_py
 
-
                 if type_py is 'List':
                     list_type = self.process_list_type(item)
                     self.typed_record[self.scope][item.target.attr] = list_type
                     # check if dims is not a numerical value
                     # TODO(andrea): fix this for numeric values!
                     ann = item.value.args[0].id
+                    if ann in pmt_temp_types:
+                        ann = pmt_temp_types[ann]
                     dims = Num_or_Name(item.value.args[1])
                     if isinstance(dims, str):
                         dim_list = self.dim_record[dims]
@@ -2343,7 +2351,7 @@ class SourceGenerator(ExplicitNodeVisitor):
 
     # Expressions
     def visit_Attribute(self, node):
-        ap.pprint(node)
+        # ap.pprint(node)
         self.current_line = node.lineno
         self.current_col = node.col_offset
 
@@ -2501,7 +2509,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 call.keywords = keywords
             blas_api_funs[call.name](self, call, node)
         else:
-            print(call_code)
+            # print(call_code)
             write(call_code, dest = 'src')
             if attr:
                 write(write_comma, attr_chain, dest = 'src')

@@ -155,7 +155,7 @@ class ast_visitor(ExplicitNodeVisitor):
             return callee + '@' + node.attr
 
     def visit_Call(self, node, len=len):
-        ap.pprint(node)
+        # ap.pprint(node)
         if isinstance(node.func, ast.Name):
             self.callees[self.caller_scope].add(self.callee_scope + '@' + node.func.id)
         elif isinstance(node.func, ast.Attribute):

@@ -37,7 +37,7 @@ def split_lines(source, maxline=79):
     count = 0
     find = str.find
     for item in source:
-        print(item)
+        # print(item)
         index = find(item, '\n')
         if index:
             line.append(item)
