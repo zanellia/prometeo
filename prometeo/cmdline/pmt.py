@@ -40,8 +40,13 @@ CFLAGS+=-DHEAP64_SIZE=$(HEAP64_SIZE)
 CFLAGS+=-DHEAP8_SIZE=$(HEAP8_SIZE)
 LIBPATH+=-L$(INSTALL_DIR)/lib/blasfeo -L$(INSTALL_DIR)/lib/prometeo
 
-all: $(SRCS)
-	$(CC) $(LIBPATH) -o {{ filename }} $(CFLAGS)  $(SRCS)  -lcpmt -lblasfeo -lm
+{{ CASADI_TARGET }}
+
+sources: $(SRCS)
+\t$(CC) $(LIBPATH) -o {{ filename }} $(CFLAGS)  $(SRCS) $(OBJS) -lcpmt -lblasfeo -lm
+
+all: casadi sources
+
 
 clean:
 	rm -f *.o {{ filename }}
@@ -231,13 +236,13 @@ def pmt_main():
             if debug:
                 raise
             else:
-                exit()
+                return 1
 
-        dest_file = open(filename_ + '.c', 'w')
+        dest_file = open('__pmt_cache__/' + filename_ + '.c', 'w')
         dest_file.write(prometeo.cgen.source_repr.pretty_source(result.source))
         dest_file.close()
 
-        dest_file = open(filename_ + '.h', 'w')
+        dest_file = open('__pmt_cache__/' + filename_ + '.h', 'w')
         dest_file.write(prometeo.cgen.source_repr.pretty_source(result.header))
         dest_file.close()
 
@@ -297,10 +302,11 @@ def pmt_main():
         visitor.visit(tree_copy)
         call_graph = visitor.callees
         typed_record = visitor.typed_record
+        meta_info = visitor.meta_info
         # print('\ncall graph:\n\n', call_graph, '\n\n')
 
         reach_map, call_graph = compute_reach_graph(\
-            call_graph, typed_record)
+            call_graph, typed_record, meta_info)
 
         # check that there are no cycles containing memory allocations
         for method in reach_map:
@@ -408,11 +414,35 @@ def pmt_main():
 
         makefile_code = makefile_code.replace('\n','', 1)
         makefile_code = makefile_code.replace('{{ INSTALL_DIR }}', os.path.dirname(__file__) + '/..')
-        dest_file = open('Makefile', 'w+')
+
+        with open('__pmt_cache__/casadi_funs.json') as f:
+            casadi_funs = json.load(f, object_pairs_hook=OrderedDict)
+
+        casadi_target_code = '\nOBJS = '
+        for item in casadi_funs:
+            fun_name = item.replace('@', '_')
+            casadi_target_code = casadi_target_code + ' ' + 'casadi_wrapper_' + fun_name + '.o ' + fun_name + '.o'
+
+        casadi_target_code = casadi_target_code + '\n\ncasadi: ' 
+
+        for item in casadi_funs:
+            fun_name = item.replace('@', '_')
+            casadi_target_code = casadi_target_code + ' ' + fun_name
+
+        for item in casadi_funs:
+            fun_name = item.replace('@', '_')
+            casadi_target_code = casadi_target_code + '\n\n'
+            casadi_target_code = casadi_target_code + fun_name + ':\n' 
+            casadi_target_code = casadi_target_code + "\t$(CC) -c " + fun_name + '.c ' + 'casadi_wrapper_' + fun_name + '.c\n'
+
+        makefile_code = makefile_code.replace('{{ CASADI_TARGET }}', casadi_target_code)
+        dest_file = open('__pmt_cache__/Makefile', 'w+')
         dest_file.write(makefile_code)
         dest_file.close()
 
         print('\033[;1m > prometeo:\033[0;0m building C code')
+
+        os.chdir('__pmt_cache__')
         proc = subprocess.Popen(["make", "clean"], stdout=subprocess.PIPE)
 
         try:
@@ -425,14 +455,14 @@ def pmt_main():
             raise Exception('Command \'make\' failed with the above error.'
              ' Full command is:\n\n {}'.format(outs.decode()))
 
-        proc = subprocess.Popen(["make"], stdout=subprocess.PIPE)
+        proc = subprocess.Popen(["make", "all"], stdout=subprocess.PIPE)
 
         try:
             outs, errs = proc.communicate(timeout=20)
         except TimeOutExpired:
             proc.kill()
             outs, errs = proc.communicate()
-            print('Command \'make\' timed out.')
+            print('Command \'make \' timed out.')
         if proc.returncode:
             raise Exception('Command \'make\' failed with the above error.'
              ' Full command is:\n\n {}'.format(outs.decode()))
@@ -477,3 +507,5 @@ def pmt_main():
             raise Exception('Command {} failed with the above error.'
              ' Full command is:\n\n {}'.format(cmd, outs.decode()))
         print('\n\033[;1m > prometeo:\033[0;0m exiting\n')
+
+        os.chdir('..')

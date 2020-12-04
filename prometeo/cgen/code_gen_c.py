@@ -62,30 +62,32 @@ pmt_temp_types = {\
         'dimv': 'dimv', \
         'dims': 'dims'}
 
-arg_types = {\
-        'pmat': ['int', 'int'], \
-        'pvec': ['int'], \
-        'pmt_gemm_nn': ['pmat', 'pmat', 'pmat', 'pmat'], \
-        'pmt_gemm_tn': ['pmat', 'pmat', 'pmat', 'pmat'], \
-        'pmt_trmm_rlnn': ['pmat', 'pmat', 'pmat'], \
-        'pmt_syrk_ln': ['pmat', 'pmat', 'pmat', 'pmat'], \
-        'pmt_gead':    ['float', 'pmat', 'pmat'], \
-        'pmt_getrf':   ['pmat', 'pmat', 'List'], \
-        'pmt_getrsm':  ['pmat', 'List', 'pmat'], \
-        'pmt_getrsv':  ['pmat', 'List', 'pvec'], \
-        'pmt_potrf':   ['pmat', 'pmat'], \
-        'pmt_potrsm':  ['pmat', 'pmat'], \
-        'pmt_potrsv':  ['pmat', 'pvec'], \
-        'pmat_fill':   ['pmat', 'float'], \
-        'pmat_copy':   ['pmat', 'pmat'], \
-        'pmat_tran':   ['pmat', 'pmat'], \
-        'pmat_vcat':   ['pmat', 'pmat', 'pmat'], \
-        'pmat_hcat':   ['pmat', 'pmat', 'pmat'], \
-        'pmat_print':  ['pmat'], \
-        'pvec_fill':   ['pvec', 'float'], \
-        'pvec_copy':   ['pvec', 'pvec', 'pmat', 'pmat'], \
-        'pvec_print':  ['pmat', 'pmat', 'pmat', 'pmat'], \
-}
+# arg_types = {\
+#         'pmat': ['int', 'int'], \
+#         'pvec': ['int'], \
+#         'pmt_gemm_nn': ['pmat', 'pmat', 'pmat', 'pmat'], \
+#         'pmt_gemm_tn': ['pmat', 'pmat', 'pmat', 'pmat'], \
+#         'pmt_trmm_rlnn': ['pmat', 'pmat', 'pmat'], \
+#         'pmt_syrk_ln': ['pmat', 'pmat', 'pmat', 'pmat'], \
+#         'pmt_gead':    ['float', 'pmat', 'pmat'], \
+#         'pmt_getrf':   ['pmat', 'pmat', 'List'], \
+#         'pmt_getrsm':  ['pmat', 'List', 'pmat'], \
+#         'pmt_getrsv':  ['pmat', 'List', 'pvec'], \
+#         'pmt_potrf':   ['pmat', 'pmat'], \
+#         'pmt_potrsm':  ['pmat', 'pmat'], \
+#         'pmt_potrsv':  ['pmat', 'pvec'], \
+#         'pmat_fill':   ['pmat', 'float'], \
+#         'pmat_copy':   ['pmat', 'pmat'], \
+#         'pmat_tran':   ['pmat', 'pmat'], \
+#         'pmat_vcat':   ['pmat', 'pmat', 'pmat'], \
+#         'pmat_hcat':   ['pmat', 'pmat', 'pmat'], \
+#         'pmat_print':  ['pmat'], \
+#         'pvec_fill':   ['pvec', 'float'], \
+#         'pvec_copy':   ['pvec', 'pvec', 'pmat', 'pmat'], \
+#         'pvec_print':  ['pmat', 'pmat', 'pmat', 'pmat'], \
+# }
+
+native_types = ['int', 'float']
 
 class PmtArg:
     def __init__(self, name):
@@ -100,6 +102,14 @@ class PmtCall:
         self.arg_num = 0
         self.args = []
         self.keywords = None
+
+def recurse_attributes(node):
+    if isinstance(node, ast.Name):
+        return node.id
+    elif isinstance(node, ast.Attribute):
+        return recurse_attributes(node.value) + '->' + node.attr 
+    else:
+        raise cgenException('Invalid attribute or method {}'.format(node))
 
 def parse_pmt_gemm_args(generator, call, node):
 
@@ -143,7 +153,6 @@ def parse_pmt_gemm_args(generator, call, node):
     blasfeo_call = \
         "blasfeo_dgemm_{4}{5}({0}->bmat->m, {1}->bmat->n, {0}->bmat->n, {6}, {0}->bmat, 0, 0, {1}->bmat, 0, 0, {7}, {2}->bmat, 0, 0, {3}->bmat, 0, 0);\n".format(arg0, arg1, arg2, arg3, tranA, tranB, alpha, beta)
 
-    # import pdb; pdb.set_trace()
     generator.write(blasfeo_call, dest = 'src')
     return
 
@@ -243,7 +252,13 @@ def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False
         json.dump(OrderedDict(generator.heap64_record), f, indent=4)
     json_file = 'constructor_record.json'
     with open(json_file, 'w') as f:
-        json.dump(generator.constructor_record, f, indent=4)
+        json.dump(OrderedDict(generator.heap64_record), f, indent=4)
+    json_file = 'function_record.json'
+    with open(json_file, 'w') as f:
+        json.dump(generator.function_record, f, indent=4)
+    json_file = 'casadi_funs.json'
+    with open(json_file, 'w') as f:
+        json.dump(generator.casadi_funs, f, indent=4)
     os.chdir('..')
 
 
@@ -316,7 +331,7 @@ def check_expression(node, binops, unops, usr_types, ast_types, record):
                 raise cgenException('unsopported BinOp {}\n'.format(astu.unparse(node)), node.lineno)
         elif isinstance(node, ast.UnaryOp):
             if isinstance(node.op, unops):
-                return check_expression(node.operand, binops, unops, usr_types, ast_types)
+                return check_expression(node.operand, binops, unops, usr_types, ast_types, record)
             else:
                 raise cgenException('unsopported UnaryOp {}\n'.format(astu.unparse(node)), node.lineno)
         else:
@@ -446,9 +461,89 @@ class SourceGenerator(ExplicitNodeVisitor):
         # self.heap64_record = {'global': dict()}
         self.heap64_record = {'global': "0"}
         self.scope = 'global'
+        self.call_scope = 'global'
+        self.casadi_funs = []
         self.var_dim_record = {'global': dict()}
         self.dim_record = dict()
         self.constructor_record = []
+
+        self.function_record = {
+            'global': {
+                'pmat' : { 
+                    'arg_types' : ["dims", "dims"],
+                    'ret_type': "pmat"
+                },
+                'pvec' : { 
+                    'arg_types' : ["dims"],
+                    'ret_type': "pvec"
+                },
+                'pmat_print' : { 
+                    'arg_types' : ["pmat"],
+                    'ret_type': "None"
+                },
+                'pmt_gemm' : { 
+                    'arg_types' : ["pmat", "pmat", "pmat", "pmat"],
+                    'ret_type': "None"
+                },
+                'pmt_gemm_nn' : { 
+                    'arg_types' : ["pmat", "pmat", "pmat", "pmat"],
+                    'ret_type': "None"
+                },
+                'pmt_gemm_nt' : { 
+                    'arg_types' : ["pmat", "pmat", "pmat", "pmat"],
+                    'ret_type': "None"
+                },
+                'pmt_gemm_tn' : { 
+                    'arg_types' : ["pmat", "pmat", "pmat", "pmat"],
+                    'ret_type': "None"
+                },
+                'pmt_gemm_tt' : { 
+                    'arg_types' : ["pmat", "pmat", "pmat", "pmat"],
+                    'ret_type': "None"
+                },
+                'pmt_gead' : { 
+                    'arg_types' : ["float", "pmat", "pmat"],
+                    'ret_type': "None"
+                },
+                'pmt_potrf' : { 
+                    'arg_types' : ["pmat", "pmat"],
+                    'ret_type': "None"
+                },
+                'pmt_potrsm' : { 
+                    'arg_types' : ["pmat", "pmat"],
+                    'ret_type': "None"
+                },
+                'pmat_tran' : { 
+                    'arg_types' : ["pmat", "pmat"],
+                    'ret_type': "None"
+                },
+                'pmat_copy' : { 
+                    'arg_types' : ["pmat", "pmat"],
+                    'ret_type': "None"
+                },
+                'pmat_fill' : { 
+                    'arg_types' : ["pmat", "float"],
+                    'ret_type': "None"
+                },
+                'pmat_hcat' : { 
+                    'arg_types' : ["pmat", "pmat", "pmat"],
+                    'ret_type': "None"
+                },
+                'pmat_vcat' : { 
+                    'arg_types' : ["pmat", "pmat", "pmat"],
+                    'ret_type': "None"
+                },
+                'pvec_print' : { 
+                    'arg_types' : ["pvec"],
+                    'ret_type': "None"
+                },
+                'pvec_copy' : { 
+                    'arg_types' : ["pvec", "pvec"],
+                    'ret_type': "None"
+                }
+            }
+        }
+
         self.in_main = False
 
         self.current_line = 1
@@ -518,6 +613,127 @@ class SourceGenerator(ExplicitNodeVisitor):
             self.write('# line: %s' % node.lineno, dest = 'src')
             self.new_lines = 1
 
+    def get_type_of_node(self, node, scope):
+        """
+        Get type of AST node. 
+
+        Parameters
+        ----------
+        node 
+            node whose type we want to determine
+
+        scope
+            current scope
+
+        Returns
+        -------
+            type_val : str
+                type of expression
+            arg_types : dict
+                type of arguments (if a Call node is being analyzed, None otherwise)
+
+        """
+        if isinstance(node, ast.Name):
+            if node.id not in self.typed_record[scope]:
+                raise cgenException('Undefined variable {}'.format(node.id), node.lineno)
+
+            type_val = self.typed_record[scope][node.id]
+
+            return type_val,  None
+
+        elif isinstance(node, ast.Num):
+
+            type_val = type(node.n).__name__
+
+            return type_val,  None
+
+        elif isinstance(node, ast.BinOp):
+            type_l, s  = self.get_type_of_node(node.left, scope)
+            type_r, s = self.get_type_of_node(node.right, scope)
+            if type_l != type_r:
+                raise cgenException("Type mismatch in BinOp: left = {}, right = {}".format(type_l,type_r), node.lineno)
+            return type_l, None
+
+        elif isinstance(node, ast.UnaryOp):
+            type_val, s  = self.get_type_of_node(node.operand, scope)
+            return type_val, None
+
+        elif isinstance(node, ast.Subscript):
+            if isinstance(node.value, ast.Name):
+                if node.value.id not in self.typed_record[scope]:
+                    raise cgenException('Undefined variable {}'.format(node.id), node.lineno)
+                elif self.typed_record[scope][node.value.id] == 'pmat' or \
+                        self.typed_record[scope][node.value.id] == 'pvec':
+                    return 'float', None
+                elif 'List' in self.typed_record[scope][node.value.id]:
+                    raise Exception("Not implemented")
+            elif isinstance(node.value, ast.Attribute):
+                type_val, s = self.get_type_of_node(node.value, scope)
+                # the type of a subscripted List is given by the type of 
+                # its elements
+                return type_val.split('[')[1].split(',')[0], None
+            else:
+                raise cgenException("Invalid node type {}".format(node.value), node.lineno)
+
+        elif isinstance(node, ast.Attribute):
+            # check if first attr is 'self'
+            attr_chain = recurse_attributes(node.value)
+            attr_list = attr_chain.split('->')
+
+            if attr_list[0] == 'self':
+
+                class_scope = '@'.join(scope.split('@')[:-1])
+                type_val = self.get_type_of_node_rec(node.value, class_scope)
+            else:
+                type_val = self.get_type_of_node_rec(node.value, scope)
+
+            if node.attr not in self.meta_info[type_val]['attr']:
+                raise cgenException('Undefined variable or attribute {}'.format(node.attr), node.lineno)
+            if self.meta_info[type_val]['attr'][node.attr] in native_types:
+                type_val = self.meta_info[type_val]['attr'][node.attr]
+            else:
+                type_val = 'global@' + self.meta_info[type_val]['attr'][node.attr]
+            return type_val, None
+
+        elif isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Name):
+                if node.func.id not in self.function_record['global']:
+                    raise cgenException('Undefined method {}'.format(node.func.id), node.lineno)
+                type_val = self.function_record['global'][node.func.id]['ret_type']
+                return type_val,  self.function_record['global'][node.func.id]['arg_types']
+
+            type_val = self.get_type_of_node_rec(node.func.value, scope)
+
+            if node.func.attr not in self.meta_info[type_val]['methods']:
+                raise cgenException('Undefined method {}'.format(node.func.attr), node.lineno)
+            arg_types = self.meta_info[type_val]['methods'][node.func.attr]['args']
+            type_val = self.meta_info[type_val]['methods'][node.func.attr]['return_type']
+
+            return type_val, arg_types
+
+    def get_type_of_node_rec(self, node, scope):
+        if isinstance(node, ast.Name):
+            if node.id == 'self':
+                type_val = scope
+                return type_val
+            if node.id not in self.typed_record[scope]:
+                raise cgenException('Undefined variable or attribute {}'.format(node.id), node.lineno)
+            if self.typed_record[scope][node.id] in native_types:
+                type_val = self.typed_record[scope][node.id]
+            else:
+                type_val = 'global@' + self.typed_record[scope][node.id]
+            return type_val
+        else:
+            if isinstance(node, ast.Attribute):
+                type_val = self.get_type_of_node_rec(node.value, scope)
+                if node.attr not in self.meta_info[type_val]['attr']:
+                    raise cgenException('Undefined variable or attribute {}'.format(node.attr), node.lineno)
+                if self.meta_info[type_val]['attr'][node.attr] in native_types:
+                    type_val = self.meta_info[type_val]['attr'][node.attr]
+                else:
+                    type_val = 'global@' + self.meta_info[type_val]['attr'][node.attr]
+                return type_val
+
     def body(self, statements):
         self.indentation += 1
         self.write(*statements, dest = 'src')
@@ -543,6 +759,40 @@ class SourceGenerator(ExplicitNodeVisitor):
         # methods
         self.write_class_methods(*statements, name=name)
 
+    def process_list_type(self, node):
+
+        if node.value.func.id is not 'plist':
+            raise cgenException('Cannot create Lists without using'
+                ' plist constructor.', node.lineno)
+        else:
+            if len(node.value.args) != 2:
+                raise cgenException('Type annotations in List \
+                    declaration must have the format \
+                    List[<type>, <sizes>]', node.lineno)
+            # attribute is a List
+            ann = node.value.args[0].id
+            dims = Num_or_Name(node.value.args[1])
+            # ann = node.annotation.slice.value.elts[0].id
+            # dims = Num_or_Name(node.annotation.slice.value.elts[1])
+
+            if isinstance(dims, str):
+                list_type = 'List[' + ann + ', ' + dims + ']'
+            else:
+                list_type = 'List[' + ann + ', ' + str(dims) + ']'
+
+            return list_type
+
+
+            if isinstance(dims, str):
+                # dimension argument is a variable
+                self.typed_record[self.scope][node.target.attr] = \
+                    'List[' + ann + ', ' + dims + ']'
+                    # TODO(andrea): 
+                    # use instead 'dict({type: 'List', "attr": {"ann" : ann, "dims" : dims}})
+            else:
+                # dimension argument is an integer
+                self.typed_record[self.scope][node.target.attr] = \
+                    'List[' + ann + ', ' + str(dims) + ']'
 
     def write_instance_attributes(self, params, name):
         """
@@ -565,52 +815,33 @@ class SourceGenerator(ExplicitNodeVisitor):
                 # annotation = ast.parse(item.annotation.s).body[0]
                 # if 'value' in annotation.value.__dict__:
                 type_py = annotation.id
-                self.meta_info[self.scope]['attr'][item.target.attr] = type_py
+                if type_py is 'List':
+                    list_type = self.process_list_type(item)
+                    self.meta_info[self.scope]['attr'][item.target.attr] = list_type
+                else:
+                    self.meta_info[self.scope]['attr'][item.target.attr] = type_py
 
                 if type_py is 'List':
-                    if item.value.func.id is not 'plist':
-                        raise cgenException('Cannot create Lists without using'
-                            ' plist constructor.', item.lineno)
-                    else:
-                        if len(item.value.args) != 2:
-                            raise cgenException('Type annotations in List \
-                                declaration must have the format \
-                                List[<type>, <sizes>]', item.lineno)
-                        # attribute is a List
-                        ann = item.value.args[0].id
-                        dims = Num_or_Name(item.value.args[1])
-                        # ann = item.annotation.slice.value.elts[0].id
-                        # dims = Num_or_Name(item.annotation.slice.value.elts[1])
-
-
-                        if isinstance(dims, str):
-                            # dimension argument of a variable
-                            self.typed_record[self.scope][item.target.attr] = \
-                                'List[' + ann + ', ' + dims + ']'
+                    list_type = self.process_list_type(item)
+                    self.typed_record[self.scope][item.target.attr] = list_type
+                    # check if dims is not a numerical value
+                    # TODO(andrea): fix this for numeric values!
+                    ann = item.value.args[0].id
+                    if ann in pmt_temp_types:
+                        ann = pmt_temp_types[ann]
+                    dims = Num_or_Name(item.value.args[1])
+                    if isinstance(dims, str):
+                        dim_list = self.dim_record[dims]
+                    
+                        if isinstance(dim_list, list):
+                            array_size = len(dim_list)
                         else:
-                            # dimension argument is an integer
-                            self.typed_record[self.scope][item.target.attr] = \
-                                'List[' + ann + ', ' + str(dims) + ']'
+                            array_size = dim_list
 
-                        if  ann in pmt_temp_types:
-                            ann = pmt_temp_types[ann]
-                        else:
-                            raise cgenException ('Usage of non existing type \
-                                \033[91m{}\033[0m'.format(ann), item.lineno)
-                        # check if dims is not a numerical value
-                        # TODO(andrea): fix this for numeric values!
-                        if isinstance(dims, str):
-                            dim_list = self.dim_record[dims]
-                        
-                            if isinstance(dim_list, list):
-                                array_size = len(dim_list)
-                            else:
-                                array_size = dim_list
-
-                            # array_size = str(Num_or_Name(item.value.args[1]))
-                            # self.statement([], ann, ' ', item.target, '[', array_size, '];')
-                        self.write('%s' %ann, ' ', '%s' %item.target.attr, \
-                            '[%s' %array_size, '];\n', dest = 'hdr')
+                        # array_size = str(Num_or_Name(item.value.args[1]))
+                        # self.statement([], ann, ' ', item.target, '[', array_size, '];')
+                    self.write('%s' %ann, ' ', '%s' %item.target.attr, \
+                        '[%s' %array_size, '];\n', dest = 'hdr')
                 else:
                     # not a List
                     ann = type_py
@@ -651,6 +882,10 @@ class SourceGenerator(ExplicitNodeVisitor):
             # build argument mangling
             f_name_len = len(item.name)
             pre_mangl = '_Z%s' %f_name_len 
+            if len(item.args.args) < 1:
+                raise cgenException('First argument in method {} \
+                    must be \'self\'. You have \'{}\''.format(item.name, \
+                    item.args.args), item.lineno)
             if item.args.args[0].arg is not 'self':
                 raise cgenException('First argument in method {} \
                     must be \'self\'. You have \'{}\''.format(item.name, \
@@ -739,7 +974,11 @@ class SourceGenerator(ExplicitNodeVisitor):
                 else:
                     self.write('%s (%s%s%s%s' % (ret_type, pre_mangl, item.name, \
                         post_mangl, name) , '_impl)', '(%s *self' %name, dest = 'hdr')
-                self.visit_arguments(item.args, 'hdr')
+                arg_list = self.visit_arguments(item.args, 'hdr')
+
+                # update function record
+                self.function_record[self.scope] = dict()
+                self.function_record[self.scope][item.name] = {"arg_types": arg_list,  "ret_type": ret_type}
                 self.write(');\n', dest = 'hdr')
                 # insert back self argument
                 item.args.args.insert(0, self_arg)
@@ -748,35 +987,97 @@ class SourceGenerator(ExplicitNodeVisitor):
     def update_constructor_heap(self, params, name):
         for item in params:
             if isinstance(item, ast.AnnAssign):
-                # set_precedence(item, item.target, item.annotation)
-                set_precedence(Precedence.Comma, item.value)
-                need_parens = isinstance(item.target, ast.Name) and not item.simple
-                begin = '(' if need_parens else ''
-                end = ')' if need_parens else ''
-                # TODO(andrea): need to fix the code below!
-                ann = item.annotation.id
-                if ann == 'List':
+                if isinstance(item.target, ast.Attribute):
+                    if item.target.value.id == 'self':
+                        # set_precedence(item, item.target, item.annotation)
+                        set_precedence(Precedence.Comma, item.value)
+                        need_parens = isinstance(item.target, ast.Name) and not item.simple
+                        begin = '(' if need_parens else ''
+                        end = ')' if need_parens else ''
+                        # TODO(andrea): need to fix the code below!
+                        ann = item.annotation.id
+                        if ann == 'List':
 
-                    if item.value.func.id is not 'plist':
-                        raise cgenException('Invalid subscripted annotation.',
-                                ' Lists must be created using plist constructor and',
-                                ' the argument of List[] must be a valid type.\n', \
-                                item.lineno)
-                    else:
-                        # attribute is a List
-                        ann = Num_or_Name(item.value.args[0])
-                        dims = Num_or_Name(item.value.args[1])
-                        # ann = item.annotation.slice.value.elts[0].id
-                        # dims = Num_or_Name(item.annotation.slice.value.elts[1])
-                        if isinstance(dims, str):
-                            dim_list = self.dim_record[dims]
-                        else:
-                            dim_list = dims
-                        if ann == 'pmat':
-                            # build init for List of pmats
-                            for i in range(len(dim_list)):
-                                dim1 = dim_list[i][0] 
-                                dim2 = dim_list[i][1] 
+                            if item.value.func.id is not 'plist':
+                                raise cgenException('Invalid subscripted annotation.',
+                                        ' Lists must be created using plist constructor and',
+                                        ' the argument of List[] must be a valid type.\n', \
+                                        item.lineno)
+                            else:
+                                # attribute is a List
+                                ann = Num_or_Name(item.value.args[0])
+                                dims = Num_or_Name(item.value.args[1])
+                                # ann = item.annotation.slice.value.elts[0].id
+                                # dims = Num_or_Name(item.annotation.slice.value.elts[1])
+                                if isinstance(dims, str):
+                                    dim_list = self.dim_record[dims]
+                                else:
+                                    dim_list = dims
+                                if ann == 'pmat':
+                                    # build init for List of pmats
+                                    for i in range(len(dim_list)):
+                                        dim1 = dim_list[i][0] 
+                                        dim2 = dim_list[i][1] 
+
+                                        # increment scoped heap usage (3 pointers and 6 ints for pmats)
+                                        self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
+                                            '+' + '3*' + str(self.size_of_pointer).replace('\n','')
+                                        self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
+                                            '+' + '6*' + str(self.size_of_int).replace('\n','')
+
+                                        # upper bound of blasfeo_dmat memsize
+                                        # memsize \leq (ps + m -1)*(nc + n - 1) + (m + n + bs*nc -1)
+                                        mem_upper_bound = '(' + str(self.blasfeo_ps) + '+' + dim1 + ' - 1)*' \
+                                            '(' + str(self.blasfeo_nc) + '+' + dim2 + ' - 1)+(' + dim1 + '+' + dim2 + '+' + \
+                                            str(self.blasfeo_ps) + '*' + str(self.blasfeo_nc) + ' - 1)'
+
+                                        self.heap64_record[self.scope] = self.heap64_record[self.scope] + \
+                                            '+ (' + mem_upper_bound + ' + 64)*' + str(self.size_of_double).replace('\n','')
+
+                                elif ann == 'pvec':
+                                    # build init for List of pvecs
+                                    for i in range(len(dim_list)):
+                                        self.statement([], 'object->', \
+                                            item.target.attr, \
+                                            '[', str(i),'] = c_pmt_create_pvec(', \
+                                            str(dim_list[i][0]), ');')
+
+                                        # increment scoped heap usage (2 pointers and 3 ints for pvecs)
+                                        self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
+                                            '+' + '2*' + str(self.size_of_pointer).replace('\n','')
+                                        self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
+                                            '+' + '3*' + str(self.size_of_int).replace('\n','')
+
+                                        # upper bound of blasfeo_dvec memsize
+                                        # memsize \leq ps + m -1
+                                        mem_upper_bound = '(' + str(self.blasfeo_ps) + '+' + dim1 + ' - 1)'
+
+                                        self.heap64_record[self.scope] = self.heap64_record[self.scope] + \
+                                            '+ (' + mem_upper_bound + ' + 64)*' + str(self.size_of_double).replace('\n','')
+
+                                # else: do nothing (no init required for "memoryless" objects)
+                        # pmat[<n>,<m>] or pvec[<n>]
+                        elif ann in ['pmat', 'pvec']:
+                            if ann == 'pmat':
+                                if item.value.func.id != 'pmat':
+                                    raise cgenException('pmat objects need to be declared calling',
+                                        'the pmat(<n>, <m>) constructor\n.', item.lineno)
+
+                                if not check_expression(item.value.args[0], tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]),
+                                    tuple([ast.USub]),('dims'), tuple([ast.Num]), self.dim_record):
+                                    raise cgenException('Invalid dimension expression in \
+                                        pmat constructor ({})'.format(item.value.args[0]), self.lineno)
+
+                                if not check_expression(item.value.args[1], tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]),
+                                    tuple([ast.USub]),('dims'), tuple([ast.Num]), self.dim_record):
+                                    raise cgenException('Invalid dimension expression in \
+                                        pmat constructor ({})'.format(item.value.args[1]), self.lineno)
+
+                                dim1 = astu.unparse(item.value.args[0]).replace('\n','')
+                                dim2 = astu.unparse(item.value.args[1]).replace('\n','')
+
+                                #TODO(andrea): need to wrap dim names into tokens to avoid name clashes!!!
+                                self.var_dim_record[self.scope][item.target.attr] = [dim1, dim2]
 
                                 # increment scoped heap usage (3 pointers and 6 ints for pmats)
                                 self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
@@ -786,20 +1087,21 @@ class SourceGenerator(ExplicitNodeVisitor):
 
                                 # upper bound of blasfeo_dmat memsize
                                 # memsize \leq (ps + m -1)*(nc + n - 1) + (m + n + bs*nc -1)
-                                mem_upper_bound = '(' + str(self.blasfeo_ps) + '+' + dim1 + ' - 1)*' \
+                                mem_upper_bound = '(' + str(self.blasfeo_ps) + '+' + dim1 + ' - 1)* ' \
                                     '(' + str(self.blasfeo_nc) + '+' + dim2 + ' - 1)+(' + dim1 + '+' + dim2 + '+' + \
                                     str(self.blasfeo_ps) + '*' + str(self.blasfeo_nc) + ' - 1)'
 
                                 self.heap64_record[self.scope] = self.heap64_record[self.scope] + \
                                     '+ (' + mem_upper_bound + ' + 64)*' + str(self.size_of_double).replace('\n','')
 
-                        elif ann == 'pvec':
-                            # build init for List of pvecs
-                            for i in range(len(dim_list)):
-                                self.statement([], 'object->', \
-                                    item.target.attr, \
-                                    '[', str(i),'] = c_pmt_create_pvec(', \
-                                    str(dim_list[i][0]), ');')
+                            else:
+                                # pvec
+                                if item.value.func.id != 'pvec':
+                                    raise cgenException('pvec objects need to be declared calling',
+                                        'the pvec(<n>, <m>) constructor\n.', item.lineno)
+                                dim1 = Num_or_Name(item.value.args[0])
+                                ann = item.annotation.value.id
+                                self.var_dim_record[self.scope][item.target.attr] = [dim1]
 
                                 # increment scoped heap usage (2 pointers and 3 ints for pvecs)
                                 self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
@@ -814,102 +1116,42 @@ class SourceGenerator(ExplicitNodeVisitor):
                                 self.heap64_record[self.scope] = self.heap64_record[self.scope] + \
                                     '+ (' + mem_upper_bound + ' + 64)*' + str(self.size_of_double).replace('\n','')
 
-                        # else: do nothing (no init required for "memoryless" objects)
-                # pmat[<n>,<m>] or pvec[<n>]
-                elif ann in ['pmat', 'pvec']:
-                    if ann == 'pmat':
-                        if item.value.func.id != 'pmat':
-                            raise cgenException('pmat objects need to be declared calling',
-                                'the pmat(<n>, <m>) constructor\n.', item.lineno)
-
-                        if not check_expression(item.value.args[0], tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]),
-                            tuple([ast.USub]),('dims'), tuple([ast.Num]), self.dim_record):
-                            raise cgenException('Invalid dimension expression in \
-                                pmat constructor ({})'.format(item.value.args[0]), self.lineno)
-
-                        if not check_expression(item.value.args[1], tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]),
-                            tuple([ast.USub]),('dims'), tuple([ast.Num]), self.dim_record):
-                            raise cgenException('Invalid dimension expression in \
-                                pmat constructor ({})'.format(item.value.args[1]), self.lineno)
-
-                        dim1 = astu.unparse(item.value.args[0]).replace('\n','')
-                        dim2 = astu.unparse(item.value.args[1]).replace('\n','')
-
-                        self.var_dim_record[self.scope][item.target.attr] = [dim1, dim2]
-
-                        # increment scoped heap usage (3 pointers and 6 ints for pmats)
-                        self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
-                            '+' + '3*' + str(self.size_of_pointer).replace('\n','')
-                        self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
-                            '+' + '6*' + str(self.size_of_int).replace('\n','')
-
-                        # upper bound of blasfeo_dmat memsize
-                        # memsize \leq (ps + m -1)*(nc + n - 1) + (m + n + bs*nc -1)
-                        mem_upper_bound = '(' + str(self.blasfeo_ps) + '+' + dim1 + ' - 1)* ' \
-                            '(' + str(self.blasfeo_nc) + '+' + dim2 + ' - 1)+(' + dim1 + '+' + dim2 + '+' + \
-                            str(self.blasfeo_ps) + '*' + str(self.blasfeo_nc) + ' - 1)'
-
-                        self.heap64_record[self.scope] = self.heap64_record[self.scope] + \
-                            '+ (' + mem_upper_bound + ' + 64)*' + str(self.size_of_double).replace('\n','')
-
-                    else:
-                        # pvec
-                        if item.value.func.id != 'pvec':
-                            raise cgenException('pvec objects need to be declared calling',
-                                'the pvec(<n>, <m>) constructor\n.', item.lineno)
-                        dim1 = Num_or_Name(item.value.args[0])
-                        ann = item.annotation.value.id
-                        self.var_dim_record[self.scope][item.target.attr] = [dim1]
-
-                        # increment scoped heap usage (2 pointers and 3 ints for pvecs)
-                        self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
-                            '+' + '2*' + str(self.size_of_pointer).replace('\n','')
-                        self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
-                            '+' + '3*' + str(self.size_of_int).replace('\n','')
-
-                        # upper bound of blasfeo_dvec memsize
-                        # memsize \leq ps + m -1
-                        mem_upper_bound = '(' + str(self.blasfeo_ps) + '+' + dim1 + ' - 1)'
-
-                        self.heap64_record[self.scope] = self.heap64_record[self.scope] + \
-                            '+ (' + mem_upper_bound + ' + 64)*' + str(self.size_of_double).replace('\n','')
-
-                    # # add variable to typed record
-                    # self.typed_record[self.scope][item.target.attr] = ann
-                    # # print('typed_record = \n', self.typed_record, '\n\n')
-                    # # print('var_dim_record = \n', self.var_dim_record, '\n\n')
-                    # if  ann in pmt_temp_types:
-                    #     c_ann = pmt_temp_types[ann]
-                    #     # self.statement(item, c_ann, ' ', item.target.attr)
-                    # else:
-                    #     raise cgenException ('Usage of non existing type {}'.format(ann), \
-                    #         item.lineno)
-                    # if item.value != None:
-                    #     if hasattr(item.value, 'value') is False:
-                    #         self.conditional_write('\n', 'object->', \
-                    #             item.target, ' = ', item.value, ';', dest = 'src')
-                    #     else:
-                    #         if item.value.value != None:
-                    #             self.conditional_write('\n', 'object->', \
-                    #                 item.target, ' = ', item.value, ';', dest = 'src')
-                    # else:
-                    #     raise cgenException('Cannot declare attribute without'
-                    #         ' initialization.\n', item.lineno)
-                # elif ann in usr_temp_types:
-                    # self.write('\nobject->', item.target.attr, ' = &(object->', item.target.attr, '___);\n', dest = 'src')
-                    # self.write(ann, '_constructor(object->', item.target.attr, ');\n', dest='src')
-                # else:
-                    # if item.value != None:
-                    #     if hasattr(item.value, 'value') is False:
-                    #         self.conditional_write('\n', 'object->', \
-                    #             item.target, ' = ', item.value, ';', dest = 'src')
-                    #     else:
-                    #         if item.value.value != None:
-                    #             self.conditional_write('\n', 'object->', \
-                    #                 item.target, ' = ', item.value, ';', dest = 'src')
-                    # else:
-                    #     raise cgenException('Cannot declare attribute without \
-                    #         initialization.\n', item.lineno)
+                            # # add variable to typed record
+                            # self.typed_record[self.scope][item.target.attr] = ann
+                            # # print('typed_record = \n', self.typed_record, '\n\n')
+                            # # print('var_dim_record = \n', self.var_dim_record, '\n\n')
+                            # if  ann in pmt_temp_types:
+                            #     c_ann = pmt_temp_types[ann]
+                            #     # self.statement(item, c_ann, ' ', item.target.attr)
+                            # else:
+                            #     raise cgenException ('Usage of non existing type {}'.format(ann), \
+                            #         item.lineno)
+                            # if item.value != None:
+                            #     if hasattr(item.value, 'value') is False:
+                            #         self.conditional_write('\n', 'object->', \
+                            #             item.target, ' = ', item.value, ';', dest = 'src')
+                            #     else:
+                            #         if item.value.value != None:
+                            #             self.conditional_write('\n', 'object->', \
+                            #                 item.target, ' = ', item.value, ';', dest = 'src')
+                            # else:
+                            #     raise cgenException('Cannot declare attribute without'
+                            #         ' initialization.\n', item.lineno)
+                        # elif ann in usr_temp_types:
+                            # self.write('\nobject->', item.target.attr, ' = &(object->', item.target.attr, '___);\n', dest = 'src')
+                            # self.write(ann, '_constructor(object->', item.target.attr, ');\n', dest='src')
+                        # else:
+                            # if item.value != None:
+                            #     if hasattr(item.value, 'value') is False:
+                            #         self.conditional_write('\n', 'object->', \
+                            #             item.target, ' = ', item.value, ';', dest = 'src')
+                            #     else:
+                            #         if item.value.value != None:
+                            #             self.conditional_write('\n', 'object->', \
+                            #                 item.target, ' = ', item.value, ';', dest = 'src')
+                            # else:
+                            #     raise cgenException('Cannot declare attribute without \
+                            #         initialization.\n', item.lineno)
 
 
 
@@ -1017,16 +1259,17 @@ class SourceGenerator(ExplicitNodeVisitor):
 
     def else_body(self, elsewhat):
         if elsewhat:
-            self.write('\n', 'else:')
+            self.write('\n', '} else {', dest='src')
             self.body(elsewhat)
+        # self.write('\n}', dest = 'src')
 
     def body_or_else(self, node):
         self.body(node.body)
         self.else_body(node.orelse)
 
     def visit_arguments(self, node, dest_in):
-        # args_list returned for class meta-info update
-        args_list = dict()
+        # args_list returned for meta-info update
+        args_list = []
         want_comma = []
 
         def write_comma():
@@ -1038,6 +1281,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         def loop_args(args, defaults):
             set_precedence(Precedence.Comma, defaults)
             padding = [None] * (len(args) - len(defaults))
+            arg_list = []
             for arg, default in zip(args, padding + defaults):
                 # fish C type from typed record
                 if hasattr(arg.annotation, 'value'):
@@ -1053,10 +1297,12 @@ class SourceGenerator(ExplicitNodeVisitor):
                     else:
                         raise cgenException('Subscripted type annotation can \
                             be used only with pmat arguments.\n', arg.lineno)
-                else:
+                elif isinstance(arg.annotation, ast.Name):
                     arg_type_py = arg.annotation.id
+                else:
+                    raise cgenException('Invalid function argument without type annotation', arg.lineno)
 
-                args_list[arg.arg] = arg_type_py
+                args_list.append(arg_type_py)
                 arg_type_c = pmt_temp_types[arg_type_py]
                 self.write(write_comma, arg_type_c,' ',arg.arg, dest = dest_in)
 
@@ -1137,12 +1383,18 @@ class SourceGenerator(ExplicitNodeVisitor):
 
     # Statements
     def visit_Assign(self, node):
+
         self.current_line = node.lineno
         self.current_col = node.col_offset
         if 'targets' in node.__dict__:
             if len(node.targets) != 1:
                 raise cgenException('Cannot have assignments with a number of \
                     targets other than 1.\n', node.lineno)
+            # TODO(andrea)" get type of value here
+            type_val, arg_types = self.get_type_of_node(node.value, self.scope)
+            type_val_t, arg_types = self.get_type_of_node(node.targets[0], self.scope)
+            if type_val != type_val_t:
+                raise cgenException('Mismatching types in assignment {} = {}'.format(type_val_t, type_val), node.lineno)
             # check for attributes
             if hasattr(node.targets[0], 'value'):
                 if hasattr(node.targets[0].value, 'attr'):
@@ -1394,7 +1646,6 @@ class SourceGenerator(ExplicitNodeVisitor):
                                             node.lineno)
 
                             # elif self.typed_record[self.scope][node.value] == 'float':
-                            #     import pdb; pdb.set_trace()
                             #     value = Num_or_Name(node.value)
                             #     self.statement([], 'c_pmt_pmat_set_el(', target.value.id, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value_expr), ');')
 
@@ -1420,9 +1671,12 @@ class SourceGenerator(ExplicitNodeVisitor):
                                             node.lineno)
 
 
-            elif 'attr' in node.targets[0].__dict__:
+            elif isinstance(node.targets[0], ast.Attribute):
+                print('CHECK THIS')
+                import pdb; pdb.set_trace()
                 # Assign targeting a user-defined class (C struct)
                 struct_name = node.targets[0].value.id
+                code = recurse_attributes(node.targets[0])
                 if struct_name in self.typed_record[self.scope]:
                     attr_value = node.value.n
                     attr_name = node.targets[0].attr
@@ -1433,6 +1687,9 @@ class SourceGenerator(ExplicitNodeVisitor):
 
             else:
                 raise cgenException('Could not resolve Assign node.', node.lineno)
+        else: 
+            #TODO(andrea): is this necessary?
+            raise cgenException('node has not attribute targets', node.lineno)
 
         set_precedence(node, node.value, *node.targets)
         self.newline(node)
@@ -1493,12 +1750,16 @@ class SourceGenerator(ExplicitNodeVisitor):
         if ann == 'ca':
             return
         elif ann == 'pfun':
-            self.scope = self.scope + '@' + node.value.args[0].s
-            self.typed_record[self.scope] = dict()
-            self.var_dim_record[self.scope] = dict()
-            self.heap8_record[self.scope] = '0'
-            self.heap64_record[self.scope] = '0'
-            self.scope = descope(self.scope, '@' + node.value.args[0].s)
+            # code = astu.unparse(node)
+            # exec('from prometeo import * \n' + code)
+            if isinstance(node.value, ast.Call):
+                self.scope = self.scope + '@' + node.value.args[0].s
+                self.casadi_funs.append(self.scope)
+                self.typed_record[self.scope] = dict()
+                self.var_dim_record[self.scope] = dict()
+                self.heap8_record[self.scope] = '0'
+                self.heap64_record[self.scope] = '0'
+                self.scope = descope(self.scope, '@' + node.value.args[0].s)
             return
 
         # check if a List is being declared
@@ -1567,7 +1828,6 @@ class SourceGenerator(ExplicitNodeVisitor):
 
             if not check_expression(node.value.args[0], tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]),
                 tuple([ast.USub]),('dims'), tuple([ast.Num]), self.dim_record):
-                import pdb; pdb.set_trace()
                 raise cgenException('Invalid dimension expression in pmat constructor ({})'.format(astu.unparse(node.value.args[0])), node.lineno)
 
             if not check_expression(node.value.args[1], tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]),
@@ -1667,9 +1927,8 @@ class SourceGenerator(ExplicitNodeVisitor):
             node.annotation.id = usr_temp_types[ann]
             # assume that AnnAssigns on attributes are only used to declare instance attributes
             if isinstance(node.target, ast.Attribute):
-                self.statement([], 'self->', node.annotation, '= & ', node.target, '___;')
-                # self.statement(node, node.annotation, ' ', node.target, '= &', node.target, '___;')
-                self.statement([], 'self->', class_name, '_constructor(', node.target, '); //')
+                self.statement([], 'self->', node.target.attr, '= & ', node.target, '___;')
+                self.statement([], class_name, '_constructor(', node.target, '); //')
             else:
                 self.statement([], 'struct ', class_name, ' ', node.target, '___;')
                 self.statement(node, node.annotation, ' ', node.target, '= &', node.target, '___;')
@@ -1761,6 +2020,12 @@ class SourceGenerator(ExplicitNodeVisitor):
         if node.name == 'main':
             self.in_main = True
         # ap.pprint(node)
+        # save current scope (needed to update log)
+        outer_scope = self.scope
+
+        if not outer_scope in self.function_record:
+            self.function_record[outer_scope] = dict()
+
         self.scope = self.scope + '@' + node.name
         self.typed_record[self.scope] = dict()
         self.var_dim_record[self.scope] = dict()
@@ -1785,7 +2050,11 @@ class SourceGenerator(ExplicitNodeVisitor):
         return_type_c = pmt_temp_types[return_type_py]
         # function declaration
         self.write(return_type_c, ' %s' %(node.name), '(', dest = 'hdr')
-        self.visit_arguments(node.args, 'hdr')
+        arg_list = self.visit_arguments(node.args, 'hdr')
+
+        if not self.in_main:
+            self.function_record[outer_scope][node.name] = {"arg_types": arg_list,  "ret_type": return_type_py}
+        
         self.write(');\n', dest = 'hdr')
         # function definition
         self.write(return_type_c, ' %s' %(node.name), '(', dest = 'src')
@@ -1890,7 +2159,7 @@ class SourceGenerator(ExplicitNodeVisitor):
             if len(else_) == 1 and isinstance(else_[0], ast.If):
                 node = else_[0]
                 set_precedence(node, node.test)
-                self.write('\n', 'elif ', node.test, ':')
+                self.write('\n', '} else if (', node.test, ') {', dest='src')
                 self.body(node.body)
             else:
                 self.else_body(else_)
@@ -2092,21 +2361,33 @@ class SourceGenerator(ExplicitNodeVisitor):
             self.conditional_write(', ', node.tback, dest = 'src')
 
     # Expressions
-
     def visit_Attribute(self, node):
+        # ap.pprint(node)
         self.current_line = node.lineno
         self.current_col = node.col_offset
 
-        if node.value.id == 'self':
-            self.write(node.value, '->', node.attr, dest = 'src')
+        attr_chain = recurse_attributes(node)
+        attr_list = attr_chain.split('->')
+        if attr_list[0] == 'self':
+            self.write(attr_chain, dest = 'src')
         else:
-            if  self.typed_record[self.scope][node.value.id] in usr_temp_types:
-                self.write(node.value, '->', node.attr, dest = 'src')
-            else:
-                raise cgenException('Accessing attribute of object {} \
-                    of unknown type.'.format(node.value), node.lineno)
+            # get type of outer object
+
+            # TODO(andrea): as of now, only user-defined classes have methods. 
+            # However, things like A.print(), where A is of type pmat, (rather than 
+            # pmat_print(A)) would be quite useful.
+
+            # if  self.typed_record[self.scope][attr_list[0]] in self.meta_info:
+                # check type 
+            type_val, arg_list = self.get_type_of_node(node, self.scope)
+            code = recurse_attributes(node)
+            self.write(attr_chain, dest = 'src')
+            # else:
+            #     raise cgenException('Accessing attribute of object {} \
+            #         of unknown type.'.format(node.value), node.lineno)
 
     def visit_Call(self, node, len=len):
+        # TODO(andrea): add arg type check
         self.current_line = node.lineno
         self.current_col = node.col_offset
         write = self.write
@@ -2118,6 +2399,12 @@ class SourceGenerator(ExplicitNodeVisitor):
                 write(', ', dest = 'src')
             else:
                 want_comma.append(True)
+
+        # check if we are calling a CasADi function
+        # print(node.func.id)
+        if isinstance(node.func, ast.Name):
+            if node.func.id in self.casadi_funs:
+                import pdb; pdb.set_trace()
 
         # treat print separately
         if hasattr(node.func, 'id'):
@@ -2179,18 +2466,42 @@ class SourceGenerator(ExplicitNodeVisitor):
         p = Precedence.Comma if numargs > 1 else Precedence.call_one_arg
         set_precedence(p, *args)
 
+        # load function signature
+        ret_type, arg_types = self.get_type_of_node(node, self.scope)
+        attr = False
+
         if isinstance(node.func, ast.Name):
             func_name = node.func.id
-            if  node.func.id in pmt_temp_functions:
-                node.func.id = pmt_temp_functions[func_name]
+            if  func_name in pmt_temp_functions:
+                call_code = pmt_temp_functions[func_name] + '('
+            else:
+                call_code = func_name + '('
+
         elif isinstance(node.func, ast.Attribute):
+            def get_attr_name(node):
+                if hasattr(node, 'id'):
+                    return node.id
+                elif hasattr(node, 'value'):
+                    return get_attr_name(node.value)
+                else:
+                    raise cgenException('Invalid call to method', node.lineno)
+            attr_name = get_attr_name(node.func)
             # calling a method of a user-defined class
+            attr = True
+            attr_chain = recurse_attributes(node.func)
+            # TODO(andrea): at some point I should mangle ANY function name
+            # then mangling would move inside recurse_attributes()
+
+            # remove unmangled function call 
+            tokens = attr_chain.split('->')
+            tokens = tokens[:-1]
+            attr_chain = '->'.join(tokens)
             func_name = node.func.attr
             f_name_len = len(func_name)
             pre_mangl = '_Z%s' %f_name_len
             post_mangl = self.build_arg_mangling_mod(args)
-            node.func.attr = pre_mangl + func_name + post_mangl
-
+            call_code = attr_chain + '->' + pre_mangl + func_name + post_mangl + '('
+            # node.func.attr = pre_mangl + func_name + post_mangl
 
         if func_name in blas_api_funs:
             call = PmtCall(func_name)
@@ -2209,21 +2520,79 @@ class SourceGenerator(ExplicitNodeVisitor):
                 call.keywords = keywords
             blas_api_funs[call.name](self, call, node)
         else:
-            self.visit(node.func)
+            # print(call_code)
+            write(call_code, dest = 'src')
+            if attr:
+                write(write_comma, attr_chain, dest = 'src')
 
-            if isinstance(node.func, ast.Attribute):
-                # calling an object's method
-                if len(args) > 0:
-                    code = '(' +  node.func.value.id + ', '
-                else:
-                    code = '(' +  node.func.value.id
-                write(code, dest = 'src')
+            # self.visit(node.func)
+
+            # if isinstance(node.func, ast.Attribute):
+            #     # calling an object's method
+
+                        
+            #     import pdb; pdb.set_trace()
+            #     if len(args) > 0:
+            #         code = '(' +  attr_name + ', '
+            #     else:
+            #         code = '(' +  attr_name
+            #     write(code, dest = 'src')
+            # else:
+            #     write('(', dest = 'src')
+
+
+            if attr:
+                # TODO(andrea): assume that classes ALWAYS live in the global space? Not sure...
+                fun_scope = 'global@' + self.typed_record[self.scope][attr_name]
             else:
-                write('(', dest = 'src')
+                fun_scope = self.scope
 
+
+            # if fun_scope in self.function_record:
+            #     scope = self.function_record[fun_scope]
+            #     if func_name in scope:
+            #         signature = scope[func_name]
+            #     elif func_name in self.function_record['global']:
+            #         signature = self.function_record['global'][func_name]
+            #     else:
+            #         import pdb; pdb.set_trace()
+            #         raise cgenException('Could not resolve function call "{}"'.format(func_name), node.lineno)
+            # elif func_name in self.function_record['global']:
+            #     import pdb; pdb.set_trace()
+            #     signature = self.function_record['global'][func_name]
+            # else:
+            #     import pdb; pdb.set_trace()
+            #     raise cgenException('Could not resolve function call "{}"'.format(func_name), node.lineno)
+
+            if len(args) != len(arg_types):
+                raise cgenException('Wrong number of arguments in call to function {}: expected {} instead of {}.'.format(\
+                    func_name, len(arg_types), len(args)), node.lineno)
+            
+            i = 0
             for arg in args:
-                write(write_comma, arg, dest = 'src')
+                # check arg type
+                if isinstance(arg, ast.Name):
+                    arg_name = arg.id
+                    if arg_name in self.typed_record[self.scope]:
+                        arg_type = self.typed_record[self.scope][arg_name]
+                    elif arg_name in self.typed_record['global']:
+                        arg_type = self.typed_record['global'][arg_name]
+                    elif arg_name in self.dim_record:
+                        arg_type = self.dim_record[arg_name]
+                    else:
+                        raise cgenException('Could not resolve argument "{}"'.format(arg_name), node.lineno)
+                elif isinstance(arg, ast.Num):
+                    arg_type = type(arg.n).__name__
+                else:
+                    arg_type, s = self.get_type_of_node(arg, self.scope)
+                    # raise cgenException('Feature not implemented: type check on arg expression.', node.lineno)
 
+                if arg_type not in arg_types[i]:
+                    raise cgenException('Argument {} has wrong type: expected {} instead of {}.'.format(i, \
+                        arg_types[i], arg_type), node.lineno)
+
+                write(write_comma, arg, dest = 'src')
+                i+=1
 
             set_precedence(Precedence.Comma, *(x.value for x in keywords))
             for keyword in keywords:

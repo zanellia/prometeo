@@ -261,16 +261,38 @@ def pmt_potrsv(fact: pmat, rhs: pvec):
     return
 
 # intermediate-level linear algebra
-def pmt_gemm(A: pmat, B: pmat, C: pmat, D: pmat):
+# def pmt_gemm(A: pmat, B: pmat, C: pmat, D: pmat):
+def pmt_gemm(*argv):
+    if len(argv) < 3:
+        raise Exception('Invalid number of arguments')
+    A = argv[0]
+    B = argv[1]
+    if len(argv) == 4:
+        C = argv[2]
+        D = argv[3]
+    else:
+        C = argv[2]
+        D = argv[2]
+
     if A.n != B.m or A.m != C.m or B.n != C.n or C.m != D.m or C.n != D.n:
         raise Exception('pmt_gemm: mismatching dimensions:'
-            ' ({}, {}) <- ({},{}) + ({}, {}) x ({}, {})'.format(\
-            D.m, D.n, C.m, C.n, A.m, A.n, B.m, B.n))
+                ' ({}, {}) <- ({},{}) + ({}, {}) x ({}, {})'.format(\
+                    D.m, D.n, C.m, C.n, A.m, A.n, B.m, B.n))
 
     c_pmt_dgemm_nn(A, B, C, D)
     return
 
-def pmt_gemm_nn(A: pmat, B: pmat, C: pmat, D: pmat):
+def pmt_gemm_nn(*argv):
+    if len(argv) < 3:
+        raise Exception('Invalid number of arguments')
+    A = argv[0]
+    B = argv[1]
+    if len(argv) == 4:
+        C = argv[2]
+        D = argv[3]
+    else:
+        C = argv[2]
+        D = argv[2]
     if A.n != B.m or A.m != C.m or B.n != C.n or C.m != D.m or C.n != D.n:
         raise Exception('pmt_gemm_nn: mismatching dimensions:'
             ' ({}, {}) <- ({},{}) + ({}, {}) x ({}, {})'.format(\
@@ -279,7 +301,17 @@ def pmt_gemm_nn(A: pmat, B: pmat, C: pmat, D: pmat):
     c_pmt_dgemm_nn(A, B, C, D)
     return
 
-def pmt_gemm_nt(A: pmat, B: pmat, C: pmat, D: pmat):
+def pmt_gemm_nt(*argv):
+    if len(argv) < 3:
+        raise Exception('Invalid number of arguments')
+    A = argv[0]
+    B = argv[1]
+    if len(argv) == 4:
+        C = argv[2]
+        D = argv[3]
+    else:
+        C = argv[2]
+        D = argv[2]
     if A.n != B.n or A.m != C.m or B.m != C.n or C.m != D.m or C.n != D.n:
         raise Exception('pmt_gemm_nt: mismatching dimensions:'
             ' ({}, {}) <- ({},{}) + ({}, {}) x ({}, {})^T'.format(\
@@ -287,7 +319,17 @@ def pmt_gemm_nt(A: pmat, B: pmat, C: pmat, D: pmat):
     c_pmt_dgemm_nt(A, B, C, D)
     return
 
-def pmt_gemm_tn(A: pmat, B: pmat, C: pmat, D: pmat):
+def pmt_gemm_tn(*argv):
+    if len(argv) < 3:
+        raise Exception('Invalid number of arguments')
+    A = argv[0]
+    B = argv[1]
+    if len(argv) == 4:
+        C = argv[2]
+        D = argv[3]
+    else:
+        C = argv[2]
+        D = argv[2]
     if A.m != B.m or A.n != C.m or B.n != C.n or C.m != D.m or C.n != D.n:
         raise Exception('pmt_gemm_tn: mismatching dimensions:'
             ' ({}, {}) <- ({},{}) + ({}, {})^T x ({}, {})'.format(\
@@ -296,7 +338,17 @@ def pmt_gemm_tn(A: pmat, B: pmat, C: pmat, D: pmat):
     c_pmt_dgemm_tn(A, B, C, D)
     return
 
-def pmt_gemm_tt(A: pmat, B: pmat, C: pmat, D: pmat):
+def pmt_gemm_tt(*argv):
+    if len(argv) < 3:
+        raise Exception('Invalid number of arguments')
+    A = argv[0]
+    B = argv[1]
+    if len(argv) == 4:
+        C = argv[2]
+        D = argv[3]
+    else:
+        C = argv[2]
+        D = argv[2]
     if A.m != B.n or A.n != C.m or B.m != C.n or C.m != D.m or C.n != D.n:
         raise Exception('pmt_gemm_tt: mismatching dimensions:'
             ' ({}, {}) <- ({},{}) + ({}, {})^T x ({}, {})^T'.format(\
