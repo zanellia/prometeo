@@ -239,8 +239,6 @@ def pmt_main():
                 exit()
 
         dest_file = open('__pmt_cache__/' + filename_ + '.c', 'w')
-        print(result.source)
-        import pdb; pdb.set_trace()
         dest_file.write(prometeo.cgen.source_repr.pretty_source(result.source))
         dest_file.close()
 
