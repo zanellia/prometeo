@@ -2365,12 +2365,17 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.current_col = node.col_offset
         set_precedence(node, node.value)
         type_val, s = self.get_type_of_node(node.value, self.scope)
+        class_scope = '@'.join(self.scope.split('@')[:-1])
+        method_name = self.scope.split('@')[-1]
         if self.fun_in_function_record(self.scope):
             ret_ann = self.get_ret_type_from_function_record(self.scope)
-        elif self.scope in self.meta_info:
-            ret_ann = self.function_record[self.scope]["ret_type"]
         elif self.scope == 'global@main':
             ret_ann = 'int'
+        elif class_scope in self.meta_info:
+            if method_name in self.meta_info[class_scope]['methods']:
+                ret_ann = self.meta_info[class_scope]['methods'][method_name]['return_type']
+            else:
+                raise cgenException('Could not find definition of method {}'.format(self.scope), node.lineno)
         else:
             raise cgenException('Could not find definition of method {}'.format(self.scope), node.lineno)
 
