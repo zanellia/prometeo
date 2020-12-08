@@ -33,6 +33,7 @@ def main() -> int:
     # b : float = 1.0
     a = foo(a)
     a = S.method1(a)
+    a = S.method1(S.number.value)
     a = S.number.get_value()
     a = S.number.value
     a = S.number.get_value()

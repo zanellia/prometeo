@@ -652,7 +652,8 @@ class SourceGenerator(ExplicitNodeVisitor):
             type_l, s  = self.get_type_of_node(node.left, scope)
             type_r, s = self.get_type_of_node(node.right, scope)
             if type_l != type_r:
-                raise cgenException("Type mismatch in BinOp: left = {}, right = {}".format(type_l,type_r), node.lineno)
+                raise cgenException("Type mismatch in BinOp: left = {}, \
+                    right = {}".format(type_l,type_r), node.lineno)
             return type_l, None
 
         elif isinstance(node, ast.UnaryOp):
@@ -1393,8 +1394,9 @@ class SourceGenerator(ExplicitNodeVisitor):
                         raise cgenException('Invalid numeric argument.\n', arg.lineno)
                     arg_mangl = arg_mangl + arg_value
                 else:
-                    arg_value = arg.id
-                    arg_mangl = arg_mangl + self.typed_record[self.scope][arg_value]
+                    # arg_value = arg.id
+                    type_val, s = self.get_type_of_node(arg, self.scope)
+                    arg_mangl = arg_mangl + type_val
             return arg_mangl
 
         arg_mangl = loop_args_mangl(args)
@@ -2381,7 +2383,7 @@ class SourceGenerator(ExplicitNodeVisitor):
 
         if ret_ann != type_val:
             raise cgenException('Type mismatch in return statement: {} instead of {}'.format(type_val, ret_ann), \
-                    node.lineno)
+                node.lineno)
 
         # TODO(andrea): this probably does not support
         # stuff like `return foo()`
@@ -2553,6 +2555,8 @@ class SourceGenerator(ExplicitNodeVisitor):
             tokens = tokens[:-1]
             attr_chain = '->'.join(tokens)
             func_name = node.func.attr
+            # print(func_name)
+            # import pdb; pdb.set_trace()
             f_name_len = len(func_name)
             pre_mangl = '_Z%s' %f_name_len
             post_mangl = self.build_arg_mangling_mod(args)

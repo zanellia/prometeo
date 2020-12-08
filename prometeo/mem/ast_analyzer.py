@@ -34,6 +34,14 @@ pmt_functions = {\
     'global@pparse': [], \
     }
 
+native_types = ['int', 'float']
+
+class cgenException(Exception):
+    def __init__(self, message, lineno):
+        super().__init__(message)
+        self.message = message
+        self.lineno = lineno
+
 def precedence_setter(AST=ast.AST, get_op_precedence=get_op_precedence,
                       isinstance=isinstance, list=list):
     """ This only uses a closure for performance reasons,
@@ -72,6 +80,14 @@ def flatten(coll):
             else:
                 yield i
 
+def recurse_attributes(node):
+    if isinstance(node, ast.Name):
+        return node.id
+    elif isinstance(node, ast.Attribute):
+        return recurse_attributes(node.value) + '->' + node.attr 
+    else:
+        raise Exception('Invalid attribute or method {}'.format(node))
+
 class ast_visitor(ExplicitNodeVisitor):
     def __init__(self):
         self.callees = pmt_functions
@@ -101,6 +117,214 @@ class ast_visitor(ExplicitNodeVisitor):
     def aux_visit_ast(self, node, *params):
         self.visit_ast(*params)
 
+    def get_type_of_node(self, node, scope):
+        """
+        Get type of AST node. 
+
+        Parameters
+        ----------
+        node 
+            node whose type we want to determine
+
+        scope
+            current scope
+
+        Returns
+        -------
+            type_val : str
+                type of expression
+            arg_types : dict
+                type of arguments (if a Call node is being analyzed, None otherwise)
+
+        """
+        if isinstance(node, ast.Name):
+            if node.id not in self.typed_record[scope]:
+                raise Exception('Undefined variable {}'.format(node.id))
+
+            type_val = self.typed_record[scope][node.id]
+
+            return type_val,  None
+
+        elif isinstance(node, ast.Num):
+
+            type_val = type(node.n).__name__
+
+            return type_val,  None
+
+        elif isinstance(node, ast.BinOp):
+            type_l, s  = self.get_type_of_node(node.left, scope)
+            type_r, s = self.get_type_of_node(node.right, scope)
+            if type_l != type_r:
+                raise Exception("Type mismatch in BinOp: left = {}, right = {}".format(type_l,type_r))
+            return type_l, None
+
+        elif isinstance(node, ast.UnaryOp):
+            type_val, s  = self.get_type_of_node(node.operand, scope)
+            return type_val, None
+
+        elif isinstance(node, ast.Subscript):
+            if isinstance(node.value, ast.Name):
+                if node.value.id not in self.typed_record[scope]:
+                    raise Exception('Undefined variable {}'.format(node.id))
+                elif self.typed_record[scope][node.value.id] == 'pmat' or \
+                        self.typed_record[scope][node.value.id] == 'pvec':
+                    return 'float', None
+                elif 'List' in self.typed_record[scope][node.value.id]:
+                    raise Exception("Not implemented")
+            elif isinstance(node.value, ast.Attribute):
+                type_val, s = self.get_type_of_node(node.value, scope)
+                # the type of a subscripted List is given by the type of 
+                # its elements
+                return type_val.split('[')[1].split(',')[0], None
+            else:
+                raise Exception("Invalid node type {}".format(node.value))
+
+        elif isinstance(node, ast.Attribute):
+            # check if first attr is 'self'
+            attr_chain = recurse_attributes(node.value)
+            attr_list = attr_chain.split('->')
+
+            if attr_list[0] == 'self':
+
+                class_scope = '@'.join(scope.split('@')[:-1])
+                type_val = self.get_type_of_node_rec(node.value, class_scope)
+            else:
+                type_val = self.get_type_of_node_rec(node.value, scope)
+
+            if node.attr not in self.meta_info[type_val]['attr']:
+                raise cgenException('Undefined variable or attribute {}'.format(node.attr), node.lineno)
+            if self.meta_info[type_val]['attr'][node.attr] in native_types:
+                type_val = self.meta_info[type_val]['attr'][node.attr]
+            else:
+                type_val = 'global@' + self.meta_info[type_val]['attr'][node.attr]
+            return type_val, None
+
+        elif isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Name):
+                if node.func.id not in self.function_record['global']:
+                    raise cgenException('Undefined method {}'.format(node.func.id), node.lineno)
+                type_val = self.function_record['global'][node.func.id]['ret_type']
+                return type_val,  self.function_record['global'][node.func.id]['arg_types']
+
+            type_val = self.get_type_of_node_rec(node.func.value, scope)
+
+            if node.func.attr not in self.meta_info[type_val]['methods']:
+                raise cgenException('Undefined method {}'.format(node.func.attr), node.lineno)
+            arg_types = self.meta_info[type_val]['methods'][node.func.attr]['args']
+            type_val = self.meta_info[type_val]['methods'][node.func.attr]['return_type']
+
+            return type_val, arg_types
+
+    def get_type_of_node_rec(self, node, scope):
+        if isinstance(node, ast.Name):
+            if node.id == 'self':
+                type_val = scope
+                return type_val
+            if node.id not in self.typed_record[scope]:
+                raise cgenException('Undefined variable or attribute {}'.format(node.id), node.lineno)
+            if self.typed_record[scope][node.id] in native_types:
+                type_val = self.typed_record[scope][node.id]
+            else:
+                type_val = 'global@' + self.typed_record[scope][node.id]
+            return type_val
+        else:
+            if isinstance(node, ast.Attribute):
+                type_val = self.get_type_of_node_rec(node.value, scope)
+                if node.attr not in self.meta_info[type_val]['attr']:
+                    raise cgenException('Undefined variable or attribute {}'.format(node.attr), node.lineno)
+                if self.meta_info[type_val]['attr'][node.attr] in native_types:
+                    type_val = self.meta_info[type_val]['attr'][node.attr]
+                else:
+                    type_val = 'global@' + self.meta_info[type_val]['attr'][node.attr]
+                return type_val
+
+    def build_arg_mangling_mod(self, args, is_call = False):
+        want_comma = []
+
+        def loop_args_mangl_def(args, defaults):
+            """
+            Compute post mangling for FunctionDef node
+
+            Parameters:
+            ---------
+
+            args: 
+
+            AST node containing the arguments used in the function definition
+
+
+            defaults:
+
+            AST node containing the arguments defaults
+
+            Returns:
+            --------
+
+            post_mangl : str
+
+            String containing the post mangling
+            """
+            set_precedence(Precedence.Comma, defaults)
+            padding = [None] * (len(args) - len(defaults))
+            post_mangl = ''
+
+            for arg, default in zip(args, padding + defaults):
+                # fish C type from typed record
+                if isinstance(arg.annotation, ast.Name):
+                    arg_type_py = arg.annotation.id
+                    post_mangl = post_mangl + arg_type_py
+                elif arg.arg is not 'self':
+                    raise cgenException('Invalid function argument without type annotation', arg.lineno)
+
+
+            return post_mangl
+
+        def loop_args_mangl(args):
+            """
+            Compute post mangling for Call node
+
+            Parameters:
+            ---------
+
+            args: 
+
+            AST node containing the arguments used in the function call
+
+
+            defaults:
+
+            AST node containing the arguments defaults
+
+            Returns:
+            --------
+
+            post_mangl : str
+
+            String containing the post mangling
+            """
+            post_mangl = ''
+            for arg in args:
+                if isinstance(arg, ast.Num):
+                    if isinstance(arg.n, int):
+                        arg_value = 'int'
+                    elif isinstance(arg.n, float):
+                        arg_value = 'double'
+                    else:
+                        raise cgenException('Invalid numeric argument.\n', arg.lineno)
+                    post_mangl = post_mangl + arg_value
+                else:
+                    # arg_value = arg.id
+                    type_val, s = self.get_type_of_node(arg, self.caller_scope)
+                    post_mangl = post_mangl + type_val
+            return post_mangl
+
+        if is_call:
+            post_mangl = loop_args_mangl(args)
+        else:
+            post_mangl = loop_args_mangl_def(args.args, args.defaults)
+
+        return post_mangl
+
     def __getattr__(self, name, defaults=dict(keywords=(),
                     _pp=Precedence.highest).get):
         """ Get an attribute of the node.
@@ -127,11 +351,17 @@ class ast_visitor(ExplicitNodeVisitor):
 
     def visit_FunctionDef(self, node):
         # if node.name != '__init__':
-        self.caller_scope = self.caller_scope + '@' + node.name
+
+        f_name_len = len(node.name)
+        pre_mangl = '_Z%s' %f_name_len
+        post_mangl = self.build_arg_mangling_mod(node.args, is_call = False)
+        mangl_fun_name = pre_mangl + node.name + post_mangl
+
+        self.caller_scope = self.caller_scope + '@' + mangl_fun_name
         self.callees[self.caller_scope] = set([])
         # self.visit_ast(node)
         self.body(node.body)
-        self.caller_scope = descope(self.caller_scope, '@' + node.name)
+        self.caller_scope = descope(self.caller_scope, '@' + mangl_fun_name)
 
     def visit_ClassDef(self, node):
         self.caller_scope = self.caller_scope + '@' + node.name
@@ -147,25 +377,31 @@ class ast_visitor(ExplicitNodeVisitor):
     def visit_Expression(self, node):
         self.visit(node.body)
 
-    def resolve_call(self, node):
+    def resolve_call(self, node, pre_mangl, post_mangl):
         if isinstance(node, ast.Name):
             return node.id
         else:
-            callee = self.resolve_call(node.value)
-            return callee + '@' + node.attr
+            callee = self.resolve_call(node.value, pre_mangl, post_mangl)
+            return callee + '@' + pre_mangl + node.attr + post_mangl
 
     def visit_Call(self, node, len=len):
         # ap.pprint(node)
+        ap.pprint(node.func)
         if isinstance(node.func, ast.Name):
-            self.callees[self.caller_scope].add(self.callee_scope + '@' + node.func.id)
+            func_name = node.func.id
+        else:
+            func_name = node.func.attr
+        f_name_len = len(func_name)
+        pre_mangl = '_Z%s' %f_name_len
+        post_mangl = self.build_arg_mangling_mod(node.args, is_call = True)
+
+        if isinstance(node.func, ast.Name):
+            self.callees[self.caller_scope].add(self.callee_scope + '@' + pre_mangl + func_name + post_mangl)
         elif isinstance(node.func, ast.Attribute):
-            callee = self.resolve_call(node.func)
+            callee = self.resolve_call(node.func, pre_mangl, post_mangl)
             self.callees[self.caller_scope].add(self.callee_scope + '@' + callee)
-        elif isinstance(node.func, ast.Attribute):
-            self.in_call = True
-            self.visit(node.func)
-            self.callees[self.caller_scope].add(self.callee_scope)
-            self.in_call = False
+        else:
+            raise Exception('Could not analyze call {}'.format(node))
 
     def visit_Name(self, node):
         return
@@ -305,7 +541,10 @@ def compute_reach_graph(call_graph, typed_record, meta_info):
                 # remove call from call graph
                 graph_copy[method].remove(call)
 
+
+    import pdb; pdb.set_trace()
     call_graph = deepcopy(graph_copy)
+
     # strip empty calls
     r_unresolved_callers = dict()
     for caller in unresolved_callers:
@@ -318,8 +557,7 @@ def compute_reach_graph(call_graph, typed_record, meta_info):
         if scopes[0] != 'global':
             raise Exception('Invalid leading scope {}'.format(scopes[0]))
         if scopes[1] not in typed_record[caller]:
-            import pdb; pdb.set_trace()
-            raise Exception('Could not resolve variable name {}'.format(scopes[1]))
+            raise Exception('Could not resolve scope name {}'.format(scopes[1]))
         else:
             scopes[1] = typed_record[caller][scopes[1]]
 
@@ -332,12 +570,10 @@ def compute_reach_graph(call_graph, typed_record, meta_info):
                 scopes[i+1] = meta_info['global@' + scopes[i]]["attr"][scopes[i+1]]
 
         return scopes
-        
-
 
     r_resolved_callers = dict()
     # resolve non-trivial calls
-    r_unresolved_callers_copy = deepcopy(r_resolved_callers)
+    r_unresolved_callers_copy = deepcopy(r_unresolved_callers)
     for caller in r_unresolved_callers_copy:
         for call in r_unresolved_callers_copy[caller]:
             scopes = resolve_scopes(call, caller, typed_record, meta_info)
