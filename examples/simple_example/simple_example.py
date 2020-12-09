@@ -3,7 +3,7 @@ from prometeo import *
 nv : dims = 10
 
 def foo(a: int) -> int:
-    return a
+    return a + 1
 
 def main() -> int:
 
@@ -28,5 +28,6 @@ def main() -> int:
     pmat_print(B)
     pmt_gemm(A,B,D)
     pmat_print(D)
+
     return 0
 

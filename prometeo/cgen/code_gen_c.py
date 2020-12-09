@@ -17,7 +17,8 @@ from .string_repr import pretty_string
 from .source_repr import pretty_source
 from ..laparser.laparser import LAParser
 from collections import namedtuple
-import astpretty as ap
+# import astpretty as ap
+from astpretty import pprint as np
 import os
 import json
 from jinja2 import Template
@@ -734,6 +735,39 @@ class SourceGenerator(ExplicitNodeVisitor):
                     type_val = 'global@' + self.meta_info[type_val]['attr'][node.attr]
                 return type_val
 
+    def fun_in_function_record(self, scope):
+        tokens = scope.split('@')
+
+        if tokens[0] in self.function_record:
+            return self.fun_in_function_record_rec(tokens[1:], self.function_record[tokens[0]])
+        else:
+            return False
+
+    def fun_in_function_record_rec(self, tokens, scope):
+        if 'ret_type' in scope:
+            return True
+        elif tokens[0] in scope: 
+            return self.fun_in_function_record_rec(tokens[1:], scope[tokens[0]])
+        else:
+            return False
+
+    def get_ret_type_from_function_record(self, scope):
+        tokens = scope.split('@')
+
+        if tokens[0] in self.function_record:
+            return self.get_ret_type_from_function_record_rec(tokens[1:], self.function_record[tokens[0]])
+        else:
+            raise cgenException('Could not resolve scope {}'.format(scope), node.lineno)
+
+    def get_ret_type_from_function_record_rec(self, tokens, scope):
+        if 'ret_type' in scope:
+            return scope["ret_type"]
+        elif tokens[0] in scope: 
+            return self.get_ret_type_from_function_record_rec(tokens[1:], scope[tokens[0]])
+        else:
+            raise cgenException('Could not resolve scope {}'.format(scope), node.lineno)
+
+            
     def body(self, statements):
         self.indentation += 1
         self.write(*statements, dest = 'src')
@@ -2017,7 +2051,11 @@ class SourceGenerator(ExplicitNodeVisitor):
     def visit_FunctionDef(self, node, is_async=False):
         self.current_line = node.lineno
         self.current_col = node.col_offset
+
+        returns = self.get_returns(node)
         if node.name == 'main':
+            if returns.id != 'int':
+                raise cgenException('Main must return an int', node.lineno)
             self.in_main = True
         # ap.pprint(node)
         # save current scope (needed to update log)
@@ -2034,7 +2072,6 @@ class SourceGenerator(ExplicitNodeVisitor):
         prefix = 'is_async ' if is_async else ''
         self.decorators(node, 1 if self.indentation else 2)
         # self.write()
-        returns = self.get_returns(node)
         if returns is None:
             raise cgenException('Missing return annotation on method {}'.format(\
                 node.name), node.lineno)
@@ -2327,6 +2364,20 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.current_line = node.lineno
         self.current_col = node.col_offset
         set_precedence(node, node.value)
+        type_val, s = self.get_type_of_node(node.value, self.scope)
+        if self.fun_in_function_record(self.scope):
+            ret_ann = self.get_ret_type_from_function_record(self.scope)
+        elif self.scope in self.meta_info:
+            ret_ann = self.function_record[self.scope]["ret_type"]
+        elif self.scope == 'global@main':
+            ret_ann = 'int'
+        else:
+            raise cgenException('Could not find definition of method {}'.format(self.scope), node.lineno)
+
+        if ret_ann != type_val:
+            raise cgenException('Type mismatch in return statement: {} instead of {}'.format(type_val, ret_ann), \
+                    node.lineno)
+
         # TODO(andrea): this probably does not support
         # stuff like `return foo()`
         # TODO(andrea): need to check type of return!!
