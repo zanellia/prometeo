@@ -8,31 +8,30 @@ from collections import Iterable
 from copy import deepcopy
 
 pmt_functions = {\
-    'global@pmat': [], \
-    'global@pvec': [], \
-    'global@plist': [], \
-    'global@pmat_copy': [], \
-    'global@pmat_print': [], \
-    'global@pvec_print': [], \
-    'global@pmat_fill': [], \
-    'global@pmat_tran': [], \
-    'global@pmat_hcat': [], \
-    'global@pmat_vcat': [], \
-    'global@pmt_gemm': [], \
-    'global@pmt_gemm_nn': [], \
-    'global@pmt_gemm_tn': [], \
-    'global@pmt_gemm_nt': [], \
-    'global@pmt_trmm_rlnn': [], \
-    'global@pmt_syrk_ln': [], \
-    'global@pmt_gead': [], \
-    'global@pmt_potrf': [], \
-    'global@pmt_potrsm': [], \
-    'global@pmt_getrf': [], \
-    'global@pmt_getrsm': [], \
-    'global@print': [], \
-    'global@pparse': [], \
-    'global@pparse': [], \
-    }
+    'global@_Z4pmatdimsdims' : [], \
+    'global@_Z4pvecdimsdims' : [], \
+    'global@_Z10pmat_printpmat' : [], \
+    'global@_Z8pmt_gemmpmatpmatpmat' : [], \
+    'global@_Z8pmt_gemmpmatpmatpmatpmat' : [], \
+    'global@_Z11pmt_gemm_nnpmatpmatpmat' : [], \
+    'global@_Z11pmt_gemm_nnpmatpmatpmatpmat' : [], \
+    'global@_Z11pmt_gemm_ntpmatpmatpmat' : [], \
+    'global@_Z11pmt_gemm_ntpmatpmatpmatpmat' : [], \
+    'global@_Z11pmt_gemm_tnpmatpmatpmat' : [], \
+    'global@_Z11pmt_gemm_tnpmatpmatpmatpmat' : [], \
+    'global@_Z11pmt_gemm_ttpmatpmatpmat' : [], \
+    'global@_Z11pmt_gemm_ttpmatpmatpmatpmat' : [], \
+    'global@_Z8pmt_geadfloatpmatpmat' : [], \
+    'global@_Z9pmt_potrfpmatpmat' : [], \
+    'global@_Z10pmt_potrsmpmatpmat' : [], \
+    'global@_Z9pmat_tranpmatpmat' : [], \
+    'global@_Z9pmat_copypmatpmat' : [], \
+    'global@_Z9pmat_fillpmatfloat' : [], \
+    'global@_Z9pmat_hcatpmatpmatpmat' : [], \
+    'global@_Z9pmat_vcatpmatpmatpmat' : [], \
+    'global@_Z10pvec_printpvec' : [], \
+    'global@_Z9pvec_copypvecpvec' : [], \
+}
 
 native_types = ['int', 'float']
 
@@ -99,6 +98,9 @@ class ast_visitor(ExplicitNodeVisitor):
         with open('__pmt_cache__/typed_record.json', 'r') as f:
             self.typed_record = json.load(f)
 
+        with open('__pmt_cache__/dim_record.json', 'r') as f:
+            self.dim_record = json.load(f)
+
         with open('__pmt_cache__/meta_info.json', 'r') as f:
             self.meta_info = json.load(f)
 
@@ -138,11 +140,13 @@ class ast_visitor(ExplicitNodeVisitor):
 
         """
         if isinstance(node, ast.Name):
-            if node.id not in self.typed_record[scope]:
-                raise Exception('Undefined variable {}'.format(node.id))
-
-            type_val = self.typed_record[scope][node.id]
-
+            if node.id in self.typed_record[scope]:
+                type_val = self.typed_record[scope][node.id]
+            elif  node.id in self.dim_record:
+                type_val = 'dims'
+            else:
+                import pdb; pdb.set_trace()
+                raise cgenException('Undefined variable {}'.format(node.id), node.lineno)
             return type_val,  None
 
         elif isinstance(node, ast.Num):
@@ -307,7 +311,7 @@ class ast_visitor(ExplicitNodeVisitor):
                     if isinstance(arg.n, int):
                         arg_value = 'int'
                     elif isinstance(arg.n, float):
-                        arg_value = 'double'
+                        arg_value = 'float'
                     else:
                         raise cgenException('Invalid numeric argument.\n', arg.lineno)
                     post_mangl = post_mangl + arg_value
@@ -571,6 +575,7 @@ def compute_reach_graph(call_graph, typed_record, meta_info):
         if scopes[0] != 'global':
             raise Exception('Invalid leading scope {}'.format(scopes[0]))
         if scopes[1] not in typed_record[caller]:
+            import pdb; pdb.set_trace()
             raise Exception('Could not resolve scope name {}'.format(scopes[1]))
         else:
             scopes[1] = typed_record[caller][scopes[1]]

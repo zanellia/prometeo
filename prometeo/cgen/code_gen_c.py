@@ -25,31 +25,39 @@ from jinja2 import Template
 from collections import OrderedDict
 
 pmt_temp_functions = {\
-        'pmat': 'c_pmt_create_pmat', \
-        'pvec': 'c_pmt_create_pvec', \
-        'pmt_gemm': 'c_pmt_gemm_nn', \
-        'pmt_gemm_nn': 'c_pmt_gemm_nn', \
-        'pmt_gemm_tn': 'c_pmt_gemm_tn', \
-        'pmt_gemm_nt': 'c_pmt_gemm_nt', \
-        'pmt_trmm_rlnn': 'c_pmt_trmm_rlnn', \
-        'pmt_syrk_ln': 'c_pmt_syrk_ln', \
-        'pmt_gead': 'c_pmt_gead', \
-        'pmt_getrf': 'c_pmt_getrf', \
-        'pmt_getrsm': 'c_pmt_getrsm', \
-        'pmt_getrsv': 'c_pmt_getrsv', \
-        'pmt_potrf': 'c_pmt_potrf', \
-        'pmt_potrsm': 'c_pmt_potrsm', \
-        'pmt_potrsv': 'c_pmt_potrsv', \
-        'pmat_fill': 'c_pmt_pmat_fill', \
-        'pmat_copy': 'c_pmt_pmat_copy', \
-        'pmat_tran': 'c_pmt_pmat_tran', \
-        'pmat_vcat': 'c_pmt_pmat_vcat', \
-        'pmat_hcat': 'c_pmt_pmat_hcat', \
-        'pmat_print': 'c_pmt_pmat_print', \
-        'pvec_fill': 'c_pmt_pvec_fill', \
-        'pvec_copy': 'c_pmt_pvec_copy', \
-        'pvec_print': 'c_pmt_pvec_print', \
-        'print': 'printf'}
+        '_Z4pmatdimsdims': 'c_pmt_create_pmat', \
+        '_Z4pvecdimsdims': 'c_pmt_create_pvec', \
+        '_Z10pmat_printpmat': 'c_pmt_pmat_print', \
+        '_Z8pmt_gemmpmatpmatpmat': 'c_pmt_gemm_nn', \
+        '_Z8pmt_gemmpmatpmatpmatpmat': 'c_pmt_gemm_nn', \
+        '_Z11pmt_gemm_nnpmatpmatpmatpmat': 'c_pmt_gemm_nn', \
+        '_Z11pmt_gemm_nnpmatpmatpmat': 'c_pmt_gemm_nn', \
+        '_Z11pmt_gemm_ntpmatpmatpmatpmat': 'c_pmt_gemm_nt', \
+        '_Z11pmt_gemm_ntpmatpmatpmat': 'c_pmt_gemm_nt', \
+        '_Z11pmt_gemm_tnpmatpmatpmatpmat': 'c_pmt_gemm_tn', \
+        '_Z11pmt_gemm_tnpmatpmatpmat': 'c_pmt_gemm_tn', \
+        '_Z11pmt_gemm_ttpmatpmatpmatpmat': 'c_pmt_gemm_tt', \
+        '_Z11pmt_gemm_ttpmatpmatpmat': 'c_pmt_gemm_tt', \
+        '_Z8pmt_geadfloatpmatpmat': 'c_pmt_gead', \
+        '_Z9pmt_potrfpmatpmat': 'c_pmt_potrf', \
+        '_Z10pmt_potrsmpmatpmat': 'c_pmt_potrsm', \
+        '_Z9pmat_tranpmatpmat': 'c_pmt_pmat_tran', \
+        '_Z9pmat_copypmatpmat': 'c_pmt_pmat_copy', \
+        '_Z9pmat_fillpmatfloat': 'c_pmt_pmat_fill', \
+        '_Z9pmat_hcatpmatpmatpmat': 'c_pmt_pmat_hcat', \
+        '_Z9pmat_vcatpmatpmatpmat': 'c_pmt_pmat_vcat', \
+        '_Z10pvec_printpvec': 'c_pmt_pvec_print', \
+        '_Z9pvec_copypvecpvec': 'c_pmt_pvec_copy', \
+        '_Z5print' : 'printf'}
+
+        # 'pmt_trmm_rlnn': 'c_pmt_trmm_rlnn', \
+        # 'pmt_syrk_ln': 'c_pmt_syrk_ln', \
+        # 'pmt_getrf': 'c_pmt_getrf', \
+        # 'pmt_getrsm': 'c_pmt_getrsm', \
+        # 'pmt_getrsv': 'c_pmt_getrsv', \
+        # 'pmt_potrsv': 'c_pmt_potrsv', \
+        # 'pvec_fill': 'c_pmt_pvec_fill', \
+        # 'print': 'printf'}
 
 pmt_temp_types = {\
         'pmat': 'struct pmat *', \
@@ -470,75 +478,95 @@ class SourceGenerator(ExplicitNodeVisitor):
 
         self.function_record = {
             'global': {
-                'pmat' : { 
+                '_Z4pmatdimsdims' : { 
                     'arg_types' : ["dims", "dims"],
                     'ret_type': "pmat"
                 },
-                'pvec' : { 
+                '_Z4pvecdimsdims' : { 
                     'arg_types' : ["dims"],
                     'ret_type': "pvec"
                 },
-                'pmat_print' : { 
+                '_Z10pmat_printpmat' : { 
                     'arg_types' : ["pmat"],
                     'ret_type': "None"
                 },
-                'pmt_gemm' : { 
+                '_Z8pmt_gemmpmatpmatpmat' : { 
+                    'arg_types' : ["pmat", "pmat", "pmat"],
+                    'ret_type': "None"
+                },
+                '_Z8pmt_gemmpmatpmatpmatpmat' : { 
                     'arg_types' : ["pmat", "pmat", "pmat", "pmat"],
                     'ret_type': "None"
                 },
-                'pmt_gemm_nn' : { 
+                '_Z11pmt_gemm_nnpmatpmatpmat' : { 
+                    'arg_types' : ["pmat", "pmat", "pmat"],
+                    'ret_type': "None"
+                },
+                '_Z11pmt_gemm_nnpmatpmatpmatpmat' : { 
                     'arg_types' : ["pmat", "pmat", "pmat", "pmat"],
                     'ret_type': "None"
                 },
-                'pmt_gemm_nt' : { 
+                '_Z11pmt_gemm_ntpmatpmatpmatpmat' : { 
                     'arg_types' : ["pmat", "pmat", "pmat", "pmat"],
                     'ret_type': "None"
                 },
-                'pmt_gemm_tn' : { 
+                '_Z11pmt_gemm_ntpmatpmatpmatpmat' : { 
                     'arg_types' : ["pmat", "pmat", "pmat", "pmat"],
                     'ret_type': "None"
                 },
-                'pmt_gemm_tt' : { 
+                '_Z11pmt_gemm_tnpmatpmatpmat' : { 
+                    'arg_types' : ["pmat", "pmat", "pmat"],
+                    'ret_type': "None"
+                },
+                '_Z11pmt_gemm_tnpmatpmatpmatpmat' : { 
                     'arg_types' : ["pmat", "pmat", "pmat", "pmat"],
                     'ret_type': "None"
                 },
-                'pmt_gead' : { 
+                '_Z11pmt_gemm_ttpmatpmatpmat' : { 
+                    'arg_types' : ["pmat", "pmat", "pmat"],
+                    'ret_type': "None"
+                },
+                '_Z11pmt_gemm_ttpmatpmatpmatpmat' : { 
+                    'arg_types' : ["pmat", "pmat", "pmat", "pmat"],
+                    'ret_type': "None"
+                },
+                '_Z8pmt_geadfloatpmatpmat' : { 
                     'arg_types' : ["float", "pmat", "pmat"],
                     'ret_type': "None"
                 },
-                'pmt_potrf' : { 
+                '_Z9pmt_potrfpmatpmat' : { 
                     'arg_types' : ["pmat", "pmat"],
                     'ret_type': "None"
                 },
-                'pmt_potrsm' : { 
+                '_Z10pmt_potrsmpmatpmat' : { 
                     'arg_types' : ["pmat", "pmat"],
                     'ret_type': "None"
                 },
-                'pmat_tran' : { 
+                '_Z9pmat_tranpmatpmat' : { 
                     'arg_types' : ["pmat", "pmat"],
                     'ret_type': "None"
                 },
-                'pmat_copy' : { 
+                '_Z9pmat_copypmatpmat' : { 
                     'arg_types' : ["pmat", "pmat"],
                     'ret_type': "None"
                 },
-                'pmat_fill' : { 
+                '_Z9pmat_fillpmatfloat' : { 
                     'arg_types' : ["pmat", "float"],
                     'ret_type': "None"
                 },
-                'pmat_hcat' : { 
+                '_Z9pmat_hcatpmatpmatpmat' : { 
                     'arg_types' : ["pmat", "pmat", "pmat"],
                     'ret_type': "None"
                 },
-                'pmat_vcat' : { 
+                '_Z9pmat_vcatpmatpmatpmat' : { 
                     'arg_types' : ["pmat", "pmat", "pmat"],
                     'ret_type': "None"
                 },
-                'pvec_print' : { 
+                '_Z10pvec_printpvec' : { 
                     'arg_types' : ["pvec"],
                     'ret_type': "None"
                 },
-                'pvec_copy' : { 
+                '_Z9pvec_copypvecpvec' : { 
                     'arg_types' : ["pvec", "pvec"],
                     'ret_type': "None"
                 }
@@ -635,10 +663,13 @@ class SourceGenerator(ExplicitNodeVisitor):
 
         """
         if isinstance(node, ast.Name):
-            if node.id not in self.typed_record[scope]:
+            if node.id in self.typed_record[scope]:
+                type_val = self.typed_record[scope][node.id]
+            elif  node.id in self.dim_record:
+                type_val = 'dims'
+            else:
                 raise cgenException('Undefined variable {}'.format(node.id), node.lineno)
 
-            type_val = self.typed_record[scope][node.id]
 
             return type_val,  None
 
@@ -647,6 +678,13 @@ class SourceGenerator(ExplicitNodeVisitor):
             type_val = type(node.n).__name__
 
             return type_val,  None
+
+        elif isinstance(node, ast.NameConstant):
+            if node.value == None:
+                type_val = None
+                return type_val,  None
+            else:
+                raise cgenException('Undefined type {}'.format(node.value), node.lineno)
 
         elif isinstance(node, ast.BinOp):
             type_l, s  = self.get_type_of_node(node.left, scope)
@@ -1439,7 +1477,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                     if isinstance(arg.n, int):
                         arg_value = 'int'
                     elif isinstance(arg.n, float):
-                        arg_value = 'double'
+                        arg_value = 'float'
                     else:
                         raise cgenException('Invalid numeric argument.\n', arg.lineno)
                     post_mangl = post_mangl + arg_value
@@ -1518,8 +1556,9 @@ class SourceGenerator(ExplicitNodeVisitor):
             if len(node.targets) != 1:
                 raise cgenException('Cannot have assignments with a number of \
                     targets other than 1.\n', node.lineno)
-            # TODO(andrea)" get type of value here
+            # get type of value
             type_val, arg_types = self.get_type_of_node(node.value, self.scope)
+            # get type of target
             type_val_t, arg_types = self.get_type_of_node(node.targets[0], self.scope)
             if type_val != type_val_t:
                 raise cgenException('Mismatching types in assignment {} = {}'.format(type_val_t, type_val), node.lineno)
