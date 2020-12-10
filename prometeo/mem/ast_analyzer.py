@@ -238,7 +238,7 @@ class ast_visitor(ExplicitNodeVisitor):
                     type_val = 'global@' + self.meta_info[type_val]['attr'][node.attr]
                 return type_val
 
-    def build_arg_mangling_mod(self, args, is_call = False):
+    def build_arg_mangling(self, args, is_call = False):
         want_comma = []
 
         def loop_args_mangl_def(args, defaults):
@@ -275,7 +275,6 @@ class ast_visitor(ExplicitNodeVisitor):
                     post_mangl = post_mangl + arg_type_py
                 elif arg.arg is not 'self':
                     raise cgenException('Invalid function argument without type annotation', arg.lineno)
-
 
             return post_mangl
 
@@ -352,22 +351,31 @@ class ast_visitor(ExplicitNodeVisitor):
     def visit_FunctionDef(self, node):
         # if node.name != '__init__':
 
-        f_name_len = len(node.name)
-        pre_mangl = '_Z%s' %f_name_len
-        post_mangl = self.build_arg_mangling_mod(node.args, is_call = False)
-        mangl_fun_name = pre_mangl + node.name + post_mangl
+        fun_name = node.name
+        if fun_name == 'main':
+            fun_name_m = 'main'
+        else:
+            f_name_len = len(node.name)
+            pre_mangl = '_Z%s' %f_name_len
+            post_mangl = self.build_arg_mangling(node.args, is_call = False)
+            fun_name_m = pre_mangl + node.name + post_mangl
 
-        self.caller_scope = self.caller_scope + '@' + mangl_fun_name
+        self.caller_scope = self.caller_scope + '@' + fun_name_m
         self.callees[self.caller_scope] = set([])
         # self.visit_ast(node)
         self.body(node.body)
-        self.caller_scope = descope(self.caller_scope, '@' + mangl_fun_name)
+        self.caller_scope = descope(self.caller_scope, '@' + fun_name_m)
 
     def visit_ClassDef(self, node):
-        self.caller_scope = self.caller_scope + '@' + node.name
-        self.callees[self.caller_scope] = set([])
+        class_name = node.name
+        class_name_m = '_Z' + str(len(class_name)) + class_name
+
+        # register constructor
+        self.callees[self.caller_scope + '@' + class_name_m] = set([])
+
+        self.caller_scope = self.caller_scope + '@' + class_name
         self.body(node.body)
-        self.caller_scope = descope(self.caller_scope, '@' + node.name)
+        self.caller_scope = descope(self.caller_scope, '@' + class_name)
 
     def visit_Expr(self, node):
         set_precedence(node, node.value)
@@ -378,25 +386,32 @@ class ast_visitor(ExplicitNodeVisitor):
         self.visit(node.body)
 
     def resolve_call(self, node, pre_mangl, post_mangl):
+        callee = self.resolve_call_rec(node.value)
+        return callee + '@' + pre_mangl + node.attr + post_mangl
+
+    def resolve_call_rec(self, node):
         if isinstance(node, ast.Name):
             return node.id
         else:
-            callee = self.resolve_call(node.value, pre_mangl, post_mangl)
-            return callee + '@' + pre_mangl + node.attr + post_mangl
+            callee = self.resolve_call_rec(node.value)
+            return callee
 
     def visit_Call(self, node, len=len):
-        # ap.pprint(node)
-        ap.pprint(node.func)
         if isinstance(node.func, ast.Name):
             func_name = node.func.id
         else:
             func_name = node.func.attr
         f_name_len = len(func_name)
         pre_mangl = '_Z%s' %f_name_len
-        post_mangl = self.build_arg_mangling_mod(node.args, is_call = True)
+        post_mangl = self.build_arg_mangling(node.args, is_call = True)
 
         if isinstance(node.func, ast.Name):
-            self.callees[self.caller_scope].add(self.callee_scope + '@' + pre_mangl + func_name + post_mangl)
+            if func_name == 'main':
+                # do not mangle function name
+                self.callees[self.caller_scope].add(self.callee_scope + '@' + func_name)
+            else:
+                # mangle function name
+                self.callees[self.caller_scope].add(self.callee_scope + '@' + pre_mangl + func_name + post_mangl)
         elif isinstance(node.func, ast.Attribute):
             callee = self.resolve_call(node.func, pre_mangl, post_mangl)
             self.callees[self.caller_scope].add(self.callee_scope + '@' + callee)
@@ -542,7 +557,6 @@ def compute_reach_graph(call_graph, typed_record, meta_info):
                 graph_copy[method].remove(call)
 
 
-    import pdb; pdb.set_trace()
     call_graph = deepcopy(graph_copy)
 
     # strip empty calls

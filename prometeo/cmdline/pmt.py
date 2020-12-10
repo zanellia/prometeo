@@ -133,7 +133,7 @@ class Graph:
         self.nodes = dict()
 
         for i in range(len(nodes)):
-            self.nodes[nodes[i]] = np.infty
+            self.nodes[nodes[i]] = 0
 
         self.nodes[start] = heap_start
         self.edges = edges
