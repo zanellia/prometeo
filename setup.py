@@ -34,8 +34,9 @@ setup(name='prometeo-dsl',
         'numexpr'
     ],
     package_data={'': \
-        ['lib/prometeo/libcpmt.so', \
+        [
         'lib/blasfeo/libblasfeo.so', \
+        'lib/prometeo/libcpmt.so', \
         'include/prometeo/*', \
         'include/blasfeo/*']},
     include_package_data=True,
