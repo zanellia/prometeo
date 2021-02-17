@@ -2,7 +2,6 @@
      alt="prometeo logo by Andrea Zanelli" width="80" height="120">
 
 ![Travis Status](https://travis-ci.org/zanellia/prometeo.svg?branch=master) [![PyPI version fury.io](https://badge.fury.io/py/prometeo-dsl.svg)](https://pypi.python.org/pypi/ansicolortags/) [![Documentation Status](https://readthedocs.org/projects/prometeo/badge/?version=latest)](https://prometeo.readthedocs.io/en/latest/?badge=latest)
-[![Downloads](https://pepy.tech/badge/prometeo-dsl/month)](https://pepy.tech/project/prometeo-dsl/month)
 
 
 This is prometeo, an experimental modeling tool for embedded high-performance computing. prometeo provides a 
@@ -42,13 +41,14 @@ Since prometeo programs transpile to pure C code that calls the high performance
 <img src="https://github.com/zanellia/prometeo/blob/master/benchmarks/riccati_benchmark.png" width="100%" >
 </p>
 
-Moreover, prometeo can largely outperform state-of-the-art Python compilers such as Nuitka. The table below shows the CPU times obtained on a Fibonacci benchmark (40th Fibonacci number).
+Moreover, prometeo can largely outperform state-of-the-art Python compilers such as Nuitka. The table below shows the CPU times obtained on a Fibonacci benchmark.
 
 |    parser/compiler   | CPU time [s] |
 |:--------------------:|--------------|
-| Python 3.7 (CPython) |    27.128    |
-|        Nuitka        |    12.525    |
-|       prometeo       |     0.700    |
+| Python 3.7 (CPython) |    11.787    |
+|        Nuitka        |    10.039    |
+|	PyPy           |     1.78     |
+|       prometeo       |     0.657    |
 
 
 ### PyPI installation

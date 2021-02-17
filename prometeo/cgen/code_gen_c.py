@@ -25,31 +25,39 @@ from jinja2 import Template
 from collections import OrderedDict
 
 pmt_temp_functions = {\
-        'pmat': 'c_pmt_create_pmat', \
-        'pvec': 'c_pmt_create_pvec', \
-        'pmt_gemm': 'c_pmt_gemm_nn', \
-        'pmt_gemm_nn': 'c_pmt_gemm_nn', \
-        'pmt_gemm_tn': 'c_pmt_gemm_tn', \
-        'pmt_gemm_nt': 'c_pmt_gemm_nt', \
-        'pmt_trmm_rlnn': 'c_pmt_trmm_rlnn', \
-        'pmt_syrk_ln': 'c_pmt_syrk_ln', \
-        'pmt_gead': 'c_pmt_gead', \
-        'pmt_getrf': 'c_pmt_getrf', \
-        'pmt_getrsm': 'c_pmt_getrsm', \
-        'pmt_getrsv': 'c_pmt_getrsv', \
-        'pmt_potrf': 'c_pmt_potrf', \
-        'pmt_potrsm': 'c_pmt_potrsm', \
-        'pmt_potrsv': 'c_pmt_potrsv', \
-        'pmat_fill': 'c_pmt_pmat_fill', \
-        'pmat_copy': 'c_pmt_pmat_copy', \
-        'pmat_tran': 'c_pmt_pmat_tran', \
-        'pmat_vcat': 'c_pmt_pmat_vcat', \
-        'pmat_hcat': 'c_pmt_pmat_hcat', \
-        'pmat_print': 'c_pmt_pmat_print', \
-        'pvec_fill': 'c_pmt_pvec_fill', \
-        'pvec_copy': 'c_pmt_pvec_copy', \
-        'pvec_print': 'c_pmt_pvec_print', \
-        'print': 'printf'}
+        '_Z4pmatdimsdims': 'c_pmt_create_pmat', \
+        '_Z4pvecdimsdims': 'c_pmt_create_pvec', \
+        '_Z10pmat_printpmat': 'c_pmt_pmat_print', \
+        '_Z8pmt_gemmpmatpmatpmat': 'c_pmt_gemm_nn', \
+        '_Z8pmt_gemmpmatpmatpmatpmat': 'c_pmt_gemm_nn', \
+        '_Z11pmt_gemm_nnpmatpmatpmatpmat': 'c_pmt_gemm_nn', \
+        '_Z11pmt_gemm_nnpmatpmatpmat': 'c_pmt_gemm_nn', \
+        '_Z11pmt_gemm_ntpmatpmatpmatpmat': 'c_pmt_gemm_nt', \
+        '_Z11pmt_gemm_ntpmatpmatpmat': 'c_pmt_gemm_nt', \
+        '_Z11pmt_gemm_tnpmatpmatpmatpmat': 'c_pmt_gemm_tn', \
+        '_Z11pmt_gemm_tnpmatpmatpmat': 'c_pmt_gemm_tn', \
+        '_Z11pmt_gemm_ttpmatpmatpmatpmat': 'c_pmt_gemm_tt', \
+        '_Z11pmt_gemm_ttpmatpmatpmat': 'c_pmt_gemm_tt', \
+        '_Z8pmt_geadfloatpmatpmat': 'c_pmt_gead', \
+        '_Z9pmt_potrfpmatpmat': 'c_pmt_potrf', \
+        '_Z10pmt_potrsmpmatpmat': 'c_pmt_potrsm', \
+        '_Z9pmat_tranpmatpmat': 'c_pmt_pmat_tran', \
+        '_Z9pmat_copypmatpmat': 'c_pmt_pmat_copy', \
+        '_Z9pmat_fillpmatfloat': 'c_pmt_pmat_fill', \
+        '_Z9pmat_hcatpmatpmatpmat': 'c_pmt_pmat_hcat', \
+        '_Z9pmat_vcatpmatpmatpmat': 'c_pmt_pmat_vcat', \
+        '_Z10pvec_printpvec': 'c_pmt_pvec_print', \
+        '_Z9pvec_copypvecpvec': 'c_pmt_pvec_copy', \
+        '_Z5print' : 'printf'}
+
+        # 'pmt_trmm_rlnn': 'c_pmt_trmm_rlnn', \
+        # 'pmt_syrk_ln': 'c_pmt_syrk_ln', \
+        # 'pmt_getrf': 'c_pmt_getrf', \
+        # 'pmt_getrsm': 'c_pmt_getrsm', \
+        # 'pmt_getrsv': 'c_pmt_getrsv', \
+        # 'pmt_potrsv': 'c_pmt_potrsv', \
+        # 'pvec_fill': 'c_pmt_pvec_fill', \
+        # 'print': 'printf'}
 
 pmt_temp_types = {\
         'pmat': 'struct pmat *', \
@@ -456,7 +464,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.blasfeo_nc = blasfeo_nc
 
         self.typed_record = {'global': dict()}
-        self.meta_info = {'global': dict()}
+        self.meta_info = {'global': {'methods' : dict(), 'attributes' : dict()}}
         # self.heap8_record = {'global': dict()}
         self.heap8_record = {'global': "0"}
         # self.heap64_record = {'global': dict()}
@@ -470,75 +478,95 @@ class SourceGenerator(ExplicitNodeVisitor):
 
         self.function_record = {
             'global': {
-                'pmat' : { 
+                '_Z4pmatdimsdims' : { 
                     'arg_types' : ["dims", "dims"],
                     'ret_type': "pmat"
                 },
-                'pvec' : { 
+                '_Z4pvecdimsdims' : { 
                     'arg_types' : ["dims"],
                     'ret_type': "pvec"
                 },
-                'pmat_print' : { 
+                '_Z10pmat_printpmat' : { 
                     'arg_types' : ["pmat"],
                     'ret_type': "None"
                 },
-                'pmt_gemm' : { 
+                '_Z8pmt_gemmpmatpmatpmat' : { 
+                    'arg_types' : ["pmat", "pmat", "pmat"],
+                    'ret_type': "None"
+                },
+                '_Z8pmt_gemmpmatpmatpmatpmat' : { 
                     'arg_types' : ["pmat", "pmat", "pmat", "pmat"],
                     'ret_type': "None"
                 },
-                'pmt_gemm_nn' : { 
+                '_Z11pmt_gemm_nnpmatpmatpmat' : { 
+                    'arg_types' : ["pmat", "pmat", "pmat"],
+                    'ret_type': "None"
+                },
+                '_Z11pmt_gemm_nnpmatpmatpmatpmat' : { 
                     'arg_types' : ["pmat", "pmat", "pmat", "pmat"],
                     'ret_type': "None"
                 },
-                'pmt_gemm_nt' : { 
+                '_Z11pmt_gemm_ntpmatpmatpmatpmat' : { 
                     'arg_types' : ["pmat", "pmat", "pmat", "pmat"],
                     'ret_type': "None"
                 },
-                'pmt_gemm_tn' : { 
+                '_Z11pmt_gemm_ntpmatpmatpmatpmat' : { 
                     'arg_types' : ["pmat", "pmat", "pmat", "pmat"],
                     'ret_type': "None"
                 },
-                'pmt_gemm_tt' : { 
+                '_Z11pmt_gemm_tnpmatpmatpmat' : { 
+                    'arg_types' : ["pmat", "pmat", "pmat"],
+                    'ret_type': "None"
+                },
+                '_Z11pmt_gemm_tnpmatpmatpmatpmat' : { 
                     'arg_types' : ["pmat", "pmat", "pmat", "pmat"],
                     'ret_type': "None"
                 },
-                'pmt_gead' : { 
+                '_Z11pmt_gemm_ttpmatpmatpmat' : { 
+                    'arg_types' : ["pmat", "pmat", "pmat"],
+                    'ret_type': "None"
+                },
+                '_Z11pmt_gemm_ttpmatpmatpmatpmat' : { 
+                    'arg_types' : ["pmat", "pmat", "pmat", "pmat"],
+                    'ret_type': "None"
+                },
+                '_Z8pmt_geadfloatpmatpmat' : { 
                     'arg_types' : ["float", "pmat", "pmat"],
                     'ret_type': "None"
                 },
-                'pmt_potrf' : { 
+                '_Z9pmt_potrfpmatpmat' : { 
                     'arg_types' : ["pmat", "pmat"],
                     'ret_type': "None"
                 },
-                'pmt_potrsm' : { 
+                '_Z10pmt_potrsmpmatpmat' : { 
                     'arg_types' : ["pmat", "pmat"],
                     'ret_type': "None"
                 },
-                'pmat_tran' : { 
+                '_Z9pmat_tranpmatpmat' : { 
                     'arg_types' : ["pmat", "pmat"],
                     'ret_type': "None"
                 },
-                'pmat_copy' : { 
+                '_Z9pmat_copypmatpmat' : { 
                     'arg_types' : ["pmat", "pmat"],
                     'ret_type': "None"
                 },
-                'pmat_fill' : { 
+                '_Z9pmat_fillpmatfloat' : { 
                     'arg_types' : ["pmat", "float"],
                     'ret_type': "None"
                 },
-                'pmat_hcat' : { 
+                '_Z9pmat_hcatpmatpmatpmat' : { 
                     'arg_types' : ["pmat", "pmat", "pmat"],
                     'ret_type': "None"
                 },
-                'pmat_vcat' : { 
+                '_Z9pmat_vcatpmatpmatpmat' : { 
                     'arg_types' : ["pmat", "pmat", "pmat"],
                     'ret_type': "None"
                 },
-                'pvec_print' : { 
+                '_Z10pvec_printpvec' : { 
                     'arg_types' : ["pvec"],
                     'ret_type': "None"
                 },
-                'pvec_copy' : { 
+                '_Z9pvec_copypvecpvec' : { 
                     'arg_types' : ["pvec", "pvec"],
                     'ret_type': "None"
                 }
@@ -635,10 +663,13 @@ class SourceGenerator(ExplicitNodeVisitor):
 
         """
         if isinstance(node, ast.Name):
-            if node.id not in self.typed_record[scope]:
+            if node.id in self.typed_record[scope]:
+                type_val = self.typed_record[scope][node.id]
+            elif  node.id in self.dim_record:
+                type_val = 'dims'
+            else:
                 raise cgenException('Undefined variable {}'.format(node.id), node.lineno)
 
-            type_val = self.typed_record[scope][node.id]
 
             return type_val,  None
 
@@ -648,11 +679,19 @@ class SourceGenerator(ExplicitNodeVisitor):
 
             return type_val,  None
 
+        elif isinstance(node, ast.NameConstant):
+            if node.value == None:
+                type_val = None
+                return type_val,  None
+            else:
+                raise cgenException('Undefined type {}'.format(node.value), node.lineno)
+
         elif isinstance(node, ast.BinOp):
             type_l, s  = self.get_type_of_node(node.left, scope)
             type_r, s = self.get_type_of_node(node.right, scope)
             if type_l != type_r:
-                raise cgenException("Type mismatch in BinOp: left = {}, right = {}".format(type_l,type_r), node.lineno)
+                raise cgenException("Type mismatch in BinOp: left = {}, \
+                    right = {}".format(type_l,type_r), node.lineno)
             return type_l, None
 
         elif isinstance(node, ast.UnaryOp):
@@ -698,19 +737,30 @@ class SourceGenerator(ExplicitNodeVisitor):
 
         elif isinstance(node, ast.Call):
             if isinstance(node.func, ast.Name):
-                if node.func.id not in self.function_record['global']:
-                    raise cgenException('Undefined method {}'.format(node.func.id), node.lineno)
-                type_val = self.function_record['global'][node.func.id]['ret_type']
-                return type_val,  self.function_record['global'][node.func.id]['arg_types']
+                fun_name = node.func.id
+                pre_mangl = '_Z' + str(len(fun_name))
+                post_mangl = self.build_arg_mangling(node.args, is_call = True)
+                fun_name_m = pre_mangl + fun_name + post_mangl
+                if fun_name_m not in self.function_record['global']:
+                    raise cgenException('Undefined method {}'.format(fun_name_m), node.lineno)
+                type_val = self.function_record['global'][fun_name_m]['ret_type']
+                return type_val, self.function_record['global'][fun_name_m]['arg_types']
+            elif isinstance(node.func, ast.Attribute):
+                type_val = self.get_type_of_node_rec(node.func.value, scope)
 
-            type_val = self.get_type_of_node_rec(node.func.value, scope)
+                fun_name = node.func.attr
+                pre_mangl = '_Z' + str(len(fun_name))
+                post_mangl = self.build_arg_mangling(node.args, is_call = True)
+                fun_name_m = pre_mangl + fun_name + post_mangl
 
-            if node.func.attr not in self.meta_info[type_val]['methods']:
-                raise cgenException('Undefined method {}'.format(node.func.attr), node.lineno)
-            arg_types = self.meta_info[type_val]['methods'][node.func.attr]['args']
-            type_val = self.meta_info[type_val]['methods'][node.func.attr]['return_type']
+                if fun_name_m not in self.meta_info[type_val]['methods']:
+                    raise cgenException('Undefined method {}'.format(fun_name_m), node.lineno)
+                arg_types = self.meta_info[type_val]['methods'][fun_name_m]['args']
+                type_val = self.meta_info[type_val]['methods'][fun_name_m]['return_type']
 
-            return type_val, arg_types
+                return type_val, arg_types
+            else:
+                raise cgenException('Parse error.', node.lineno)
 
     def get_type_of_node_rec(self, node, scope):
         if isinstance(node, ast.Name):
@@ -912,9 +962,9 @@ class SourceGenerator(ExplicitNodeVisitor):
                 self.write_instance_attributes(item.body, name=name)
                 self.update_constructor_heap(item.body, name=name)
 
-            self.meta_info[self.scope]['methods'][item.name] = dict()
             # build argument mangling
-            f_name_len = len(item.name)
+            fun_name = item.name
+            f_name_len = len(fun_name)
             pre_mangl = '_Z%s' %f_name_len 
             if len(item.args.args) < 1:
                 raise cgenException('First argument in method {} \
@@ -931,13 +981,15 @@ class SourceGenerator(ExplicitNodeVisitor):
                 item.args.args.pop(0)
 
             post_mangl = self.build_arg_mangling(item.args)
+            fun_name_m = pre_mangl + fun_name + post_mangl
             
+            self.meta_info[self.scope]['methods'][fun_name_m] = dict()
             if hasattr(self.get_returns(item), 'id'):
                 ret_type = self.get_returns(item).id
             else:
                 ret_type = self.get_returns(item).value
 
-            self.meta_info[self.scope]['methods'][item.name]['return_type'] = ret_type
+            self.meta_info[self.scope]['methods'][fun_name_m]['return_type'] = ret_type
 
             if ret_type is None: 
                 ret_type = 'None'
@@ -951,17 +1003,17 @@ class SourceGenerator(ExplicitNodeVisitor):
                 # raise cgenException ('Usage of non existing type {}'.format(ret_type))
 
             if len(item.args.args) > 0:  
-                self.write('%s (*%s%s%s' % (ret_type, pre_mangl, \
-                    item.name, post_mangl) , ')', '(%s *self, ' %name, \
+                self.write('%s (*%s' % (ret_type, fun_name_m), \
+                    ')', '(%s *self, ' %name, \
                     dest = 'hdr')
             else:
-                self.write('%s (*%s%s%s' % (ret_type, pre_mangl, \
-                        item.name, post_mangl) , ')', '(%s *self' %name, \
+                self.write('%s (*%s' % (ret_type, fun_name_m), \
+                        ')', '(%s *self' %name, \
                         dest = 'hdr')
 
 
             args_list = self.visit_arguments(item.args, 'hdr')
-            self.meta_info[self.scope]['methods'][item.name]['args'] = args_list
+            self.meta_info[self.scope]['methods'][fun_name_m]['args'] = args_list
             # TODO(andrea): implicit call to visit() in write() - make explicit
             self.write(');\n', dest = 'hdr')
             # insert back self argument 
@@ -1208,14 +1260,13 @@ class SourceGenerator(ExplicitNodeVisitor):
                     # pop self from argument list
                     item.args.args.pop(0)
 
+                # build argument mangling
                 post_mangl = self.build_arg_mangling(item.args)
 
                 self.statement(item, 'object->%s%s%s' %(pre_mangl, \
                     item.name, post_mangl), ' = &', '%s%s%s%s' %(pre_mangl, \
                     item.name, post_mangl, name), '_impl;')
 
-                # build argument mangling
-                arg_mangl = self.build_arg_mangling(item.args)
                 # insert back self argument
                 item.args.args.insert(0, self_arg)
 
@@ -1271,7 +1322,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                     self.statement(item, ret_type, ' %s%s%s%s' % (pre_mangl, \
                             item.name, post_mangl, name), '_impl(', name, ' *self')
 
-                self.scope = self.scope + '@' + item.name
+                fun_name_m = pre_mangl + item.name + post_mangl
+                self.scope = self.scope + '@' + fun_name_m 
                 self.typed_record[self.scope] = dict()
                 self.var_dim_record[self.scope] = dict()
                 self.heap8_record[self.scope] = '0'
@@ -1284,7 +1336,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 self.body(item.body)
                 self.newline(1)
                 self.write('}', dest = 'src')
-                self.scope = descope(self.scope, '@' + item.name)
+                self.scope = descope(self.scope, '@' + fun_name_m)
 
                 if not self.indentation:
                     self.newline(extra=2)
@@ -1356,49 +1408,129 @@ class SourceGenerator(ExplicitNodeVisitor):
 
         return args_list
 
-    def build_arg_mangling(self, node):
+    def build_arg_mangling(self, args, is_call = False):
         want_comma = []
 
-        def loop_args_mangl(args, defaults):
+        def loop_args_mangl_def(args, defaults):
+            """
+            Compute post mangling for FunctionDef node
+
+            Parameters:
+            ---------
+
+            args: 
+
+            AST node containing the arguments used in the function definition
+
+
+            defaults:
+
+            AST node containing the arguments defaults
+
+            Returns:
+            --------
+
+            post_mangl : str
+
+            String containing the post mangling
+            """
             set_precedence(Precedence.Comma, defaults)
             padding = [None] * (len(args) - len(defaults))
-            arg_mangl = ''
+            post_mangl = ''
+
             for arg, default in zip(args, padding + defaults):
-                annotation = arg.annotation
-                # annotation = ast.parse(arg.annotation.s).body[0]
-                # if 'value' in annotation.value.__dict__:
-                if 'value' in annotation.__dict__:
-                    # arg_mangl = arg_mangl + annotation.value.value.id
-                    arg_mangl = arg_mangl + annotation.value.id
-                else:
-                    # arg_mangl = arg_mangl + annotation.value.id
-                    arg_mangl = arg_mangl + annotation.id
-            return arg_mangl
+                # fish C type from typed record
+                if isinstance(arg.annotation, ast.Name):
+                    arg_type_py = arg.annotation.id
+                    post_mangl = post_mangl + arg_type_py
+                elif arg.arg is not 'self':
+                    raise cgenException('Invalid function argument without type annotation', arg.lineno)
 
-        arg_mangl = loop_args_mangl(node.args, node.defaults)
-        return arg_mangl
-
-    def build_arg_mangling_mod(self, args):
-        want_comma = []
+            return post_mangl
 
         def loop_args_mangl(args):
-            arg_mangl = ''
+            """
+            Compute post mangling for Call node
+
+            Parameters:
+            ---------
+
+            args: 
+
+            AST node containing the arguments used in the function call
+
+
+            defaults:
+
+            AST node containing the arguments defaults
+
+            Returns:
+            --------
+
+            post_mangl : str
+
+            String containing the post mangling
+            """
+            post_mangl = ''
             for arg in args:
                 if isinstance(arg, ast.Num):
                     if isinstance(arg.n, int):
                         arg_value = 'int'
                     elif isinstance(arg.n, float):
-                        arg_value = 'double'
+                        arg_value = 'float'
                     else:
                         raise cgenException('Invalid numeric argument.\n', arg.lineno)
-                    arg_mangl = arg_mangl + arg_value
+                    post_mangl = post_mangl + arg_value
                 else:
-                    arg_value = arg.id
-                    arg_mangl = arg_mangl + self.typed_record[self.scope][arg_value]
-            return arg_mangl
+                    # arg_value = arg.id
+                    type_val, s = self.get_type_of_node(arg, self.scope)
+                    post_mangl = post_mangl + type_val
+            return post_mangl
+        # def loop_args_mangl_def(args, defaults):
+        #     set_precedence(Precedence.Comma, defaults)
+        #     padding = [None] * (len(args) - len(defaults))
+        #     arg_mangl = ''
+        #     for arg, default in zip(args, padding + defaults):
+        #         annotation = arg.annotation
+        #         # annotation = ast.parse(arg.annotation.s).body[0]
+        #         # if 'value' in annotation.value.__dict__:
+        #         if 'value' in annotation.__dict__:
+        #             # arg_mangl = arg_mangl + annotation.value.value.id
+        #             arg_mangl = arg_mangl + annotation.value.id
+        #         else:
+        #             # arg_mangl = arg_mangl + annotation.value.id
+        #             arg_mangl = arg_mangl + annotation.id
+        #     return arg_mangl
 
-        arg_mangl = loop_args_mangl(args)
-        return arg_mangl
+        if is_call:
+            post_mangl = loop_args_mangl(args)
+        else:
+            post_mangl = loop_args_mangl_def(args.args, args.defaults)
+
+        return post_mangl
+
+    # def build_arg_mangling_mod(self, args):
+    #     want_comma = []
+
+    #     def loop_args_mangl(args):
+    #         arg_mangl = ''
+    #         for arg in args:
+    #             if isinstance(arg, ast.Num):
+    #                 if isinstance(arg.n, int):
+    #                     arg_value = 'int'
+    #                 elif isinstance(arg.n, float):
+    #                     arg_value = 'double'
+    #                 else:
+    #                     raise cgenException('Invalid numeric argument.\n', arg.lineno)
+    #                 arg_mangl = arg_mangl + arg_value
+    #             else:
+    #                 # arg_value = arg.id
+    #                 type_val, s = self.get_type_of_node(arg, self.scope)
+    #                 arg_mangl = arg_mangl + type_val
+    #         return arg_mangl
+
+    #     arg_mangl = loop_args_mangl(args)
+    #     return arg_mangl
 
     def statement(self, node, *params, **kw):
         self.newline(node)
@@ -1424,8 +1556,9 @@ class SourceGenerator(ExplicitNodeVisitor):
             if len(node.targets) != 1:
                 raise cgenException('Cannot have assignments with a number of \
                     targets other than 1.\n', node.lineno)
-            # TODO(andrea)" get type of value here
+            # get type of value
             type_val, arg_types = self.get_type_of_node(node.value, self.scope)
+            # get type of target
             type_val_t, arg_types = self.get_type_of_node(node.targets[0], self.scope)
             if type_val != type_val_t:
                 raise cgenException('Mismatching types in assignment {} = {}'.format(type_val_t, type_val), node.lineno)
@@ -2057,6 +2190,13 @@ class SourceGenerator(ExplicitNodeVisitor):
             if returns.id != 'int':
                 raise cgenException('Main must return an int', node.lineno)
             self.in_main = True
+            fun_name = node.name
+            fun_name_m = fun_name
+        else:
+            fun_name = node.name
+            pre_mangl = '_Z' + str(len(fun_name))
+            post_mangl = self.build_arg_mangling(node.args)
+            fun_name_m = pre_mangl + fun_name + post_mangl
         # ap.pprint(node)
         # save current scope (needed to update log)
         outer_scope = self.scope
@@ -2064,7 +2204,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         if not outer_scope in self.function_record:
             self.function_record[outer_scope] = dict()
 
-        self.scope = self.scope + '@' + node.name
+        self.scope = self.scope + '@' + fun_name_m
         self.typed_record[self.scope] = dict()
         self.var_dim_record[self.scope] = dict()
         self.heap8_record[self.scope] = '0'
@@ -2074,7 +2214,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         # self.write()
         if returns is None:
             raise cgenException('Missing return annotation on method {}'.format(\
-                node.name), node.lineno)
+                fun_name), node.lineno)
 
         if isinstance(returns, ast.NameConstant):
             return_type_py = str(returns.value)
@@ -2086,15 +2226,15 @@ class SourceGenerator(ExplicitNodeVisitor):
         # print(return_type_py)
         return_type_c = pmt_temp_types[return_type_py]
         # function declaration
-        self.write(return_type_c, ' %s' %(node.name), '(', dest = 'hdr')
+        self.write(return_type_c, ' %s' %(fun_name_m), '(', dest = 'hdr')
         arg_list = self.visit_arguments(node.args, 'hdr')
 
         if not self.in_main:
-            self.function_record[outer_scope][node.name] = {"arg_types": arg_list,  "ret_type": return_type_py}
+            self.function_record[outer_scope][fun_name_m] = {"arg_types": arg_list,  "ret_type": return_type_py}
         
         self.write(');\n', dest = 'hdr')
         # function definition
-        self.write(return_type_c, ' %s' %(node.name), '(', dest = 'src')
+        self.write(return_type_c, ' %s' %(fun_name_m), '(', dest = 'src')
         self.visit_arguments(node.args, 'src')
         self.write(') {\n', dest = 'src')
         if node.name == 'main':
@@ -2132,7 +2272,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.write('}', dest='src')
         if not self.indentation:
             self.newline(extra=2)
-        self.scope = descope(self.scope, '@' + node.name)
+        self.scope = descope(self.scope, '@' + fun_name_m)
         self.in_main = False
 
     # introduced in Python 3.5
@@ -2144,13 +2284,13 @@ class SourceGenerator(ExplicitNodeVisitor):
     def visit_ClassDef(self, node):
         self.current_line = node.lineno
         self.current_col = node.col_offset
+        self.constructor_record.append(self.scope + '@_Z' + str(len(node.name)) + node.name)
         self.scope = self.scope + '@' + node.name
         self.typed_record[self.scope] = dict()
         self.meta_info[self.scope] = dict()
         self.var_dim_record[self.scope] = dict()
         self.heap8_record[self.scope] = '0'
         self.heap64_record[self.scope] = '0'
-        self.constructor_record.append(self.scope)
         have_args = []
 
         def paren_or_comma():
@@ -2365,18 +2505,23 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.current_col = node.col_offset
         set_precedence(node, node.value)
         type_val, s = self.get_type_of_node(node.value, self.scope)
+        class_scope = '@'.join(self.scope.split('@')[:-1])
+        method_name = self.scope.split('@')[-1]
         if self.fun_in_function_record(self.scope):
             ret_ann = self.get_ret_type_from_function_record(self.scope)
-        elif self.scope in self.meta_info:
-            ret_ann = self.function_record[self.scope]["ret_type"]
         elif self.scope == 'global@main':
             ret_ann = 'int'
+        elif class_scope in self.meta_info:
+            if method_name in self.meta_info[class_scope]['methods']:
+                ret_ann = self.meta_info[class_scope]['methods'][method_name]['return_type']
+            else:
+                raise cgenException('Could not find definition of method {}'.format(self.scope), node.lineno)
         else:
             raise cgenException('Could not find definition of method {}'.format(self.scope), node.lineno)
 
         if ret_ann != type_val:
             raise cgenException('Type mismatch in return statement: {} instead of {}'.format(type_val, ret_ann), \
-                    node.lineno)
+                node.lineno)
 
         # TODO(andrea): this probably does not support
         # stuff like `return foo()`
@@ -2489,7 +2634,6 @@ class SourceGenerator(ExplicitNodeVisitor):
                 with open(json_file, 'w') as f:
                     json.dump(self.dim_record, f, indent=4, sort_keys=True)
 
-
                 os.chdir('..')
 
                 expr = node.args[0].s
@@ -2522,11 +2666,16 @@ class SourceGenerator(ExplicitNodeVisitor):
         attr = False
 
         if isinstance(node.func, ast.Name):
-            func_name = node.func.id
-            if  func_name in pmt_temp_functions:
-                call_code = pmt_temp_functions[func_name] + '('
+            fun_name = node.func.id
+            f_name_len = len(fun_name)
+            pre_mangl = '_Z%s' %f_name_len
+            post_mangl = self.build_arg_mangling(args, is_call = True)
+            fun_name_m = pre_mangl + fun_name + post_mangl
+
+            if  fun_name_m in pmt_temp_functions:
+                call_code = pmt_temp_functions[fun_name_m] + '('
             else:
-                call_code = func_name + '('
+                call_code = fun_name_m + '('
 
         elif isinstance(node.func, ast.Attribute):
             def get_attr_name(node):
@@ -2547,15 +2696,17 @@ class SourceGenerator(ExplicitNodeVisitor):
             tokens = attr_chain.split('->')
             tokens = tokens[:-1]
             attr_chain = '->'.join(tokens)
-            func_name = node.func.attr
-            f_name_len = len(func_name)
+            fun_name = node.func.attr
+            # print(fun_name)
+            # import pdb; pdb.set_trace()
+            f_name_len = len(fun_name)
             pre_mangl = '_Z%s' %f_name_len
-            post_mangl = self.build_arg_mangling_mod(args)
-            call_code = attr_chain + '->' + pre_mangl + func_name + post_mangl + '('
-            # node.func.attr = pre_mangl + func_name + post_mangl
+            post_mangl = self.build_arg_mangling(args, is_call = True)
+            call_code = attr_chain + '->' + pre_mangl + fun_name + post_mangl + '('
+            # node.func.attr = pre_mangl + fun_name + post_mangl
 
-        if func_name in blas_api_funs:
-            call = PmtCall(func_name)
+        if fun_name in blas_api_funs:
+            call = PmtCall(fun_name)
             for arg in args:
                 transpose = False
                 if isinstance(arg, ast.Name):
@@ -2601,23 +2752,23 @@ class SourceGenerator(ExplicitNodeVisitor):
 
             # if fun_scope in self.function_record:
             #     scope = self.function_record[fun_scope]
-            #     if func_name in scope:
-            #         signature = scope[func_name]
-            #     elif func_name in self.function_record['global']:
-            #         signature = self.function_record['global'][func_name]
+            #     if fun_name in scope:
+            #         signature = scope[fun_name]
+            #     elif fun_name in self.function_record['global']:
+            #         signature = self.function_record['global'][fun_name]
             #     else:
             #         import pdb; pdb.set_trace()
-            #         raise cgenException('Could not resolve function call "{}"'.format(func_name), node.lineno)
-            # elif func_name in self.function_record['global']:
+            #         raise cgenException('Could not resolve function call "{}"'.format(fun_name), node.lineno)
+            # elif fun_name in self.function_record['global']:
             #     import pdb; pdb.set_trace()
-            #     signature = self.function_record['global'][func_name]
+            #     signature = self.function_record['global'][fun_name]
             # else:
             #     import pdb; pdb.set_trace()
-            #     raise cgenException('Could not resolve function call "{}"'.format(func_name), node.lineno)
+            #     raise cgenException('Could not resolve function call "{}"'.format(fun_name), node.lineno)
 
             if len(args) != len(arg_types):
                 raise cgenException('Wrong number of arguments in call to function {}: expected {} instead of {}.'.format(\
-                    func_name, len(arg_types), len(args)), node.lineno)
+                    fun_name, len(arg_types), len(args)), node.lineno)
             
             i = 0
             for arg in args:

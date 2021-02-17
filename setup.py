@@ -11,7 +11,7 @@ with open(path.join(this_directory, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
 setup(name='prometeo-dsl',
-    version='0.0.6',
+    version='0.0.8',
     python_requires='>=3.6, <=3.9',
     description='Python-to-C transpiler and domain specific language for embedded high-performance computing',
     url='http://github.com/zanellia/prometeo',
@@ -38,7 +38,7 @@ setup(name='prometeo-dsl',
         'lib/blasfeo/libblasfeo.so', \
         'include/prometeo/*', \
         'include/blasfeo/*']},
-    include_package_data=True,
+    # include_package_data=True,
     zip_safe=False,
     distclass=BinaryDistribution
 )
