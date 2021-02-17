@@ -38,7 +38,7 @@ setup(name='prometeo-dsl',
         'lib/blasfeo/libblasfeo.so', \
         'include/prometeo/*', \
         'include/blasfeo/*']},
-    include_package_data=True,
+    # include_package_data=True,
     zip_safe=False,
     distclass=BinaryDistribution
 )

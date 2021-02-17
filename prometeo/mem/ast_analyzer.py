@@ -155,6 +155,13 @@ class ast_visitor(ExplicitNodeVisitor):
 
             return type_val,  None
 
+        elif isinstance(node, ast.NameConstant):
+            if node.value == None:
+                type_val = None
+                return type_val,  None
+            else:
+                raise cgenException('Undefined type {}'.format(node.value), node.lineno)
+
         elif isinstance(node, ast.BinOp):
             type_l, s  = self.get_type_of_node(node.left, scope)
             type_r, s = self.get_type_of_node(node.right, scope)
