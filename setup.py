@@ -33,15 +33,12 @@ setup(name='prometeo-dsl',
         'jinja2',
         'numexpr'
     ],
-    package_data={\
-        'prometeo': \
-        [
-            'lib/blasfeo/libblasfeo.so', \
-            'lib/prometeo/libcpmt.so', \
-            'include/prometeo/*', \
-            'include/blasfeo/*' \
-        ]},
-    include_package_data=True,
+    package_data={'': \
+        ['lib/prometeo/libcpmt.so', \
+        'lib/blasfeo/libblasfeo.so', \
+        'include/prometeo/*', \
+        'include/blasfeo/*']},
+    # include_package_data=True,
     zip_safe=False,
     distclass=BinaryDistribution
 )

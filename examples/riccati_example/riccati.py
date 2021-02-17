@@ -32,7 +32,7 @@ class qp_data:
             pmat_copy(self.Q[N-i], Q)
             pmat_copy(self.R[N-i], R)
             pmat_fill(M, 0.0)
-            M[0:nu,0:nu] = R
+            M[0:nu,0:nu] = R[0:nu,0:nu]
             M[nu:nu+nx,nu:nu+nx] = Q
 
             pmt_gemm_nn(BAtP, BA, M, M)

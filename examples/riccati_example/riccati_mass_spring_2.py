@@ -14,6 +14,7 @@ class qp_data:
         self.Q: List = plist(pmat, sizes)
         self.R: List = plist(pmat, sizes)
         self.P: List = plist(pmat, sizes)
+        return None
 
     def factorize(self) -> None:
         M: pmat = pmat(nxu, nxu)
@@ -33,8 +34,8 @@ class qp_data:
             pmt_gemm_tn(BA, self.P[N-i], BAtP, BAtP)
 
             pmat_fill(M, 0.0)
-            M[0:nu,0:nu] = R
-            M[nu:nu+nx,nu:nu+nx] = Q
+            M[0:nu,0:nu] = R[0:nu,0:nu]
+            M[nu:nu+nx,nu:nu+nx] = Q[0:nx,0:nx]
 
             pmt_gemm_nn(BAtP, BA, M, M)
             pmat_fill(L, 0.0)
@@ -45,7 +46,7 @@ class qp_data:
             pmt_gemm_nt(Mxx, Mxx, self.P[N-i-1], self.P[N-i-1])
             pmat_print(self.P[N-i-1])
 
-        return
+        return None
 
 def main() -> int:
 

@@ -133,7 +133,7 @@ class Graph:
         self.nodes = dict()
 
         for i in range(len(nodes)):
-            self.nodes[nodes[i]] = np.infty
+            self.nodes[nodes[i]] = 0
 
         self.nodes[start] = heap_start
         self.edges = edges
@@ -212,6 +212,13 @@ def pmt_main():
         toc = time.time() - tic
         print('Execution time = {:0.3f} sec'.format(toc))
     else:
+        try:
+            f = open(filename)
+            f.close()
+        except FileNotFoundError:
+            print('\n\033[;1m > prometeo:\033[0;0m \033[91m file {} not found.\033[0;0m'.format(filename))
+            exit()
+
         print('\n\033[;1m > prometeo:\033[0;0m starting transpilation')
         pmt_path = os.path.dirname(prometeo.__file__)
         filename_ = filename.split('.')[0]

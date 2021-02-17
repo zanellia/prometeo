@@ -16,9 +16,9 @@ class Simple_class:
         self.a: int = 1
         self.number : Number = Number()
 
-    # def method1(self) -> int:
+    def method1(self) -> int:
 
-    #     return self.a
+        return self.a
 
     def method1(self, b : int) -> int:
         
@@ -33,6 +33,8 @@ def main() -> int:
     # b : float = 1.0
     a = foo(a)
     a = S.method1(a)
+    a = S.method1()
+    a = S.method1(S.number.value)
     a = S.number.get_value()
     a = S.number.value
     a = S.number.get_value()
