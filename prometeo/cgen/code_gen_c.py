@@ -845,7 +845,7 @@ class SourceGenerator(ExplicitNodeVisitor):
 
     def process_list_type(self, node):
 
-        if node.value.func.id is not 'plist':
+        if node.value.func.id != 'plist':
             raise cgenException('Cannot create Lists without using'
                 ' plist constructor.', node.lineno)
         else:
@@ -899,13 +899,13 @@ class SourceGenerator(ExplicitNodeVisitor):
                 # annotation = ast.parse(item.annotation.s).body[0]
                 # if 'value' in annotation.value.__dict__:
                 type_py = annotation.id
-                if type_py is 'List':
+                if type_py == 'List':
                     list_type = self.process_list_type(item)
                     self.meta_info[self.scope]['attr'][item.target.attr] = list_type
                 else:
                     self.meta_info[self.scope]['attr'][item.target.attr] = type_py
 
-                if type_py is 'List':
+                if type_py == 'List':
                     list_type = self.process_list_type(item)
                     self.typed_record[self.scope][item.target.attr] = list_type
                     # check if dims is not a numerical value
@@ -970,7 +970,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 raise cgenException('First argument in method {} \
                     must be \'self\'. You have \'{}\''.format(item.name, \
                     item.args.args), item.lineno)
-            if item.args.args[0].arg is not 'self':
+            if item.args.args[0].arg != 'self':
                 raise cgenException('First argument in method {} \
                     must be \'self\'. You have \'{}\''.format(item.name, \
                     item.args.args[0].arg), item.lineno)
@@ -1029,7 +1029,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 # build argument mangling
                 f_name_len = len(item.name)
                 pre_mangl = '_Z%s' %f_name_len
-                if item.args.args[0].arg is not 'self':
+                if item.args.args[0].arg != 'self':
                     raise cgenException('First argument in method {} \
                         must be \'self\'. You have \'{}\''.format(item.name, \
                         item.args.args[0].arg), item.lineno)
@@ -1084,7 +1084,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                         ann = item.annotation.id
                         if ann == 'List':
 
-                            if item.value.func.id is not 'plist':
+                            if item.value.func.id != 'plist':
                                 raise cgenException('Invalid subscripted annotation.',
                                         ' Lists must be created using plist constructor and',
                                         ' the argument of List[] must be a valid type.\n', \
@@ -1250,7 +1250,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 # build argument mangling
                 f_name_len = len(item.name)
                 pre_mangl = '_Z%s' %f_name_len
-                if item.args.args[0].arg is not 'self':
+                if item.args.args[0].arg != 'self':
                     raise cgenException('First argument in method {} \
                         must be \'self\'. You have \'{}\'.'.format(item.name, \
                         item.args.args[0].arg), item.lineno)
@@ -1290,7 +1290,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 # build argument mangling
                 f_name_len = len(item.name)
                 pre_mangl = '_Z%s' %f_name_len
-                if item.args.args[0].arg is not 'self':
+                if item.args.args[0].arg != 'self':
                     raise cgenException('First argument in method {} \
                         must be \'self\'. You have \'{}\'.'.format(item.name, \
                         item.args.args[0].arg), item.lineno)
@@ -1443,7 +1443,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 if isinstance(arg.annotation, ast.Name):
                     arg_type_py = arg.annotation.id
                     post_mangl = post_mangl + arg_type_py
-                elif arg.arg is not 'self':
+                elif arg.arg != 'self':
                     raise cgenException('Invalid function argument without type annotation', arg.lineno)
 
             return post_mangl
@@ -1930,8 +1930,8 @@ class SourceGenerator(ExplicitNodeVisitor):
             return
 
         # check if a List is being declared
-        if ann is 'List':
-            if node.value.func.id is not 'plist':
+        if ann == 'List':
+            if node.value.func.id != 'plist':
                 raise cgenException('Cannot create Lists without using \
                     plist constructor.', node.lineno)
 
@@ -2147,12 +2147,12 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.current_col = node.col_offset
         include = node.module
         include = include.replace('.','/')
-        if node.level is not 0:
+        if node.level != 0:
             raise cgenException('Imports with level > 0 are not supported. Exiting.', node.lineno)
-        if len(node.names) is not 1:
+        if len(node.names) != 1:
             raise cgenException('Imports with multiple names are not supported (yet). Exiting.', node.lineno)
 
-        if node.names[0].name is not '*':
+        if node.names[0].name != '*':
             raise cgenException('Can only transpile imports of the form: `from <...> import *`. Exiting.', node.lineno)
         self.statement(node, '#include "',
                        include or '', '.h"\n')
