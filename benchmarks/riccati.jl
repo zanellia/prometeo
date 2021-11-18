@@ -3,12 +3,13 @@
 module riccati
 
 using LinearAlgebra
+using MKL
 
 # Riccat recursion
 
 function riccati_trf(N, nx, nu, BAt, RSQ, L, LN, BAtL, M)
 
-	LN = copy(RSQ[nu+1:nu+nx, nu+1:nu+nx]);
+	LN = RSQ[nu+1:nu+nx, nu+1:nu+nx];
 	LAPACK.potrf!('L', LN);
 
 	for ii in 1:N
@@ -27,7 +28,7 @@ function riccati_trf(N, nx, nu, BAt, RSQ, L, LN, BAtL, M)
 #		BLAS.syrk!('L', 'N', 1.0, BAtL, 1.0, M);
 #		LAPACK.potrf!('L', M);
 #		L[:,:,N+1-ii] = copy(M);
-		L[:,:,N+1-ii] = copy(RSQ);
+		L[:,:,N+1-ii] .= RSQ;
 		MM = view(L, :, :, N+1-ii);
 		BLAS.syrk!('L', 'N', 1.0, BAtL, 1.0, MM);
 		LAPACK.potrf!('L', MM);
