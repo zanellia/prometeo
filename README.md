@@ -159,7 +159,7 @@ Python to C, the difficulty comes both from the different level of
 abstraction of the two languages and from the fact that the source and
 target language are of two very different types: Python is an
 *interpreted*, *duck-typed* and
-*garbage-collevted* language and C is a
+*garbage-collected* language and C is a
 *compiled* and *statically typed* language.
 
 The task of transpiling Python to C becomes even more challenging if we add the
