@@ -186,7 +186,7 @@ and embeddability.
 ### related work
 Several software packages exist that address Python-to-C translation in
 various forms. 
-\par
+
 In the context of high-performance computing,
 *Numba* is a just-in-time compiler for numerical
 functions written in
@@ -445,5 +445,5 @@ def main() -> int:
     return 0
 ```
 
-__Disclaimer: prometeo is still at a very preliminary stage and only few linear algebra operations and Python constructs are supported for the time being.__
+__Disclaimer: prometeo is still at a very preliminary stage and only a few linear algebra operations and Python constructs are supported for the time being.__
 
