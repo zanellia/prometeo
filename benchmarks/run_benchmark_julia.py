@@ -18,6 +18,8 @@ if not UPDATE_res:
     print('Warning: not updating result file!')
 
 if RUN:
+    # get MKL
+    subprocess.run(["julia", "-q", "-e", "import Pkg; Pkg.activate(\".\"); Pkg.instantiate()"], check=True)
     for i in range(len(NM)):
         print('running Riccati benchmark for case NM = {}'.format(NM[i]))
         code = ""
@@ -28,16 +30,7 @@ if RUN:
         else:
             NREP = NREP_large
 
-        with open('test_riccati.jl.in') as template:
-            code  = template.read()
-            code = code.replace('NM', str(NM[i]))
-            code = code.replace('NREP', str(NREP))
-
-        with open('test_riccati.jl', 'w+') as bench_file:
-            bench_file.write(code)
-
-        cmd = 'julia test_riccati.jl'
-        proc = subprocess.Popen([cmd], shell=True, stdout=subprocess.PIPE)
+        proc = subprocess.Popen([f"julia -q --project=. test_riccati.jl {NM[i]} {NREP}"], shell=True, stdout=subprocess.PIPE)
 
         try:
             outs, errs = proc.communicate()

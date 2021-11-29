@@ -1,38 +1,40 @@
 # author: Tommaso Sartor
+
 include("./riccati.jl")
 using .riccati
 
 # main script
+length(ARGS) != 2 && error("Usage: julia test_riccati.jl <nmass> <nrep>")
 
-nmass = 146;
-nrep = 10
+nmass = parse(Int, ARGS[1])
+nrep = parse(Int, ARGS[2])
 
-nx = 2*nmass;
-nu = nmass;
-N = 5;
+nx = 2*nmass
+nu = nmass
+N = 5
 
 # data
 
 # mass spring system
-Ts = 0.5;
+Ts = 0.5
 
-Ac = zeros(nx, nx);
+Ac = zeros(nx, nx)
 for ii in 1:nmass
-	Ac[ii, nmass+ii] = 1.0;
+	Ac[ii, nmass+ii] = 1.0
 end
 for ii in 1:nmass
-	Ac[nmass+ii, ii] = -2.0;
+	Ac[nmass+ii, ii] = -2.0
 end
 for ii in 1:nmass-1
-	Ac[nmass+ii+1, ii] = 1.0;
+	Ac[nmass+ii+1, ii] = 1.0
 end
 for ii in 1:nmass-1
-	Ac[nmass+ii, ii+1] = 1.0;
+	Ac[nmass+ii, ii+1] = 1.0
 end
 
-Bc = zeros(nx, nu);
+Bc = zeros(nx, nu)
 for ii in 1:nu
-	Bc[nmass+ii, ii] = 1.0;
+	Bc[nmass+ii, ii] = 1.0
 end
 
 #display(Ac)
@@ -40,19 +42,19 @@ end
 #display(Bc)
 #println()
 
-MM = [ Ts*Ac Ts*Bc; zeros(nu, nx+nu) ];
+MM = [ Ts*Ac Ts*Bc; zeros(nu, nx+nu) ]
 
 #display(MM)
 #println()
 
 #MM = exp( MM )
-MM = randn(nu+nx, nu+nx);
+MM = randn(nu+nx, nu+nx)
 
 #display(MM)
 #println()
 
-A = MM[1:nx,1:nx];
-B = MM[1:nx, nx+1:end];
+A = MM[1:nx,1:nx]
+B = MM[1:nx, nx+1:end]
 
 #display(A)
 #println()
@@ -84,27 +86,27 @@ x0[2] = 3.5
 
 # work matrices
 
-BAt = [transpose(B); transpose(A)];
+BAt = [transpose(B); transpose(A)]
 #display(BAt)
 #println()
-RSQ = [R zeros(nu,nx); zeros(nx,nu) Q];
+RSQ = [R zeros(nu,nx); zeros(nx,nu) Q]
 
-BAtL = zeros(nu+nx, nx);
-L = zeros(nu+nx, nu+nx, N);
-LN = zeros(nx, nx);
-M = zeros(nu+nx, nu+nx);
+BAtL = zeros(nu+nx, nx)
+L = zeros(nu+nx, nu+nx, N)
+LN = zeros(nx, nx)
+M = zeros(nu+nx, nu+nx)
 
 
 # riccati recursion, square root algorithm
 
 for rep in 1:nrep
-	riccati_trf(N, nx, nu, BAt, RSQ, L, LN, BAtL, M);
+	riccati_trf(N, nx, nu, BAt, RSQ, L, LN, BAtL, M)
 end
 
 time_start = time_ns()
 
 for rep in 1:nrep
-	riccati_trf(N, nx, nu, BAt, RSQ, L, LN, BAtL, M);
+	riccati_trf(N, nx, nu, BAt, RSQ, L, LN, BAtL, M)
 end
 
 time_end = time_ns()
