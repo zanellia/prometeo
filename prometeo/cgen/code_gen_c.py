@@ -7,6 +7,13 @@ Copyright (c) 2018-2020 Andrea Zanelli
 This module converts a Python AST into C source code.
 """
 
+# TODO(andrea): in Python 3.8+ one a constant string has type ast.Constant. In order to 
+# support the latest versions I might need to add checks for ast.Constant.value in order 
+# to determine whether a numerical value 
+# or a string is used
+
+# TODO(andrea): add utility to asses AST structure
+
 import ast
 import astunparse as astu
 import sys
@@ -26,7 +33,7 @@ from collections import OrderedDict
 
 pmt_temp_functions = {\
         '_Z4pmatdimsdims': 'c_pmt_create_pmat', \
-        '_Z4pvecdimsdims': 'c_pmt_create_pvec', \
+        '_Z4pvecdims': 'c_pmt_create_pvec', \
         '_Z10pmat_printpmat': 'c_pmt_pmat_print', \
         '_Z8pmt_gemmpmatpmatpmat': 'c_pmt_gemm_nn', \
         '_Z8pmt_gemmpmatpmatpmatpmat': 'c_pmt_gemm_nn', \
@@ -98,6 +105,41 @@ pmt_temp_types = {\
 
 native_types = ['int', 'float']
 
+legacy_classinfo = ["ast.Num", "ast.Str"]
+
+def my_isinstance(obj, classinfo):
+    if classinfo in legacy_classinfo:
+        if classinfo == "ast.Num":
+            if isinstance(obj, ast.Constant):
+                if isinstance(obj.value, int) or isinstance(obj.value, float): 
+                    return True
+                else:
+                    return False
+            else:
+                return False
+        if classinfo == "ast.Str":
+            if isinstance(obj, ast.Constant):
+                if isinstance(obj.value, str): 
+                    return True
+                else:
+                    return False
+            else:
+                return False
+    else:
+        return isinstance(obj, classinfo)
+
+def check_node_structure(node, struct):
+    if struct == {}:
+        return True
+    else:
+        res = True
+        for key in struct.keys():
+            if hasattr(node, key):
+                res = res and check_node_structure(getattr(node, key), struct[key])
+            else: 
+                return False
+        return res
+
 class PmtArg:
     def __init__(self, name):
         self.name = name
@@ -113,9 +155,9 @@ class PmtCall:
         self.keywords = None
 
 def recurse_attributes(node):
-    if isinstance(node, ast.Name):
+    if my_isinstance(node, ast.Name):
         return node.id
-    elif isinstance(node, ast.Attribute):
+    elif my_isinstance(node, ast.Attribute):
         return recurse_attributes(node.value) + '->' + node.attr 
     else:
         raise cgenException('Invalid attribute or method {}'.format(node))
@@ -274,7 +316,7 @@ def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False
     return generator.result
 
 def precedence_setter(AST=ast.AST, get_op_precedence=get_op_precedence,
-                      isinstance=isinstance, list=list):
+                      my_isinstance=my_isinstance, list=list):
     """ This only uses a closure for performance reasons,
         to reduce the number of attribute lookups.  (set_precedence
         is called a lot of times.)
@@ -283,12 +325,12 @@ def precedence_setter(AST=ast.AST, get_op_precedence=get_op_precedence,
     def set_precedence(value, *nodes):
         """Set the precedence (of the parent) into the children.
         """
-        if isinstance(value, AST):
+        if my_isinstance(value, AST):
             value = get_op_precedence(value)
         for node in nodes:
-            if isinstance(node, AST):
+            if my_isinstance(node, AST):
                 node._pp = value
-            elif isinstance(node, list):
+            elif my_isinstance(node, list):
                 set_precedence(value, *node)
             else:
                 assert node is None, node
@@ -309,12 +351,12 @@ def Num_or_Name(node):
     Return node.n if, if node is of type Num, node.id if node is of type Name
     and -node.n if node is of type UnaryOp and node.op is of type USub
     """
-    if isinstance(node, ast.Num):
+    if my_isinstance(node, "ast.Num"):
         return node.n
-    elif isinstance(node, ast.Name):
+    elif my_isinstance(node, ast.Name):
         return node.id
-    elif isinstance(node, ast.UnaryOp):
-        if isinstance(node.op, ast.USub):
+    elif my_isinstance(node, ast.UnaryOp):
+        if my_isinstance(node.op, ast.USub):
             return -Num_or_Name(node.operand)
         else:
             raise cgenException('node.op is not of type ast.USub.\n', node.lineno)
@@ -326,20 +368,20 @@ def check_expression(node, binops, unops, usr_types, ast_types, record):
     Return True if node is an expression that uses the operations in binops and unops and
     whose operations are of the types contained in the tuples usr_types and ast_types
     """
-    if isinstance(node, ast_types):
+    if my_isinstance(node, ast_types):
         return True
-    elif isinstance(node, ast.Name):
+    elif my_isinstance(node, ast.Name):
         if node.id in record:
             return True
     else:
-        if isinstance(node, ast.BinOp):
-            if isinstance(node.op, binops):
+        if my_isinstance(node, ast.BinOp):
+            if my_isinstance(node.op, binops):
                 return check_expression(node.left, binops, unops, usr_types, ast_types, record) \
                     and check_expression(node.right, binops, unops, usr_types, ast_types, record)
             else:
                 raise cgenException('unsopported BinOp {}\n'.format(astu.unparse(node)), node.lineno)
-        elif isinstance(node, ast.UnaryOp):
-            if isinstance(node.op, unops):
+        elif my_isinstance(node, ast.UnaryOp):
+            if my_isinstance(node.op, unops):
                 return check_expression(node.operand, binops, unops, usr_types, ast_types, record)
             else:
                 raise cgenException('unsopported UnaryOp {}\n'.format(astu.unparse(node)), node.lineno)
@@ -347,31 +389,32 @@ def check_expression(node, binops, unops, usr_types, ast_types, record):
             raise cgenException('could not resolve expression {}\n'.format(astu.unparse(node)), node.lineno)
 
 # def process_annotation(ann_node):
-#     if isinstance(ann_node, ast.Name):
+#     if my_isinstance(ann_node, ast.Name):
 #         return ann_node.id
-#     elif isinstance(ann_node, ast.Subscript):
+#     elif my_isinstance(ann_node, ast.Subscript):
 #         return ann_node.value.id + '[' + Num_or_Name(ann_node.slice.value.elts[0]) + \
 #             ',' +  Num_or_Name(ann_node.slice.value.elts[0]) + ']'
 
-def get_pmt_type_value(node, record):
-    """
-    Return prometeo-type of node.value
-    """
-    # simple value
-    if hasattr(node, 'value'):
-        if isinstance(node.value, ast.Name):
-            var_name = Num_or_Name(node)
-            if var_name in record:
-                return record[var_name]
+# def get_pmt_type_value(node, record):
+#     """
+#     Return prometeo-type of node.value
+#     """
+#     # simple value
+#     if hasattr(node, 'value'):
+#         if my_isinstance(node.value, ast.Name):
+#             var_name = Num_or_Name(node)
+#             if var_name in record:
+#                 return record[var_name]
 
-        # try to infer basic types
-        if isinstance(node.value, ast.Num):
-            if isinstance(node.ast.Num, int):
-                return 'int'
-            elif isinstance(node.ast.Num, float):
-                return 'float'
-    else:
-        raise cgenException('Could not determine type of node.value', self.lineno)
+#         # try to infer basic types
+#         if my_isinstance(node.value, ast.Num):
+#             import pdb; pdb.set_trace()
+#             if my_isinstance(node.ast.Num, int):
+#                 return 'int'
+#             elif my_isinstance(node.ast.Num, float):
+#                 return 'float'
+#     else:
+#         raise cgenException('Could not determine type of node.value', self.lineno)
 
 class Delimit(object):
     """A context manager that can add enclosing
@@ -392,7 +435,7 @@ class Delimit(object):
         node = None
         op = None
         for arg in args:
-            if isinstance(arg, ast.AST):
+            if my_isinstance(arg, ast.AST):
                 if node is None:
                     node = arg
                 else:
@@ -482,7 +525,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                     'arg_types' : ["dims", "dims"],
                     'ret_type': "pmat"
                 },
-                '_Z4pvecdimsdims' : { 
+                '_Z4pvecdims' : { 
                     'arg_types' : ["dims"],
                     'ret_type': "pvec"
                 },
@@ -583,7 +626,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 of attribute lookups).
             """
             for item in params:
-                if isinstance(item, AST):
+                if my_isinstance(item, AST):
                     visit(item)
                 elif callable(item):
                     item()
@@ -662,7 +705,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 type of arguments (if a Call node is being analyzed, None otherwise)
 
         """
-        if isinstance(node, ast.Name):
+        if my_isinstance(node, ast.Name):
             if node.id in self.typed_record[scope]:
                 type_val = self.typed_record[scope][node.id]
             elif  node.id in self.dim_record:
@@ -673,20 +716,20 @@ class SourceGenerator(ExplicitNodeVisitor):
 
             return type_val,  None
 
-        elif isinstance(node, ast.Num):
+        elif my_isinstance(node, "ast.Num"):
 
             type_val = type(node.n).__name__
 
             return type_val,  None
 
-        elif isinstance(node, ast.NameConstant):
+        elif my_isinstance(node, ast.NameConstant):
             if node.value == None:
                 type_val = None
                 return type_val,  None
             else:
                 raise cgenException('Undefined type {}'.format(node.value), node.lineno)
 
-        elif isinstance(node, ast.BinOp):
+        elif my_isinstance(node, ast.BinOp):
             type_l, s  = self.get_type_of_node(node.left, scope)
             type_r, s = self.get_type_of_node(node.right, scope)
             if type_l != type_r:
@@ -694,12 +737,12 @@ class SourceGenerator(ExplicitNodeVisitor):
                     right = {}".format(type_l,type_r), node.lineno)
             return type_l, None
 
-        elif isinstance(node, ast.UnaryOp):
+        elif my_isinstance(node, ast.UnaryOp):
             type_val, s  = self.get_type_of_node(node.operand, scope)
             return type_val, None
 
-        elif isinstance(node, ast.Subscript):
-            if isinstance(node.value, ast.Name):
+        elif my_isinstance(node, ast.Subscript):
+            if my_isinstance(node.value, ast.Name):
                 if node.value.id not in self.typed_record[scope]:
                     raise cgenException('Undefined variable {}'.format(node.id), node.lineno)
                 elif self.typed_record[scope][node.value.id] == 'pmat' or \
@@ -707,7 +750,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                     return 'float', None
                 elif 'List' in self.typed_record[scope][node.value.id]:
                     raise Exception("Not implemented")
-            elif isinstance(node.value, ast.Attribute):
+            elif my_isinstance(node.value, ast.Attribute):
                 type_val, s = self.get_type_of_node(node.value, scope)
                 # the type of a subscripted List is given by the type of 
                 # its elements
@@ -715,7 +758,7 @@ class SourceGenerator(ExplicitNodeVisitor):
             else:
                 raise cgenException("Invalid node type {}".format(node.value), node.lineno)
 
-        elif isinstance(node, ast.Attribute):
+        elif my_isinstance(node, ast.Attribute):
             # check if first attr is 'self'
             attr_chain = recurse_attributes(node.value)
             attr_list = attr_chain.split('->')
@@ -735,17 +778,18 @@ class SourceGenerator(ExplicitNodeVisitor):
                 type_val = 'global@' + self.meta_info[type_val]['attr'][node.attr]
             return type_val, None
 
-        elif isinstance(node, ast.Call):
-            if isinstance(node.func, ast.Name):
+        elif my_isinstance(node, ast.Call):
+            if my_isinstance(node.func, ast.Name):
                 fun_name = node.func.id
                 pre_mangl = '_Z' + str(len(fun_name))
                 post_mangl = self.build_arg_mangling(node.args, is_call = True)
                 fun_name_m = pre_mangl + fun_name + post_mangl
+                # TODO(andrea): add check for casadi functions
                 if fun_name_m not in self.function_record['global']:
                     raise cgenException('Undefined method {}'.format(fun_name_m), node.lineno)
                 type_val = self.function_record['global'][fun_name_m]['ret_type']
                 return type_val, self.function_record['global'][fun_name_m]['arg_types']
-            elif isinstance(node.func, ast.Attribute):
+            elif my_isinstance(node.func, ast.Attribute):
                 type_val = self.get_type_of_node_rec(node.func.value, scope)
 
                 fun_name = node.func.attr
@@ -763,7 +807,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 raise cgenException('Parse error.', node.lineno)
 
     def get_type_of_node_rec(self, node, scope):
-        if isinstance(node, ast.Name):
+        if my_isinstance(node, ast.Name):
             if node.id == 'self':
                 type_val = scope
                 return type_val
@@ -775,7 +819,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 type_val = 'global@' + self.typed_record[scope][node.id]
             return type_val
         else:
-            if isinstance(node, ast.Attribute):
+            if my_isinstance(node, ast.Attribute):
                 type_val = self.get_type_of_node_rec(node.value, scope)
                 if node.attr not in self.meta_info[type_val]['attr']:
                     raise cgenException('Undefined variable or attribute {}'.format(node.attr), node.lineno)
@@ -859,7 +903,7 @@ class SourceGenerator(ExplicitNodeVisitor):
             # ann = node.annotation.slice.value.elts[0].id
             # dims = Num_or_Name(node.annotation.slice.value.elts[1])
 
-            if isinstance(dims, str):
+            if my_isinstance(dims, str):
                 list_type = 'List[' + ann + ', ' + dims + ']'
             else:
                 list_type = 'List[' + ann + ', ' + str(dims) + ']'
@@ -867,7 +911,7 @@ class SourceGenerator(ExplicitNodeVisitor):
             return list_type
 
 
-            if isinstance(dims, str):
+            if my_isinstance(dims, str):
                 # dimension argument is a variable
                 self.typed_record[self.scope][node.target.attr] = \
                     'List[' + ann + ', ' + dims + ']'
@@ -883,16 +927,16 @@ class SourceGenerator(ExplicitNodeVisitor):
         Add instance attributes to struct definition in the header.
         """
         for item in params:
-            if isinstance(item, ast.AnnAssign):
+            if my_isinstance(item, ast.AnnAssign):
                 # skip non-attribute declarations
-                if isinstance(item.target, ast.Name):
+                if my_isinstance(item.target, ast.Name):
                     break
                 if item.target.value.id != 'self':
                     raise cgenException('Unrecognized attribute declaration', self.lineno)
 
                 set_precedence(item, item.target, item.annotation)
                 set_precedence(Precedence.Comma, item.value)
-                need_parens = isinstance(item.target, ast.Name) and not item.simple
+                need_parens = my_isinstance(item.target, ast.Name) and not item.simple
                 begin = '(' if need_parens else ''
                 end = ')' if need_parens else ''
                 annotation = item.annotation
@@ -914,10 +958,10 @@ class SourceGenerator(ExplicitNodeVisitor):
                     if ann in pmt_temp_types:
                         ann = pmt_temp_types[ann]
                     dims = Num_or_Name(item.value.args[1])
-                    if isinstance(dims, str):
+                    if my_isinstance(dims, str):
                         dim_list = self.dim_record[dims]
                     
-                        if isinstance(dim_list, list):
+                        if my_isinstance(dim_list, list):
                             array_size = len(dim_list)
                         else:
                             array_size = dim_list
@@ -952,7 +996,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.meta_info[self.scope]['attr'] = dict()
         self.meta_info[self.scope]['methods'] = dict()
         for item in params:
-            if not isinstance(item, ast.FunctionDef):
+            if not my_isinstance(item, ast.FunctionDef):
                 raise cgenException('Classes can only contain attributes and methods', item.lineno)
             if item.returns is None:
                 raise cgenException('Missing return annotation on class method {}'.format(item.name), item.lineno)
@@ -1025,7 +1069,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         """
         self.write('\n\n', dest = 'hdr')
         for item in params:
-            if isinstance(item, ast.FunctionDef):
+            if my_isinstance(item, ast.FunctionDef):
                 # build argument mangling
                 f_name_len = len(item.name)
                 pre_mangl = '_Z%s' %f_name_len
@@ -1072,12 +1116,12 @@ class SourceGenerator(ExplicitNodeVisitor):
 
     def update_constructor_heap(self, params, name):
         for item in params:
-            if isinstance(item, ast.AnnAssign):
-                if isinstance(item.target, ast.Attribute):
+            if my_isinstance(item, ast.AnnAssign):
+                if my_isinstance(item.target, ast.Attribute):
                     if item.target.value.id == 'self':
                         # set_precedence(item, item.target, item.annotation)
                         set_precedence(Precedence.Comma, item.value)
-                        need_parens = isinstance(item.target, ast.Name) and not item.simple
+                        need_parens = my_isinstance(item.target, ast.Name) and not item.simple
                         begin = '(' if need_parens else ''
                         end = ')' if need_parens else ''
                         # TODO(andrea): need to fix the code below!
@@ -1095,7 +1139,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                                 dims = Num_or_Name(item.value.args[1])
                                 # ann = item.annotation.slice.value.elts[0].id
                                 # dims = Num_or_Name(item.annotation.slice.value.elts[1])
-                                if isinstance(dims, str):
+                                if my_isinstance(dims, str):
                                     dim_list = self.dim_record[dims]
                                 else:
                                     dim_list = dims
@@ -1150,12 +1194,12 @@ class SourceGenerator(ExplicitNodeVisitor):
                                         'the pmat(<n>, <m>) constructor\n.', item.lineno)
 
                                 if not check_expression(item.value.args[0], tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]),
-                                    tuple([ast.USub]),('dims'), tuple([ast.Num]), self.dim_record):
+                                    tuple([ast.USub]),('dims'), tuple([ast.Num, ast.Constant]), self.dim_record):
                                     raise cgenException('Invalid dimension expression in \
                                         pmat constructor ({})'.format(item.value.args[0]), self.lineno)
 
                                 if not check_expression(item.value.args[1], tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]),
-                                    tuple([ast.USub]),('dims'), tuple([ast.Num]), self.dim_record):
+                                    tuple([ast.USub]),('dims'), tuple([ast.Num, ast.Constant]), self.dim_record):
                                     raise cgenException('Invalid dimension expression in \
                                         pmat constructor ({})'.format(item.value.args[1]), self.lineno)
 
@@ -1246,7 +1290,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.write('void ', name, '_constructor(struct ', name, ' *object){', dest = 'src')
         self.indentation += 1
         for item in params:
-            if isinstance(item, ast.FunctionDef):
+            if my_isinstance(item, ast.FunctionDef):
                 # build argument mangling
                 f_name_len = len(item.name)
                 pre_mangl = '_Z%s' %f_name_len
@@ -1283,7 +1327,7 @@ class SourceGenerator(ExplicitNodeVisitor):
             of attribute lookups).
         """
         for item in params:
-            if isinstance(item, ast.FunctionDef):
+            if my_isinstance(item, ast.FunctionDef):
                 self.decorators(item, 1 if self.indentation else 2)
                 # self.write()
 
@@ -1383,7 +1427,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                     else:
                         raise cgenException('Subscripted type annotation can \
                             be used only with pmat arguments.\n', arg.lineno)
-                elif isinstance(arg.annotation, ast.Name):
+                elif my_isinstance(arg.annotation, ast.Name):
                     arg_type_py = arg.annotation.id
                 else:
                     raise cgenException('Invalid function argument without type annotation', arg.lineno)
@@ -1440,7 +1484,7 @@ class SourceGenerator(ExplicitNodeVisitor):
 
             for arg, default in zip(args, padding + defaults):
                 # fish C type from typed record
-                if isinstance(arg.annotation, ast.Name):
+                if my_isinstance(arg.annotation, ast.Name):
                     arg_type_py = arg.annotation.id
                     post_mangl = post_mangl + arg_type_py
                 elif arg.arg != 'self':
@@ -1473,10 +1517,10 @@ class SourceGenerator(ExplicitNodeVisitor):
             """
             post_mangl = ''
             for arg in args:
-                if isinstance(arg, ast.Num):
-                    if isinstance(arg.n, int):
+                if my_isinstance(arg, "ast.Num"):
+                    if my_isinstance(arg.n, int):
                         arg_value = 'int'
-                    elif isinstance(arg.n, float):
+                    elif my_isinstance(arg.n, float):
                         arg_value = 'float'
                     else:
                         raise cgenException('Invalid numeric argument.\n', arg.lineno)
@@ -1515,10 +1559,10 @@ class SourceGenerator(ExplicitNodeVisitor):
     #     def loop_args_mangl(args):
     #         arg_mangl = ''
     #         for arg in args:
-    #             if isinstance(arg, ast.Num):
-    #                 if isinstance(arg.n, int):
+    #             if my_isinstance(arg, ast.Num):
+    #                 if my_isinstance(arg.n, int):
     #                     arg_value = 'int'
-    #                 elif isinstance(arg.n, float):
+    #                 elif my_isinstance(arg.n, float):
     #                     arg_value = 'double'
     #                 else:
     #                     raise cgenException('Invalid numeric argument.\n', arg.lineno)
@@ -1589,7 +1633,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                     # map subscript for pmats to blasfeo el assign
                     if self.typed_record[scope][target] == 'pmat':
                         # check for ExtSlices
-                        if isinstance(node.targets[0].slice, ast.ExtSlice):
+                        if my_isinstance(node.targets[0].slice, ast.ExtSlice):
                             first_index_l  = astu.unparse( \
                                 node.targets[0].slice.dims[0].lower).strip('\n')
 
@@ -1630,7 +1674,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                             self.statement([], 'c_pmt_gecp(', m, ', ', n, ', ', value, \
                                 ', ', ai, ', ', aj, ', ', target, ', ', bi, ', ', bj, ');')
                         else:
-                            if not isinstance(node.targets[0].slice.value, ast.Tuple):
+                            if not my_isinstance(node.targets[0].slice.value, ast.Tuple):
                                 # ap.pprint(node)
                                 raise cgenException('Subscript to a pmat object \
                                     must be of type Tuple.', node.lineno)
@@ -1640,7 +1684,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                             second_index = astu.unparse(node.targets[0].slice.value.elts[1]).strip('\n')
 
                             # check if subscripted expression is used in the value
-                            if isinstance(node.value, ast.Subscript):
+                            if my_isinstance(node.value, ast.Subscript):
                                 # if value is a pmat
                                 value = node.value.value.id
                                 if value in self.typed_record[scope]:
@@ -1660,7 +1704,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                                     elif self.typed_record[scope][value] == 'pvec':
                                         # if value is a pvec
                                         sub_type = type(node.value.slice.value)
-                                        if sub_type == ast.Num:
+                                        if sub_type in (ast.Num, ast.Constant):
                                             index_value = node.value.slice.value.n
                                         elif sub_type == ast.Name:
                                             index_value = node.value.slice.value.id
@@ -1679,7 +1723,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                                     raise cgenException('Undefined variable {}.'.format(value), node.lineno)
                             else:
                                 if not check_expression(node.value, tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]),
-                                        tuple([ast.USub]), ('dims'), tuple([ast.Num, ast.Name]), self.dim_record):
+                                        tuple([ast.USub]), ('dims'), tuple([ast.Num, ast.Constant, ast.Name]), self.dim_record):
                                     raise cgenException('Invalid value {}'.format(astu.unparse(node.value)), node.lineno)
                                 value = astu.unparse(node.value)
                                 self.statement([], 'c_pmt_pmat_set_el(', target, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value), ');')
@@ -1687,8 +1731,9 @@ class SourceGenerator(ExplicitNodeVisitor):
 
                     # check for pvec
                     elif self.typed_record[self.scope][target] in ('pvec'):
-                        if type(node.targets[0].slice.value) not in (ast.Num, ast.Name):
+                        if type(node.targets[0].slice.value) not in (ast.Num, ast.Constant, ast.Name):
                             # ap.pprint(node)
+                            import pdb; pdb.set_trace()
                             raise cgenException('Subscript to a pvec must \
                                 object must be of type Num or Name.', node.lineno)
                         target = node.targets[0].value.id
@@ -1697,7 +1742,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                             if self.typed_record[self.scope][target] in ('pvec'):
                                 target = node.targets[0]
                                 sub_type = type(target.slice.value)
-                                if sub_type == ast.Num:
+                                if sub_type in (ast.Num, ast.Constant):
                                     index = node.targets[0].slice.value.n
                                 elif sub_type == ast.Name:
                                     index = node.targets[0].slice.value.id
@@ -1720,7 +1765,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                                             # if value is a pvec
                                             if self.typed_record[self.scope][value] == 'pvec':
                                                 sub_type = type(node.value.slice.value)
-                                                if sub_type == ast.Num:
+                                                if sub_type in (ast.Num, ast.Constant):
                                                     index_value = node.value.slice.value.n
                                                 elif sub_type == ast.Name:
                                                     index_value = node.value.slice.value.id
@@ -1760,7 +1805,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                         # if value is a pvec
                         if self.typed_record[self.scope][value] == 'pvec':
                             sub_type = type(node.value.slice.value)
-                            if sub_type == ast.Num:
+                            if sub_type in (ast.Num, ast.Constant):
                                 index_value = node.value.slice.value.n
                             elif sub_type == ast.Name:
                                 index_value = node.value.slice.value.id
@@ -1838,7 +1883,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                                             node.lineno)
 
 
-            elif isinstance(node.targets[0], ast.Attribute):
+            elif my_isinstance(node.targets[0], ast.Attribute):
                 print('CHECK THIS')
                 import pdb; pdb.set_trace()
                 # Assign targeting a user-defined class (C struct)
@@ -1878,7 +1923,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         # ap.pprint(node)
         set_precedence(node, node.target, node.annotation)
         set_precedence(Precedence.Comma, node.value)
-        need_parens = isinstance(node.target, ast.Name) and not node.simple
+        need_parens = my_isinstance(node.target, ast.Name) and not node.simple
         begin = '(' if need_parens else ''
         end = ')' if need_parens else ''
 
@@ -1888,7 +1933,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         ann = node.annotation.id
         # check for attributes
         if hasattr(node.target, 'value'):
-            if isinstance(node.target, ast.Attribute):
+            if my_isinstance(node.target, ast.Attribute):
             # if hasattr(node.target.value, 'attr'):
                 if node.target.value.id != 'self' and node.target.attr not in self.typed_record[self.scope]:
                     raise cgenException('Unknown variable {}.'.format( \
@@ -1915,11 +1960,62 @@ class SourceGenerator(ExplicitNodeVisitor):
                 raise cgenException('variable {} already defined.'.format(node.target.id), node.lineno)
         # check if a CasADi function is being declared (and skip)
         if ann == 'ca':
+            node_struct = {\
+                'value': {\
+                    'func': {'attr': {}, 'value' : {'attr': {}, 'value' : {'id' : {}}}}\
+                }\
+            }
+
+            res = check_node_structure(node, node_struct)
+            if res is False:
+                raise cgenException('Invalid node structure. CasADi function declaration requires \n\n{}\n'.format(node_struct), node.lineno)
+            
+            import pdb; pdb.set_trace()
+            if node.value.func.id != 'pmat':
+                raise cgenException('pmat objects need to be declared calling' 
+                    ' the pmat(<n>, <m>) constructor.', node.lineno)
+
+            if not check_expression(node.value.args[0], tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]),
+                tuple([ast.USub]),('dims'), tuple([ast.Num, ast.Constant]), self.dim_record):
+                raise cgenException('Invalid dimension expression in pmat constructor ({})'.format(astu.unparse(node.value.args[0])), node.lineno)
+
+            if not check_expression(node.value.args[1], tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]),
+                tuple([ast.USub]),('dims'), tuple([ast.Num, ast.Constant]), self.dim_record):
+                raise cgenException('Invalid dimension expression in pmat constructor ({})'.format(astu.unparse(node.value.args[1])), node.lineno)
+
+            dim1 = astu.unparse(node.value.args[0]).replace('\n','')
+            dim2 = astu.unparse(node.value.args[1]).replace('\n','')
+
+            # value = astu.unparse(node.value)
+            self.var_dim_record[self.scope][target] = [dim1, dim2]
+            node.annotation.id = pmt_temp_types[ann]
+            # assume that AnnAssigns on attributes are only used to declare instance attributes
+            if my_isinstance(node.target, ast.Attribute):
+                self.write('\nself->' + str(node.target.attr) + ' = ', node.value, '\n', dest = 'src') 
+            else:
+                self.statement(node, node.annotation, ' ', node.target)
+                self.conditional_write(' = ', node.value, '', dest = 'src')
+
+            # increment scoped heap usage (3 pointers and 6 ints for pmats)
+            self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
+                '+' + '3*' + str(self.size_of_pointer).replace('\n','')
+            self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
+                '+' + '6*' + str(self.size_of_int).replace('\n','')
+
+            # upper bound of blasfeo_dmat memsize
+            # memsize \leq (ps + m -1)*(nc + n - 1) + (m + n + ps*nc -1)
+            mem_upper_bound = '(' + str(self.blasfeo_ps) + '+' + dim1 + ' - 1)* ' \
+                '(' + str(self.blasfeo_nc) + '+' + dim2 + ' - 1)+(' + dim1 + '+' + dim2 + '+' + \
+                str(self.blasfeo_ps) + '*' + str(self.blasfeo_nc) + ' - 1)'
+
+            self.heap64_record[self.scope] = self.heap64_record[self.scope] + \
+                '+ (' + mem_upper_bound + ' + 64)*' + str(self.size_of_double).replace('\n','')
+
             return
         elif ann == 'pfun':
             # code = astu.unparse(node)
             # exec('from prometeo import * \n' + code)
-            if isinstance(node.value, ast.Call):
+            if my_isinstance(node.value, ast.Call):
                 self.scope = self.scope + '@' + node.value.args[0].s
                 self.casadi_funs.append(self.scope)
                 self.typed_record[self.scope] = dict()
@@ -1942,7 +2038,7 @@ class SourceGenerator(ExplicitNodeVisitor):
             # attribute is a List
             lann = node.value.args[0].id
             dims = Num_or_Name(node.value.args[1])
-            if isinstance(dims, str):
+            if my_isinstance(dims, str):
                 self.typed_record[self.scope][target] = 'List[' + lann + ', ' + dims + ']'
             else:
                 self.typed_record[self.scope][target] = 'List[' + lann + ', ' + str(dims) + ']'
@@ -1952,9 +2048,9 @@ class SourceGenerator(ExplicitNodeVisitor):
                 raise cgenException ('Usage of non existing type {}.'.format(lann), node.lineno)
 
             # check if dims is not a numerical value
-            if isinstance(dims, str):
+            if my_isinstance(dims, str):
                 dim_list = self.dim_record[dims]
-                if isinstance(dim_list, list):
+                if my_isinstance(dim_list, list):
                     array_size = len(dim_list)
                 else:
                     array_size = dim_list
@@ -1963,12 +2059,12 @@ class SourceGenerator(ExplicitNodeVisitor):
 
 
             # assume that AnnAssigns on attributes are only used to declare instance attributes
-            if not isinstance(node.target, ast.Attribute):
+            if not my_isinstance(node.target, ast.Attribute):
                 self.write('%s' %lann, ' ', '%s' %target, '[%s' %array_size, '];\n', dest = 'src')
 
 
             # assume that AnnAssigns on attributes are only used to declare instance attributes
-            if isinstance(node.target, ast.Attribute):
+            if my_isinstance(node.target, ast.Attribute):
                 mod_target = 'self->' + target
             else:
                 mod_target = target
@@ -1994,11 +2090,11 @@ class SourceGenerator(ExplicitNodeVisitor):
                     ' the pmat(<n>, <m>) constructor.', node.lineno)
 
             if not check_expression(node.value.args[0], tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]),
-                tuple([ast.USub]),('dims'), tuple([ast.Num]), self.dim_record):
+                tuple([ast.USub]),('dims'), tuple([ast.Num, ast.Constant]), self.dim_record):
                 raise cgenException('Invalid dimension expression in pmat constructor ({})'.format(astu.unparse(node.value.args[0])), node.lineno)
 
             if not check_expression(node.value.args[1], tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]),
-                tuple([ast.USub]),('dims'), tuple([ast.Num]), self.dim_record):
+                tuple([ast.USub]),('dims'), tuple([ast.Num, ast.Constant]), self.dim_record):
                 raise cgenException('Invalid dimension expression in pmat constructor ({})'.format(astu.unparse(node.value.args[1])), node.lineno)
 
             dim1 = astu.unparse(node.value.args[0]).replace('\n','')
@@ -2008,7 +2104,7 @@ class SourceGenerator(ExplicitNodeVisitor):
             self.var_dim_record[self.scope][target] = [dim1, dim2]
             node.annotation.id = pmt_temp_types[ann]
             # assume that AnnAssigns on attributes are only used to declare instance attributes
-            if isinstance(node.target, ast.Attribute):
+            if my_isinstance(node.target, ast.Attribute):
                 self.write('\nself->' + str(node.target.attr) + ' = ', node.value, '\n', dest = 'src') 
             else:
                 self.statement(node, node.annotation, ' ', node.target)
@@ -2035,7 +2131,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 raise cgenException('pvec objects need to be declared calling the pvec(<n>, <m>) constructor.', node.lineno)
 
             if not check_expression(node.value.args[0], tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]),
-                tuple([ast.USub]),('dims'), tuple([ast.Num]), self.dim_record):
+                tuple([ast.USub]),('dims'), tuple([ast.Num, ast.Constant]), self.dim_record):
                 raise cgenException('Invalid dimension expression in pvec constructor ({})'.format(node.value.args[0]), self.lineno)
 
             dim1 = astu.unparse(node.value.args[0]).replace('\n','')
@@ -2043,7 +2139,7 @@ class SourceGenerator(ExplicitNodeVisitor):
             node.annotation.id = pmt_temp_types[ann]
 
             # assume that AnnAssigns on attributes are only used to declare instance attributes
-            if isinstance(node.target, ast.Attribute):
+            if my_isinstance(node.target, ast.Attribute):
                 self.write('\nself->' + str(node.target.attr) + ' = ', node.value, '\n', dest = 'src') 
             else:
                 self.statement(node, node.annotation, ' ', node.target)
@@ -2065,7 +2161,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         # or dims
         elif ann == 'dims':
             if not check_expression(node.value, tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]), \
-                    tuple([ast.USub]),('dims'), tuple([ast.Num]), self.dim_record):
+                    tuple([ast.USub]),('dims'), tuple([ast.Num, ast.Constant]), self.dim_record):
                 raise cgenException('Invalid expression for dimension', self.lineno)
 
             dim_value = astu.unparse(node.value).replace('\n','')
@@ -2081,7 +2177,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 self.dim_record[node.target.id].append([])
                 for j in range(len(node.value.elts[i].elts)):
                     if not check_expression(node.value.elts[i].elts[j], tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]), \
-                            tuple([ast.USub]),('dims'), tuple([ast.Num]), self.dim_record):
+                            tuple([ast.USub]),('dims'), tuple([ast.Num, ast.Constant]), self.dim_record):
                         raise cgenException('Invalid expression for dimension', self.lineno)
 
                     dim_value = astu.unparse(node.value.elts[i].elts[j]).replace('\n','')
@@ -2093,7 +2189,7 @@ class SourceGenerator(ExplicitNodeVisitor):
             class_name = node.annotation.id
             node.annotation.id = usr_temp_types[ann]
             # assume that AnnAssigns on attributes are only used to declare instance attributes
-            if isinstance(node.target, ast.Attribute):
+            if my_isinstance(node.target, ast.Attribute):
                 self.statement([], 'self->', node.target.attr, '= & ', node.target, '___;')
                 self.statement([], class_name, '_constructor(', node.target, '); //')
             else:
@@ -2103,13 +2199,13 @@ class SourceGenerator(ExplicitNodeVisitor):
         else:
             if  ann in pmt_temp_types:
                 c_ann = pmt_temp_types[ann]
-                if isinstance(node.target, ast.Attribute): 
+                if my_isinstance(node.target, ast.Attribute): 
                     # annotated assign that defined an attribute (i.e. <self>.<attr_name> : <type> = <value>)
                     if node.target.value.id != 'self':
                         raise cgenException('invalid AnnAssign on attribute. AnnAssign on attributes can only be used to '
                             'define instance attributes', self.lineno)
                     else:
-                        if isinstance(node.value, ast.Name):
+                        if my_isinstance(node.value, ast.Name):
                             if node.value.id not in self.typed_record:
                                 raise cgenException('Unknown variable {}.'.format(node.value.id), node.lineno)
                         attr_value = Num_or_Name(node.value)
@@ -2127,7 +2223,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         # print('var_dim_record = \n', self.var_dim_record, '\n\n')
 
         # AnnAssigns on attributes are only supported for instance attributes
-        if not isinstance(node.target, ast.Attribute): 
+        if not my_isinstance(node.target, ast.Attribute): 
             self.typed_record[self.scope][node.target.id] = ann
 
         # # switch to avoid double ';'
@@ -2216,9 +2312,9 @@ class SourceGenerator(ExplicitNodeVisitor):
             raise cgenException('Missing return annotation on method {}'.format(\
                 fun_name), node.lineno)
 
-        if isinstance(returns, ast.NameConstant):
+        if my_isinstance(returns, ast.NameConstant):
             return_type_py = str(returns.value)
-        elif isinstance(returns, ast.Name):
+        elif my_isinstance(returns, ast.Name):
             return_type_py = returns.id
         else:
             raise cgenException('Unknown return object {}.'.format(returns), node.lineno)
@@ -2333,7 +2429,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.body(node.body)
         while True:
             else_ = node.orelse
-            if len(else_) == 1 and isinstance(else_[0], ast.If):
+            if len(else_) == 1 and my_isinstance(else_[0], ast.If):
                 node = else_[0]
                 set_precedence(node, node.test)
                 self.write('\n', '} else if (', node.test, ') {', dest='src')
@@ -2598,7 +2694,7 @@ class SourceGenerator(ExplicitNodeVisitor):
 
         # check if we are calling a CasADi function
         # print(node.func.id)
-        if isinstance(node.func, ast.Name):
+        if my_isinstance(node.func, ast.Name):
             if node.func.id in self.casadi_funs:
                 import pdb; pdb.set_trace()
 
@@ -2606,7 +2702,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         if hasattr(node.func, 'id'):
             if node.func.id == 'print':
                 if hasattr(node.args[0], 'op'):
-                    if isinstance(node.args[0].op, ast.Mod):
+                    if my_isinstance(node.args[0].op, ast.Mod):
                         # print string with arguments
                         write('printf("%s' %repr(node.args[0].left.s)[1:-1], '\\n", %s);\n' %node.args[0].right.id, dest = 'src')
                         return
@@ -2665,7 +2761,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         ret_type, arg_types = self.get_type_of_node(node, self.scope)
         attr = False
 
-        if isinstance(node.func, ast.Name):
+        if my_isinstance(node.func, ast.Name):
             fun_name = node.func.id
             f_name_len = len(fun_name)
             pre_mangl = '_Z%s' %f_name_len
@@ -2677,7 +2773,7 @@ class SourceGenerator(ExplicitNodeVisitor):
             else:
                 call_code = fun_name_m + '('
 
-        elif isinstance(node.func, ast.Attribute):
+        elif my_isinstance(node.func, ast.Attribute):
             def get_attr_name(node):
                 if hasattr(node, 'id'):
                     return node.id
@@ -2709,9 +2805,9 @@ class SourceGenerator(ExplicitNodeVisitor):
             call = PmtCall(fun_name)
             for arg in args:
                 transpose = False
-                if isinstance(arg, ast.Name):
+                if my_isinstance(arg, ast.Name):
                     arg_name = arg.id
-                elif isinstance(arg, ast.Attribute):
+                elif my_isinstance(arg, ast.Attribute):
                     if arg.attr == 'T' and self.typed_record[self.scope][arg.value.id]:
                         transpose = True
                         arg_name = arg.value.id
@@ -2729,7 +2825,7 @@ class SourceGenerator(ExplicitNodeVisitor):
 
             # self.visit(node.func)
 
-            # if isinstance(node.func, ast.Attribute):
+            # if my_isinstance(node.func, ast.Attribute):
             #     # calling an object's method
 
                         
@@ -2773,7 +2869,7 @@ class SourceGenerator(ExplicitNodeVisitor):
             i = 0
             for arg in args:
                 # check arg type
-                if isinstance(arg, ast.Name):
+                if my_isinstance(arg, ast.Name):
                     arg_name = arg.id
                     if arg_name in self.typed_record[self.scope]:
                         arg_type = self.typed_record[self.scope][arg_name]
@@ -2783,7 +2879,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                         arg_type = self.dim_record[arg_name]
                     else:
                         raise cgenException('Could not resolve argument "{}"'.format(arg_name), node.lineno)
-                elif isinstance(arg, ast.Num):
+                elif my_isinstance(arg, "ast.Num"):
                     arg_type = type(arg.n).__name__
                 else:
                     arg_type, s = self.get_type_of_node(arg, self.scope)
@@ -2852,9 +2948,9 @@ class SourceGenerator(ExplicitNodeVisitor):
 
             def recurse(node):
                 for value in node.values:
-                    if isinstance(value, ast.Str):
+                    if my_isinstance(value, "ast.Str"):
                         self.write(value.s)
-                    elif isinstance(value, ast.FormattedValue):
+                    elif my_isinstance(value, ast.FormattedValue):
                         with self.delimit('{}'):
                             self.visit(value.value)
                             if value.conversion != -1:
@@ -2919,7 +3015,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                     delimiters.discard = delimiters.pp != pow_lhs
                 else:
                     op = self.get__p_op(node)
-                    delimiters.discard = not isinstance(op, ast.USub)
+                    delimiters.discard = not my_isinstance(op, ast.USub)
 
     def visit_Tuple(self, node):
         self.current_line = node.lineno
@@ -2959,7 +3055,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.current_col = node.col_offset
         op, left, right = node.op, node.left, node.right
         with self.delimit(node, op) as delimiters:
-            ispow = isinstance(op, ast.Pow)
+            ispow = my_isinstance(op, ast.Pow)
             p = delimiters.p
             set_precedence((Precedence.Pow + 1) if ispow else p, left)
             set_precedence(Precedence.PowRHS if ispow else (p + 1), right)
@@ -3011,7 +3107,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.conditional_write(node.upper, dest = 'src')
         if node.step is not None:
             self.write(':')
-            if not (isinstance(node.step, ast.Name) and
+            if not (my_isinstance(node.step, ast.Name) and
                     node.step.id == 'None'):
                 self.visit(node.step)
 

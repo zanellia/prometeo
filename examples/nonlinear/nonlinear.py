@@ -1,6 +1,7 @@
 from prometeo import *
 
 n: dims  = 2
+m: dims  = 1
 
 # class my_class():
 #     def __init__(self) -> None:
@@ -29,7 +30,7 @@ n: dims  = 2
 
 def main() -> int:
 
-    A: pmat = pmat(1, n)
+    A: pmat = pmat(m, n)
     A[0,0] = 1.0
     A[0,1] = 0.0
     A[0,0] = 0.0
