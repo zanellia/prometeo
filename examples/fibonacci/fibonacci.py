@@ -1,4 +1,4 @@
-# from prometeo import * 
+from prometeo import * 
 
 def fib(n : int) -> int:
     a : int = 0
@@ -10,24 +10,27 @@ def fib(n : int) -> int:
         b = c
     return b
 
-import time
-start = time.time()
-res : int = 0
+# import time
+# start = time.time()
+# res : int = 0
 
-for i in range(30):
-    for j in range(1000000):
-        res = fib(i)
+# for i in range(30):
+#     for j in range(1000000):
+#         res = fib(i)
 
-print('%i' %res)
-end = time.time()
-print('execution time = ', end - start)
+# print('%i' %res)
+# end = time.time()
+# print('execution time = ', end - start)
 
-# def main() -> int:
+def main() -> int:
  
-#     res : int = 0
+    res : int = 0
 
-#     for i in range(30):
-#         for j in range(1000000):
-#             res = fib(i)
-#     print('%i' %res)
-#     return 0
+    counter : int = 0
+    for i in range(30):
+        for j in range(1000000):
+            res = fib(counter)
+
+        counter = counter + 1
+    print('%i' %res)
+    return 0

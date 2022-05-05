@@ -28,8 +28,10 @@ class pfun:
         stack =  inspect.stack()
 
         prefix = 'global'
+        prefix_at = 'global'
         for i in range(len(stack)-5, 0, -1):
             prefix = prefix + '_' + stack[i].function
+            prefix_at = prefix_at + '@' + stack[i].function
         # tokenize
         # tokens = tokenize(BytesIO(expr.encode('utf-8')).readline)
         # for token in tokens:
@@ -78,6 +80,7 @@ class pfun:
 
         ca_expr = untokenize(result).decode('utf-8').replace(" ", "")
         scoped_fun_name = prefix + '_' + fun_name
+        scoped_fun_name_at = prefix_at + '@' + fun_name
         fun_descriptor['name'] = scoped_fun_name 
         dec_code = 'fun = ca.Function(\'' + scoped_fun_name+ '\', [' \
             + ca_fun_args + '], [' + ca_expr + '])'
@@ -87,11 +90,26 @@ class pfun:
         # get CasADi function from locals()
         self._ca_fun = locals()['fun']
 
-        # generate C code
+        # dump function signature to json file (same format as function_record)
         if not os.path.exists('__pmt_cache__'):
             os.makedirs('__pmt_cache__')
         os.chdir('__pmt_cache__')
 
+        # serialize CasADi object
+        self._ca_fun.save(scoped_fun_name_at + '.casadi')
+
+        # TODO(adrea): 
+        # 1) CasADi functions are global (for now)
+        # function_signature = {'global': {
+        #     '_Z4pmatdimsdims' : { 
+        #         'arg_types' : ["dims", "dims"],
+        #         'ret_type': "pmat"
+        #     }}}
+
+        # with open(json_file, 'w') as f:
+        #     json.dump(self.typed_record[self.scope], f, indent=4, sort_keys=True)
+
+        # generate C code
         self._ca_fun.generate(scoped_fun_name + '.c')
         import pdb; pdb.set_trace()
 
@@ -110,4 +128,10 @@ class pfun:
         os.chdir('..')
 
     def __call__(self, args):
-        return self._ca_fun(args).full()
+        if isinstance(args, pmat): 
+            args_ = pmat_to_numpy(args)
+        elif isinstance(args, pvec): 
+            args_ = pvec_to_numpy(args)
+        else:
+            raise Exception('Invalid argument to CasADi function of type {}'.format(type(args)))
+        return self._ca_fun(args_).full()

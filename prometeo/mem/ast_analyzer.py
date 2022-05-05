@@ -9,7 +9,7 @@ from copy import deepcopy
 
 pmt_functions = {\
     'global@_Z4pmatdimsdims' : [], \
-    'global@_Z4pvecdimsdims' : [], \
+    'global@_Z4pvecdims' : [], \
     'global@_Z10pmat_printpmat' : [], \
     'global@_Z8pmt_gemmpmatpmatpmat' : [], \
     'global@_Z8pmt_gemmpmatpmatpmatpmat' : [], \
@@ -31,9 +31,34 @@ pmt_functions = {\
     'global@_Z9pmat_vcatpmatpmatpmat' : [], \
     'global@_Z10pvec_printpvec' : [], \
     'global@_Z9pvec_copypvecpvec' : [], \
+    'global@_Z5printstr' : [], \
+
 }
 
 native_types = ['int', 'float']
+
+legacy_classinfo = ["ast.Num", "ast.Str"]
+
+def my_isinstance(obj, classinfo):
+    if classinfo in legacy_classinfo:
+        if classinfo == "ast.Num":
+            if isinstance(obj, ast.Constant):
+                if isinstance(obj.value, int) or isinstance(obj.value, float): 
+                    return True
+                else:
+                    return False
+            else:
+                return False
+        if classinfo == "ast.Str":
+            if isinstance(obj, ast.Constant):
+                if isinstance(obj.value, str): 
+                    return True
+                else:
+                    return False
+            else:
+                return False
+    else:
+        return isinstance(obj, classinfo)
 
 class cgenException(Exception):
     def __init__(self, message, lineno):
@@ -139,42 +164,48 @@ class ast_visitor(ExplicitNodeVisitor):
                 type of arguments (if a Call node is being analyzed, None otherwise)
 
         """
-        if isinstance(node, ast.Name):
+        if my_isinstance(node, ast.Name):
             if node.id in self.typed_record[scope]:
                 type_val = self.typed_record[scope][node.id]
             elif  node.id in self.dim_record:
                 type_val = 'dims'
             else:
-                import pdb; pdb.set_trace()
                 raise cgenException('Undefined variable {}'.format(node.id), node.lineno)
             return type_val,  None
 
-        elif isinstance(node, ast.Num):
+        elif my_isinstance(node, "ast.Num"):
 
             type_val = type(node.n).__name__
 
             return type_val,  None
 
-        elif isinstance(node, ast.NameConstant):
+        elif my_isinstance(node, "ast.Str"):
+
+            type_val = type(node.value).__name__
+
+            return type_val,  None
+
+        elif my_isinstance(node, ast.NameConstant):
             if node.value == None:
                 type_val = None
                 return type_val,  None
             else:
                 raise cgenException('Undefined type {}'.format(node.value), node.lineno)
 
-        elif isinstance(node, ast.BinOp):
+        elif my_isinstance(node, ast.BinOp):
             type_l, s  = self.get_type_of_node(node.left, scope)
             type_r, s = self.get_type_of_node(node.right, scope)
             if type_l != type_r:
-                raise Exception("Type mismatch in BinOp: left = {}, right = {}".format(type_l,type_r))
+                if type_l != 'str' or type_r != 'int': # allow for this case for printing TODO : improve
+                    raise Exception("Type mismatch in BinOp: left = {}, right = {}".format(type_l,type_r))
             return type_l, None
 
-        elif isinstance(node, ast.UnaryOp):
+        elif my_isinstance(node, ast.UnaryOp):
             type_val, s  = self.get_type_of_node(node.operand, scope)
             return type_val, None
 
-        elif isinstance(node, ast.Subscript):
-            if isinstance(node.value, ast.Name):
+        elif my_isinstance(node, ast.Subscript):
+            if my_isinstance(node.value, ast.Name):
                 if node.value.id not in self.typed_record[scope]:
                     raise Exception('Undefined variable {}'.format(node.id))
                 elif self.typed_record[scope][node.value.id] == 'pmat' or \
@@ -182,7 +213,7 @@ class ast_visitor(ExplicitNodeVisitor):
                     return 'float', None
                 elif 'List' in self.typed_record[scope][node.value.id]:
                     raise Exception("Not implemented")
-            elif isinstance(node.value, ast.Attribute):
+            elif my_isinstance(node.value, ast.Attribute):
                 type_val, s = self.get_type_of_node(node.value, scope)
                 # the type of a subscripted List is given by the type of 
                 # its elements
@@ -190,7 +221,7 @@ class ast_visitor(ExplicitNodeVisitor):
             else:
                 raise Exception("Invalid node type {}".format(node.value))
 
-        elif isinstance(node, ast.Attribute):
+        elif my_isinstance(node, ast.Attribute):
             # check if first attr is 'self'
             attr_chain = recurse_attributes(node.value)
             attr_list = attr_chain.split('->')
@@ -210,8 +241,9 @@ class ast_visitor(ExplicitNodeVisitor):
                 type_val = 'global@' + self.meta_info[type_val]['attr'][node.attr]
             return type_val, None
 
-        elif isinstance(node, ast.Call):
-            if isinstance(node.func, ast.Name):
+        elif my_isinstance(node, ast.Call):
+            import pdb; pdb.set_trace()
+            if my_isinstance(node.func, ast.Name):
                 if node.func.id not in self.function_record['global']:
                     raise cgenException('Undefined method {}'.format(node.func.id), node.lineno)
                 type_val = self.function_record['global'][node.func.id]['ret_type']
@@ -227,7 +259,7 @@ class ast_visitor(ExplicitNodeVisitor):
             return type_val, arg_types
 
     def get_type_of_node_rec(self, node, scope):
-        if isinstance(node, ast.Name):
+        if my_isinstance(node, ast.Name):
             if node.id == 'self':
                 type_val = scope
                 return type_val
@@ -239,7 +271,7 @@ class ast_visitor(ExplicitNodeVisitor):
                 type_val = 'global@' + self.typed_record[scope][node.id]
             return type_val
         else:
-            if isinstance(node, ast.Attribute):
+            if my_isinstance(node, ast.Attribute):
                 type_val = self.get_type_of_node_rec(node.value, scope)
                 if node.attr not in self.meta_info[type_val]['attr']:
                     raise cgenException('Undefined variable or attribute {}'.format(node.attr), node.lineno)
@@ -582,7 +614,6 @@ def compute_reach_graph(call_graph, typed_record, meta_info):
         if scopes[0] != 'global':
             raise Exception('Invalid leading scope {}'.format(scopes[0]))
         if scopes[1] not in typed_record[caller]:
-            import pdb; pdb.set_trace()
             raise Exception('Could not resolve scope name {}'.format(scopes[1]))
         else:
             scopes[1] = typed_record[caller][scopes[1]]

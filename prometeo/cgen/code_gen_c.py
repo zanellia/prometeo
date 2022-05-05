@@ -31,6 +31,8 @@ import json
 from jinja2 import Template
 from collections import OrderedDict
 
+import casadi as ca
+
 pmt_temp_functions = {\
         '_Z4pmatdimsdims': 'c_pmt_create_pmat', \
         '_Z4pvecdims': 'c_pmt_create_pvec', \
@@ -722,6 +724,12 @@ class SourceGenerator(ExplicitNodeVisitor):
 
             return type_val,  None
 
+        elif my_isinstance(node, "ast.Str"):
+
+            type_val = type(node.value).__name__
+
+            return type_val,  None
+
         elif my_isinstance(node, ast.NameConstant):
             if node.value == None:
                 type_val = None
@@ -785,10 +793,13 @@ class SourceGenerator(ExplicitNodeVisitor):
                 post_mangl = self.build_arg_mangling(node.args, is_call = True)
                 fun_name_m = pre_mangl + fun_name + post_mangl
                 # TODO(andrea): add check for casadi functions
-                if fun_name_m not in self.function_record['global']:
+                if fun_name_m in self.function_record['global']:
+                    type_val = self.function_record['global'][fun_name_m]['ret_type']
+                    return type_val, self.function_record['global'][fun_name_m]['arg_types']
+                elif fun_name not in self.casadi_functions:
+                    return 'pmat'   
+                else:
                     raise cgenException('Undefined method {}'.format(fun_name_m), node.lineno)
-                type_val = self.function_record['global'][fun_name_m]['ret_type']
-                return type_val, self.function_record['global'][fun_name_m]['arg_types']
             elif my_isinstance(node.func, ast.Attribute):
                 type_val = self.get_type_of_node_rec(node.func.value, scope)
 
@@ -1968,61 +1979,34 @@ class SourceGenerator(ExplicitNodeVisitor):
 
             res = check_node_structure(node, node_struct)
             if res is False:
-                raise cgenException('Invalid node structure. CasADi function declaration requires \n\n{}\n'.format(node_struct), node.lineno)
+                raise cgenException('Invalid node structure. CasADi function declaration \
+                    requires \n\n{}\n'.format(node_struct), node.lineno)
             
-            import pdb; pdb.set_trace()
-            if node.value.func.id != 'pmat':
-                raise cgenException('pmat objects need to be declared calling' 
-                    ' the pmat(<n>, <m>) constructor.', node.lineno)
-
-            if not check_expression(node.value.args[0], tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]),
-                tuple([ast.USub]),('dims'), tuple([ast.Num, ast.Constant]), self.dim_record):
-                raise cgenException('Invalid dimension expression in pmat constructor ({})'.format(astu.unparse(node.value.args[0])), node.lineno)
-
-            if not check_expression(node.value.args[1], tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]),
-                tuple([ast.USub]),('dims'), tuple([ast.Num, ast.Constant]), self.dim_record):
-                raise cgenException('Invalid dimension expression in pmat constructor ({})'.format(astu.unparse(node.value.args[1])), node.lineno)
-
-            dim1 = astu.unparse(node.value.args[0]).replace('\n','')
-            dim2 = astu.unparse(node.value.args[1]).replace('\n','')
-
-            # value = astu.unparse(node.value)
-            self.var_dim_record[self.scope][target] = [dim1, dim2]
-            node.annotation.id = pmt_temp_types[ann]
-            # assume that AnnAssigns on attributes are only used to declare instance attributes
-            if my_isinstance(node.target, ast.Attribute):
-                self.write('\nself->' + str(node.target.attr) + ' = ', node.value, '\n', dest = 'src') 
-            else:
-                self.statement(node, node.annotation, ' ', node.target)
-                self.conditional_write(' = ', node.value, '', dest = 'src')
-
-            # increment scoped heap usage (3 pointers and 6 ints for pmats)
-            self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
-                '+' + '3*' + str(self.size_of_pointer).replace('\n','')
-            self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
-                '+' + '6*' + str(self.size_of_int).replace('\n','')
-
-            # upper bound of blasfeo_dmat memsize
-            # memsize \leq (ps + m -1)*(nc + n - 1) + (m + n + ps*nc -1)
-            mem_upper_bound = '(' + str(self.blasfeo_ps) + '+' + dim1 + ' - 1)* ' \
-                '(' + str(self.blasfeo_nc) + '+' + dim2 + ' - 1)+(' + dim1 + '+' + dim2 + '+' + \
-                str(self.blasfeo_ps) + '*' + str(self.blasfeo_nc) + ' - 1)'
-
-            self.heap64_record[self.scope] = self.heap64_record[self.scope] + \
-                '+ (' + mem_upper_bound + ' + 64)*' + str(self.size_of_double).replace('\n','')
+            if node.value.func.value.value.id != 'ca' or \
+                    node.value.func.value.attr != 'SX' or \
+                    node.value.func.attr != 'sym':
+                raise cgenException('CasADi variables can only be declared calling' 
+                    ' the ca.SX.sym(<name>, n, m) constructor.', node.lineno)
 
             return
+
         elif ann == 'pfun':
             # code = astu.unparse(node)
             # exec('from prometeo import * \n' + code)
             if my_isinstance(node.value, ast.Call):
                 self.scope = self.scope + '@' + node.value.args[0].s
+                casadi_fun = ca.Function.load('__pmt_cache__/' + self.scope + '.casadi')
+                import pdb; pdb.set_trace()
+                # self.function_record[outer_scope][fun_name_m] = {"arg_types": arg_list,  "ret_type": return_type_py}
                 self.casadi_funs.append(self.scope)
                 self.typed_record[self.scope] = dict()
                 self.var_dim_record[self.scope] = dict()
                 self.heap8_record[self.scope] = '0'
                 self.heap64_record[self.scope] = '0'
                 self.scope = descope(self.scope, '@' + node.value.args[0].s)
+            else:
+                raise cgenException('pfun annotation must be used to define a CasADi function' 
+                        'calling the pfun constructor', node.lineno)
             return
 
         # check if a List is being declared
