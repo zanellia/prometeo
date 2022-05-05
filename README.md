@@ -144,6 +144,116 @@ int main() {
 ```
 which relies on the high-performance linear algebra package BLASFEO. The generated code will be readily compiled and run with when running `pmt simple_example.py --cgen=True`.
 
+### how does it work?
+
+Although translating a program written in a language into another with
+a comparable level of abstraction can be significantly easier than
+translating to one with a very different level of abstraction
+(especially if the target language is of much lower level),
+translating Python programs into C programs still involves a
+considerable abstraction gap it is not an easy task
+in general. Loosely speaking, the challenge lies in the necessity to
+reimplement features that are natively supported by the source
+language in the target language. In particular, when translating
+Python to C, the difficulty comes both from the different level of
+abstraction of the two languages and from the fact that the source and
+target language are of two very different types: Python is an
+*interpreted*, *duck-typed* and
+*garbage-collected* language and C is a
+*compiled* and *statically typed* language.
+
+The task of transpiling Python to C becomes even more challenging if we add the
+constraint that the generated C code must be efficient (even for small
+to medium scale computations) and deployable
+on embedded hardware. In fact these two requirements directly imply
+that the generated code cannot make use of: *i)* sophisticated runtime
+libraries, e.g., the Python runtime library, which are generally not available on
+embedded hardware *ii)* dynamic memory allocation that would make the execution
+slow and unreliable (exception made for memory that is allocated in a
+setup phase and whose size is known a priori). 
+
+Since source-to-source code transformation, or transpilation, and in
+particular transpilation of Python code into C code is not an
+unexplored realm, in the following, we mention a few existing projects
+that address it. In doing so, we highlight where and how they do not satisfy one of
+the two requirements outlined above, namely (small scale) efficiency
+and embeddability. 
+
+<p align="center">
+<img src="https://github.com/zanellia/prometeo/blob/master/figures/prometeo_crop.png" width="50%" >
+</p>
+     
+### related work
+Several software packages exist that address Python-to-C translation in
+various forms. 
+
+In the context of high-performance computing,
+*Numba* is a just-in-time compiler for numerical
+functions written in
+Python. As such, its aim is to convert properly annotated Python
+functions, not entire programs, into high-performance LLVM code such 
+that their execution can be sped
+up. *Numba* uses an internal representation of the code to be
+translated and performs a (potentially partial) type inference on the
+variables involved in order to generate LLVM code that can be called
+either from Python or from C/C++. In some cases, namely the
+ones where a complete type inference can
+be carried out successfully, code that does not rely on the C API can be
+generated (using the *nopython* flag). However, the emitted LLVM code
+would still rely on *Numpy* for BLAS and LAPACK  operations.  
+
+*Nuitka* is a source-to-source compiler that can translate
+every Python construct into C code that links against the*libpython* library and it is therefore able to transpile a
+large class of Python programs. In order to do so, it relies on the fact
+that one of the most used implementations of the Python language,
+namely *CPython*, is written in C. In fact, *Nuitka*
+generates C code that contains calls to *CPython* that would
+normally be carried out by the Python parser. Despite its
+attractive and general transpilation approach, it cannot be easily
+deployed on embedded hardware due to its intrinsic dependency on
+*libpython*. At the same time, since it maps rather closely
+Python constructs to their *CPython* implementation, a number
+of performance issues can be expected when it comes to small to medium
+scale high-performance computing. This is particularly due to the fact
+that operations associated with,
+for example, type checking, memory allocation and garbage collection
+that can slow down the execution are carried out by the transpiled
+program too.
+
+*Cython* is a programming language whose goal is to
+facilitate writing C extensions for the Python language. In
+particular, it can translate (optionally) statically typed Python-like
+code into C code that relies on *CPython*. Similarly to the
+considerations made for *Nuitka*, this makes it a powerful tool
+whenever it is possible to rely on *libpython* (and when its
+overhead is negligible, i.e., when dealing with sufficiently large
+scale computations), but not in the context of interest here.
+
+Finally, although it does not use Python as source language, we should
+mention that *Julia* too is just-in-time (and partially
+ahead-of-time) compiled into LLVM
+code. The emitted LLVM code relies however on the *Julia*
+runtime library such that considerations similar to the one made for
+*Cython* and *Nuitka* apply.
+
+### *prometeo*'s transpiler
+Transpilation of programs written using a restricted subset of the
+Python language into C programs is carried out using *prometeo*'s
+transpiler. This source-to-source transformation tool analyzes abstract
+syntax trees (AST) associated with the source files to be transpiled
+in order to emit high-performance and embeddable C code. In order to
+do so, special rules need to be imposed on the Python code. This makes
+the otherwise extremely challenging task of transpiling an interpreted high-level
+duck-typed language into a compiled low-level statically typed one
+possible. In doing so, we define what is sometimes referred to as an *embedded* 
+DSL in the sense the resulting language uses the syntax of a host language
+(Python itself) and, in *prometeo*'s case, it can also be executed by
+the standard Python interpreter. 
+
+<p align="center">
+<img src="https://github.com/zanellia/prometeo/blob/master/figures/simple_ast_annotated.png" width="70%" >
+</p>
+
 ### a more advanced example (Riccati factorization)
 ```python
 from prometeo import *
@@ -335,5 +445,5 @@ def main() -> int:
     return 0
 ```
 
-__Disclaimer: prometeo is still at a very preliminary stage and only few linear algebra operations and Python constructs are supported for the time being.__
+__Disclaimer: prometeo is still at a very preliminary stage and only a few linear algebra operations and Python constructs are supported for the time being.__
 
