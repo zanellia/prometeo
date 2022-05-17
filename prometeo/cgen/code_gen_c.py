@@ -142,6 +142,13 @@ def check_node_structure(node, struct):
                 return False
         return res
 
+def get_slice_value(node):
+    if sys.version_info >= (3, 9):
+        slice_val = node
+    else:
+        slice_val = node.value
+    return slice_val
+
 class PmtArg:
     def __init__(self, name):
         self.name = name
@@ -1645,6 +1652,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                     if self.typed_record[scope][target] == 'pmat':
                         # check for ExtSlices
                         if my_isinstance(node.targets[0].slice, ast.ExtSlice):
+                            slice_target = get_slice_value(node.targets[0].slice)
                             first_index_l  = astu.unparse( \
                                 node.targets[0].slice.dims[0].lower).strip('\n')
 
@@ -1685,14 +1693,18 @@ class SourceGenerator(ExplicitNodeVisitor):
                             self.statement([], 'c_pmt_gecp(', m, ', ', n, ', ', value, \
                                 ', ', ai, ', ', aj, ', ', target, ', ', bi, ', ', bj, ');')
                         else:
-                            if not my_isinstance(node.targets[0].slice.value, ast.Tuple):
+                            import pdb; pdb.set_trace()
+                            #TODO: create a function 'get_slice' and support both <3.9 and >=3.9...
+                            slice_target = get_slice_value(node.targets[0].slice)
+
+                            if not my_isinstance(slice_target, ast.Tuple):
                                 # ap.pprint(node)
                                 raise cgenException('Subscript to a pmat object \
                                     must be of type Tuple.', node.lineno)
 
                             # unparse slice expression
-                            first_index = astu.unparse(node.targets[0].slice.value.elts[0]).strip('\n')
-                            second_index = astu.unparse(node.targets[0].slice.value.elts[1]).strip('\n')
+                            first_index = astu.unparse(slice_target.elts[0]).strip('\n')
+                            second_index = astu.unparse(slice_target.elts[1]).strip('\n')
 
                             # check if subscripted expression is used in the value
                             if my_isinstance(node.value, ast.Subscript):
@@ -1700,8 +1712,9 @@ class SourceGenerator(ExplicitNodeVisitor):
                                 value = node.value.value.id
                                 if value in self.typed_record[scope]:
                                     if self.typed_record[scope][value] == 'pmat':
-                                        first_index_value = astu.unparse(node.value.slice.value.elts[0]).strip('\n')
-                                        second_index_value = astu.unparse(node.value.slice.value.elts[1]).strip('\n')
+                                        slice_value = get_slice_value(node.value.slice)
+                                        first_index_value = astu.unparse(slice_value.elts[0]).strip('\n')
+                                        second_index_value = astu.unparse(slice_value.elts[1]).strip('\n')
 
                                         value_expr = 'c_pmt_pmat_get_el(' + value \
                                             + ', {}, {})'.format(first_index_value, \
@@ -1714,11 +1727,12 @@ class SourceGenerator(ExplicitNodeVisitor):
 
                                     elif self.typed_record[scope][value] == 'pvec':
                                         # if value is a pvec
-                                        sub_type = type(node.value.slice.value)
+                                        slice_value = get_slice_value(node.value.slice)
+                                        sub_type = type(slice_value)
                                         if sub_type in (ast.Num, ast.Constant):
-                                            index_value = node.value.slice.value.n
+                                            index_value = slice_value.n
                                         elif sub_type == ast.Name:
-                                            index_value = node.value.slice.value.id
+                                            index_value = slice_value.id
                                         else:
                                             raise cgenException('Subscripting \
                                                 with value of type {} not \
@@ -1742,7 +1756,8 @@ class SourceGenerator(ExplicitNodeVisitor):
 
                     # check for pvec
                     elif self.typed_record[self.scope][target] in ('pvec'):
-                        if type(node.targets[0].slice.value) not in (ast.Num, ast.Constant, ast.Name):
+                        slice_target = get_slice_value(node.targets[0].slice)
+                        if type(slice_target) not in (ast.Num, ast.Constant, ast.Name):
                             # ap.pprint(node)
                             import pdb; pdb.set_trace()
                             raise cgenException('Subscript to a pvec must \
@@ -1754,9 +1769,9 @@ class SourceGenerator(ExplicitNodeVisitor):
                                 target = node.targets[0]
                                 sub_type = type(target.slice.value)
                                 if sub_type in (ast.Num, ast.Constant):
-                                    index = node.targets[0].slice.value.n
+                                    index = slice_target.n
                                 elif sub_type == ast.Name:
-                                    index = node.targets[0].slice.value.id
+                                    index = slice_target.id
                                 else:
                                     raise cgenException('Subscripting with \
                                         value of type {} not implemented'.format(sub_type), node.lineno)
@@ -1767,19 +1782,21 @@ class SourceGenerator(ExplicitNodeVisitor):
                                     value = node.value.value.id
                                     if value in self.typed_record[self.scope]:
                                         if self.typed_record[self.scope][value] == 'pmat':
-                                            first_index_value = Num_or_Name(node.value.slice.value.elts[0])
-                                            second_index_value = Num_or_Name(node.value.slice.value.elts[1])
+                                            slice_value = get_slice_value(node.value.slice)
+                                            first_index_value = Num_or_Name(slice_value.elts[0])
+                                            second_index_value = Num_or_Name(slice_value.elts[1])
                                             value_expr = 'c_pmt_pmat_get_el(' + value + ', {}, {})'.format(first_index_value, second_index_value)
                                         # single subscripting
                                         else:
                                             value = node.value.value.id
                                             # if value is a pvec
                                             if self.typed_record[self.scope][value] == 'pvec':
-                                                sub_type = type(node.value.slice.value)
+                                                slice_value = get_slice_value(node.value.slice)
+                                                sub_type = type(slice_value)
                                                 if sub_type in (ast.Num, ast.Constant):
-                                                    index_value = node.value.slice.value.n
+                                                    index_value = slice_value.n
                                                 elif sub_type == ast.Name:
-                                                    index_value = node.value.slice.value.id
+                                                    index_value = slice_value.id
                                                 else:
                                                     raise cgenException('Subscripting \
                                                         with value of type {} not \
@@ -1806,8 +1823,9 @@ class SourceGenerator(ExplicitNodeVisitor):
                 if value in self.typed_record[self.scope]:
                     # if value is a pmat
                     if self.typed_record[self.scope][value] == 'pmat':
-                        first_index_value = Num_or_Name(node.value.slice.value.elts[0])
-                        second_index_value = Num_or_Name(node.value.slice.value.elts[1])
+                        slice_value = get_slice_value(node.value.slice)
+                        first_index_value = Num_or_Name(slice_value.elts[0])
+                        second_index_value = Num_or_Name(slice_value.elts[1])
                         value_expr = 'c_pmt_pmat_get_el(' + value + ', {}, {})'.format(first_index_value, second_index_value)
                         self.statement([], target, ' = {}'.format(value_expr), ';')
                         return
@@ -1815,11 +1833,12 @@ class SourceGenerator(ExplicitNodeVisitor):
                     else:
                         # if value is a pvec
                         if self.typed_record[self.scope][value] == 'pvec':
-                            sub_type = type(node.value.slice.value)
+                            slice_value = get_slice_value(node.value.slice)
+                            sub_type = type(slice_value)
                             if sub_type in (ast.Num, ast.Constant):
-                                index_value = node.value.slice.value.n
+                                index_value = slice_value.n
                             elif sub_type == ast.Name:
-                                index_value = node.value.slice.value.id
+                                index_value = slice_value.id
                             else:
                                 raise cgenException('Subscripting with value \
                                     of type {} not implemented.'.format(sub_type), \
@@ -2597,6 +2616,7 @@ class SourceGenerator(ExplicitNodeVisitor):
             else:
                 raise cgenException('Could not find definition of method {}'.format(self.scope), node.lineno)
         else:
+            import pdb; pdb.set_trace()
             raise cgenException('Could not find definition of method {}'.format(self.scope), node.lineno)
 
         if ret_ann != type_val:
