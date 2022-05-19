@@ -12,7 +12,7 @@ with open(path.join(this_directory, 'README.md'), encoding='utf-8') as f:
 
 setup(name='prometeo-dsl',
     version='0.0.11',
-    python_requires='>=3.6, <3.10',
+    python_requires='>=3.8, <3.10',
     description='Python-to-C transpiler and domain specific language for embedded high-performance computing',
     url='http://github.com/zanellia/prometeo',
     author='Andrea Zanelli',
