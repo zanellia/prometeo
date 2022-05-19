@@ -15,10 +15,7 @@ jobs:
     - CC="gcc"
   - name: macOS Build + examples
     os: osx
-    osx_image: xcode10.2
-    python: 
-      - "3.8"
-      - "3.9"
+    osx_image: xcode13.3
     language: shell
 
 install:
