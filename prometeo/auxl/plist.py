@@ -1,18 +1,18 @@
 from ..linalg import pmat
 def plist(list_type, sizes):
-    if list_type.__name__ == 'pmat':
+    if list_type == 'pmat':
         ret_list = [list_type]*len(sizes)
         for i in range(len(sizes)):
             ret_list[i] = pmat(sizes[i][0], sizes[i][1])
-    elif list_type.__name__ == 'pvec':
+    elif list_type == 'pvec':
         ret_list = [list_type]*len(sizes)
         for i in range(len(sizes)):
             ret_list[i] = pvec(sizes[i][0])
-    elif list_type.__name__ == 'int':
+    elif list_type == 'int':
         ret_list = [list_type]*sizes
         for i in range(sizes):
             ret_list[i] = 0
-    elif list_type.__name__ == 'float':
+    elif list_type == 'float':
         ret_list = [list_type]*sizes
         for i in range(sizes):
             ret_list[i] = 0.0
