@@ -1650,34 +1650,57 @@ class SourceGenerator(ExplicitNodeVisitor):
                 if target in self.typed_record[scope]:
                     # map subscript for pmats to blasfeo el assign
                     if self.typed_record[scope][target] == 'pmat':
+
+
                         # check for ExtSlices
-                        if my_isinstance(node.targets[0].slice, ast.ExtSlice):
-                            slice_target = node.targets[0].slice
+                        isExtSlice = False
+                        if sys.version_info >= (3, 9): 
+                            if isinstance(node.targets[0].slice.elts[0], ast.Slice):
+                                isExtSlice = True
+                        else:
+                            if my_isinstance(node.targets[0].slice, ast.ExtSlice):
+                                isExtSlice = True
+
+                        if isExtSlice:
+                            if sys.version_info >= (3, 9):
+                                first_arg = node.targets[0].slice.elts[0]
+                                second_arg = node.targets[0].slice.elts[1]
+                            else:
+                                first_arg = node.targets[0].slice.dims[0]
+                                second_arg = node.targets[0].slice.dims[1]
+
                             first_index_l  = astu.unparse( \
-                                node.targets[0].slice.dims[0].lower).strip('\n')
+                                first_arg.lower).strip('\n')
 
                             first_index_u  = astu.unparse( \
-                                node.targets[0].slice.dims[0].upper).strip('\n')
+                                first_arg.upper).strip('\n')
 
                             second_index_l = astu.unparse( \
-                                node.targets[0].slice.dims[1].lower).strip('\n')
+                                second_arg.lower).strip('\n')
 
                             second_index_u = astu.unparse( \
-                                node.targets[0].slice.dims[1].upper).strip('\n')
+                                second_arg.upper).strip('\n')
 
                             # check if subscripted expression is used in the value
                             if hasattr(node.value, 'slice'):
+                                if sys.version_info >= (3, 9):
+                                    first_arg_value = node.value.slice.elts[0]
+                                    second_arg_value = node.value.slice.elts[1]
+                                else:
+                                    first_arg_value = node.value.slice.dims[0]
+                                    second_arg_value = node.value.slice.dims[1]
+
                                 first_index_value_l  = astu.unparse( \
-                                    node.value.slice.dims[0].lower).strip('\n')
+                                    first_arg_value.lower).strip('\n')
 
                                 first_index_value_u  = astu.unparse( \
-                                    node.value.slice.dims[0].upper).strip('\n')
+                                    first_arg_value.upper).strip('\n')
 
                                 second_index_value_l = astu.unparse( \
-                                    node.value.slice.dims[1].lower).strip('\n')
+                                    second_arg_value.lower).strip('\n')
 
                                 second_index_value_u = astu.unparse( \
-                                    node.value.slice.dims[1].upper).strip('\n')
+                                    second_arg_value.upper).strip('\n')
 
                                 ai = first_index_value_l
                                 aj = second_index_value_l
@@ -1764,7 +1787,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                             # map subscript for pvec to blasfeo el assign
                             if self.typed_record[self.scope][target] in ('pvec'):
                                 target = node.targets[0]
-                                sub_type = type(target.slice.value)
+                                sub_type = type(slice_target)
                                 if sub_type in (ast.Num, ast.Constant):
                                     index = slice_target.n
                                 elif sub_type == ast.Name:
