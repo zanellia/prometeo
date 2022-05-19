@@ -7,7 +7,7 @@ Copyright (c) 2018-2020 Andrea Zanelli
 This module converts a Python AST into C source code.
 """
 
-# TODO(andrea): in Python 3.8+ one a constant string has type ast.Constant. In order to 
+# TODO(andrea): in Python 3.8+ a constant string has type ast.Constant. In order to 
 # support the latest versions I might need to add checks for ast.Constant.value in order 
 # to determine whether a numerical value 
 # or a string is used
@@ -916,7 +916,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                     declaration must have the format \
                     List[<type>, <sizes>]', node.lineno)
             # attribute is a List
-            ann = node.value.args[0].id
+            ann = node.value.args[0].value
             dims = Num_or_Name(node.value.args[1])
             # ann = node.annotation.slice.value.elts[0].id
             # dims = Num_or_Name(node.annotation.slice.value.elts[1])
@@ -972,7 +972,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                     self.typed_record[self.scope][item.target.attr] = list_type
                     # check if dims is not a numerical value
                     # TODO(andrea): fix this for numeric values!
-                    ann = item.value.args[0].id
+                    ann = item.value.args[0].value
                     if ann in pmt_temp_types:
                         ann = pmt_temp_types[ann]
                     dims = Num_or_Name(item.value.args[1])
@@ -1153,7 +1153,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                                         item.lineno)
                             else:
                                 # attribute is a List
-                                ann = Num_or_Name(item.value.args[0])
+                                ann = item.value.args[0].value
                                 dims = Num_or_Name(item.value.args[1])
                                 # ann = item.annotation.slice.value.elts[0].id
                                 # dims = Num_or_Name(item.annotation.slice.value.elts[1])
@@ -1652,7 +1652,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                     if self.typed_record[scope][target] == 'pmat':
                         # check for ExtSlices
                         if my_isinstance(node.targets[0].slice, ast.ExtSlice):
-                            slice_target = get_slice_value(node.targets[0].slice)
+                            slice_target = node.targets[0].slice
                             first_index_l  = astu.unparse( \
                                 node.targets[0].slice.dims[0].lower).strip('\n')
 
@@ -1693,13 +1693,12 @@ class SourceGenerator(ExplicitNodeVisitor):
                             self.statement([], 'c_pmt_gecp(', m, ', ', n, ', ', value, \
                                 ', ', ai, ', ', aj, ', ', target, ', ', bi, ', ', bj, ');')
                         else:
-                            #TODO: create a function 'get_slice' and support both <3.9 and >=3.9...
                             slice_target = get_slice_value(node.targets[0].slice)
 
                             if not my_isinstance(slice_target, ast.Tuple):
                                 # ap.pprint(node)
-                                raise cgenException('Subscript to a pmat object \
-                                    must be of type Tuple.', node.lineno)
+                                raise cgenException('Subscript to a pmat object'  
+                                    'must be of type Tuple.', node.lineno)
 
                             # unparse slice expression
                             first_index = astu.unparse(slice_target.elts[0]).strip('\n')
@@ -2035,7 +2034,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                     plist(<type>, <sizes>).', node.lineno)
 
             # attribute is a List
-            lann = node.value.args[0].id
+            lann = node.value.args[0].value
             dims = Num_or_Name(node.value.args[1])
             if my_isinstance(dims, str):
                 self.typed_record[self.scope][target] = 'List[' + lann + ', ' + dims + ']'

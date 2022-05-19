@@ -9,13 +9,13 @@ n: dims = 10
 
 class qp_data:
     def __init__(self) -> None:
-        self.A: List = plist(pmat, sizes)
-        self.B: List = plist(pmat, sizes)
-        self.Q: List = plist(pmat, sizes)
-        self.R: List = plist(pmat, sizes)
-        self.P: List = plist(pmat, sizes)
+        self.A: List = plist('pmat', sizes)
+        self.B: List = plist('pmat', sizes)
+        self.Q: List = plist('pmat', sizes)
+        self.R: List = plist('pmat', sizes)
+        self.P: List = plist('pmat', sizes)
 
-        self.fact: List = plist(pmat, sizes)
+        self.fact: List = plist('pmat', sizes)
 
     def factorize(self) -> None:
         M: pmat = pmat(nxu, nxu)
@@ -38,7 +38,7 @@ class qp_data:
             pmat_copy(self.R[N-i], R)
             # M[0:nu,0:nu] = R[0:nu,0:nu]
             M[0:nu,0:nu] = R[0:nu,0:nu]
-            M[nu:nu+nx,nu:nu+nx] = Q
+            M[nu:nu+nx,nu:nu+nx] = Q[0:nx,0:nx]
 
             # this is still not implemented!
             # R = M[0:nu,0:nu]
@@ -70,8 +70,6 @@ class qp_data:
             pmt_gead(-1.0, self.P[N-i-1], Mxx)
             pmat_copy(Mxx, self.P[N-i-1])
             pmat_print(self.P[N-i-1])
-
-        return
 
 def main() -> int:
 

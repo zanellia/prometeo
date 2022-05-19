@@ -32,6 +32,7 @@ pmt_functions = {\
     'global@_Z10pvec_printpvec' : [], \
     'global@_Z9pvec_copypvecpvec' : [], \
     'global@_Z5printstr' : [], \
+    'global@_Z5pliststrdims' : [], \
 
 }
 
@@ -196,7 +197,7 @@ class ast_visitor(ExplicitNodeVisitor):
             type_l, s  = self.get_type_of_node(node.left, scope)
             type_r, s = self.get_type_of_node(node.right, scope)
             if type_l != type_r:
-                if type_l != 'str' or type_r != 'int': # allow for this case for printing TODO : improve
+                if type_l != 'str' or (type_r != 'int' and type_r != 'float'): # allow for this case for printing TODO : improve
                     raise Exception("Type mismatch in BinOp: left = {}, right = {}".format(type_l,type_r))
             return type_l, None
 
@@ -242,7 +243,6 @@ class ast_visitor(ExplicitNodeVisitor):
             return type_val, None
 
         elif my_isinstance(node, ast.Call):
-            import pdb; pdb.set_trace()
             if my_isinstance(node.func, ast.Name):
                 if node.func.id not in self.function_record['global']:
                     raise cgenException('Undefined method {}'.format(node.func.id), node.lineno)
