@@ -1693,7 +1693,6 @@ class SourceGenerator(ExplicitNodeVisitor):
                             self.statement([], 'c_pmt_gecp(', m, ', ', n, ', ', value, \
                                 ', ', ai, ', ', aj, ', ', target, ', ', bi, ', ', bj, ');')
                         else:
-                            import pdb; pdb.set_trace()
                             #TODO: create a function 'get_slice' and support both <3.9 and >=3.9...
                             slice_target = get_slice_value(node.targets[0].slice)
 
@@ -1759,7 +1758,6 @@ class SourceGenerator(ExplicitNodeVisitor):
                         slice_target = get_slice_value(node.targets[0].slice)
                         if type(slice_target) not in (ast.Num, ast.Constant, ast.Name):
                             # ap.pprint(node)
-                            import pdb; pdb.set_trace()
                             raise cgenException('Subscript to a pvec must \
                                 object must be of type Num or Name.', node.lineno)
                         target = node.targets[0].value.id
@@ -1915,7 +1913,6 @@ class SourceGenerator(ExplicitNodeVisitor):
 
             elif my_isinstance(node.targets[0], ast.Attribute):
                 print('CHECK THIS')
-                import pdb; pdb.set_trace()
                 # Assign targeting a user-defined class (C struct)
                 struct_name = node.targets[0].value.id
                 code = recurse_attributes(node.targets[0])
@@ -2015,7 +2012,6 @@ class SourceGenerator(ExplicitNodeVisitor):
             if my_isinstance(node.value, ast.Call):
                 self.scope = self.scope + '@' + node.value.args[0].s
                 casadi_fun = ca.Function.load('__pmt_cache__/' + self.scope + '.casadi')
-                import pdb; pdb.set_trace()
                 # self.function_record[outer_scope][fun_name_m] = {"arg_types": arg_list,  "ret_type": return_type_py}
                 self.casadi_funs.append(self.scope)
                 self.typed_record[self.scope] = dict()
@@ -2616,7 +2612,6 @@ class SourceGenerator(ExplicitNodeVisitor):
             else:
                 raise cgenException('Could not find definition of method {}'.format(self.scope), node.lineno)
         else:
-            import pdb; pdb.set_trace()
             raise cgenException('Could not find definition of method {}'.format(self.scope), node.lineno)
 
         if ret_ann != type_val:
