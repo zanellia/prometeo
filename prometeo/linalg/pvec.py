@@ -20,10 +20,16 @@ class pvec(pvec_):
     def m(self):
         return self._m
 
+    def check_index(self, index):
+        if index < 0 or index >= self.m:
+            raise IndexError('index {} out of range for a pvec of size {}'.format(index, self.m))
+
     def __getitem__(self, index):
+        self.check_index(index)
         return pvec_get(self, index)
 
     def __setitem__(self, index, value):
+        self.check_index(index)
         pvec_set(self, value, index)
         return
     

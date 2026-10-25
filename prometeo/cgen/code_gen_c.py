@@ -197,36 +197,22 @@ def parse_pmt_gemm_args(generator, call, node):
     # loop over keywords
     for kw in call.keywords:
         if kw.arg == 'alpha':
-            alpha = kw.value.value
+            alpha = unparse(kw.value)
         if kw.arg == 'beta':
-            beta = kw.value.value
+            beta = unparse(kw.value)
 
     if len(call.args) > 3:
         arg3 = call.args[3].name
     else:
         arg3 = call.args[2].name
 
-    if call.args[0].tran:
-        tranA = 't'
-    else:
-        tranA = 'n'
+    if any(arg.tran for arg in call.args):
+        raise cgenException('Transposed arguments in pmt_gemm are not supported', node.lineno)
 
-    if call.args[1].tran:
-        tranB = 't'
-    else:
-        tranB = 'n'
-
-    if call.args[2].tran:
-        raise cgenException('Cannot transpose arg 2 of gemm call', node.lineno)
-
-    if len(call.args) > 3:
-        if call.args[3].tran:
-            raise cgenException('Cannot transpose arg 3 of gemm call', node.lineno)
-
-    blasfeo_call = \
-        "blasfeo_dgemm_{4}{5}({0}->bmat->m, {1}->bmat->n, {0}->bmat->n, {6}, {0}->bmat, 0, 0, {1}->bmat, 0, 0, {7}, {2}->bmat, 0, 0, {3}->bmat, 0, 0);\n".format(arg0, arg1, arg2, arg3, tranA, tranB, alpha, beta)
-
-    generator.write(blasfeo_call, dest = 'src')
+    # call a wrapper: the matrix sizes cannot be accessed here as A->bmat->m,
+    # since dims constants (#define) could be named m or n
+    generator.write('c_pmt_gemm_ab({}, {}, {}, {}, {}, {});\n'.format(
+        alpha, arg0, arg1, beta, arg2, arg3), dest = 'src')
     return
 
 blas_api_funs = {'pmt_gemm' : parse_pmt_gemm_args}
@@ -274,6 +260,8 @@ def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False
     generator.result.source.append('void * ___c_pmt_64_heap;\n')
     generator.result.source.append('void * ___c_pmt_8_heap_head;\n')
     generator.result.source.append('void * ___c_pmt_64_heap_head;\n')
+    generator.result.source.append('void * ___c_pmt_8_heap_end;\n')
+    generator.result.source.append('void * ___c_pmt_64_heap_end;\n')
     generator.result.header.append('#include "prometeo.h"\n')
     generator.result.header.append('#include "timing.h"\n')
     generator.result.header.append('#include "pmt_aux.h"\n')
@@ -746,6 +734,10 @@ class SourceGenerator(ExplicitNodeVisitor):
                 type_val = self.typed_record[scope][node.id]
             elif  node.id in self.dim_record:
                 type_val = 'dims'
+            elif node.id in self.typed_record['global'] and \
+                    self.typed_record['global'][node.id] in ('int', 'float'):
+                # module-level constant
+                type_val = self.typed_record['global'][node.id]
             else:
                 raise cgenException('Undefined variable {}'.format(node.id), node.lineno)
 
@@ -774,6 +766,9 @@ class SourceGenerator(ExplicitNodeVisitor):
         elif my_isinstance(node, ast.BinOp):
             type_l, s  = self.get_type_of_node(node.left, scope)
             type_r, s = self.get_type_of_node(node.right, scope)
+            # dims are integer constants: dims combined with int gives int
+            if {type_l, type_r} == {'dims', 'int'}:
+                return 'int', None
             if type_l != type_r:
                 raise cgenException("Type mismatch in BinOp: left = {}, \
                     right = {}".format(type_l,type_r), node.lineno)
@@ -1654,14 +1649,11 @@ class SourceGenerator(ExplicitNodeVisitor):
             type_val, arg_types = self.get_type_of_node(node.value, self.scope)
             # get type of target
             type_val_t, arg_types = self.get_type_of_node(node.targets[0], self.scope)
-            if type_val != type_val_t:
+            if type_val != type_val_t and not (type_val_t == 'int' and type_val == 'dims'):
                 raise cgenException('Mismatching types in assignment {} = {}'.format(type_val_t, type_val), node.lineno)
             # check for attributes
             if hasattr(node.targets[0], 'value'):
                 if hasattr(node.targets[0].value, 'attr'):
-                    if node.targets[0].value.attr not in self.typed_record[self.scope]:
-                        raise cgenException('Unknown variable {}.'.format( \
-                            node.targets[0].value.attr), node.lineno)
                     # TODO(andrea): need to handle attributes recursively
                     target = node.targets[0].value.attr
                     obj_name = node.targets[0].value.value.id
@@ -1669,6 +1661,9 @@ class SourceGenerator(ExplicitNodeVisitor):
                     # that contain scope and have a string in common with self.scope)
                     # this assumes that the class has been defined in the global scope
                     scope = 'global@' + self.typed_record[self.scope][obj_name]
+                    # the attribute must be defined in the object's class
+                    if target not in self.typed_record.get(scope, {}):
+                        raise cgenException('Unknown variable {}.'.format(target), node.lineno)
                 else:
                     if node.targets[0].value.id not in self.typed_record[self.scope]:
                         raise cgenException('Unknown variable {}.'.format( \
@@ -1769,16 +1764,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                                     elif self.typed_record[scope][value] == 'pvec':
                                         # if value is a pvec
                                         slice_value = get_slice_value(node.value.slice)
-                                        sub_type = type(slice_value)
-                                        if sub_type in (ast.Constant,):
-                                            index_value = slice_value.value
-                                        elif sub_type == ast.Name:
-                                            index_value = slice_value.id
-                                        else:
-                                            raise cgenException('Subscripting \
-                                                with value of type {} not \
-                                                implemented.'.format(sub_type), \
-                                                node.lineno)
+                                        index_value = unparse(slice_value)
 
                                         value_expr = 'c_pmt_pvec_get_el(' + value + \
                                             ', {})'.format(index_value)
@@ -1796,25 +1782,14 @@ class SourceGenerator(ExplicitNodeVisitor):
                         return
 
                     # check for pvec
-                    elif self.typed_record[self.scope][target] in ('pvec'):
+                    elif self.typed_record[scope][target] == 'pvec':
                         slice_target = get_slice_value(node.targets[0].slice)
-                        if type(slice_target) not in (ast.Constant, ast.Name):
-                            # ap.pprint(node)
-                            raise cgenException('Subscript to a pvec must \
-                                object must be of type Num or Name.', node.lineno)
                         target = node.targets[0].value.id
                         if target in self.typed_record[self.scope]:
                             # map subscript for pvec to blasfeo el assign
                             if self.typed_record[self.scope][target] in ('pvec'):
                                 target = node.targets[0]
-                                sub_type = type(slice_target)
-                                if sub_type in (ast.Constant,):
-                                    index = slice_target.value
-                                elif sub_type == ast.Name:
-                                    index = slice_target.id
-                                else:
-                                    raise cgenException('Subscripting with \
-                                        value of type {} not implemented'.format(sub_type), node.lineno)
+                                index = unparse(slice_target)
 
                                 # check if subscripted expression is used in the value
                                 if type(node.value) == ast.Subscript:
@@ -1823,8 +1798,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                                     if value in self.typed_record[self.scope]:
                                         if self.typed_record[self.scope][value] == 'pmat':
                                             slice_value = get_slice_value(node.value.slice)
-                                            first_index_value = Num_or_Name(slice_value.elts[0])
-                                            second_index_value = Num_or_Name(slice_value.elts[1])
+                                            first_index_value = unparse(slice_value.elts[0])
+                                            second_index_value = unparse(slice_value.elts[1])
                                             value_expr = 'c_pmt_pmat_get_el(' + value + ', {}, {})'.format(first_index_value, second_index_value)
                                         # single subscripting
                                         else:
@@ -1832,16 +1807,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                                             # if value is a pvec
                                             if self.typed_record[self.scope][value] == 'pvec':
                                                 slice_value = get_slice_value(node.value.slice)
-                                                sub_type = type(slice_value)
-                                                if sub_type in (ast.Constant,):
-                                                    index_value = slice_value.value
-                                                elif sub_type == ast.Name:
-                                                    index_value = slice_value.id
-                                                else:
-                                                    raise cgenException('Subscripting \
-                                                        with value of type {} not \
-                                                        implemented'.format(sub_type), \
-                                                        node.lineno)
+                                                index_value = unparse(slice_value)
 
                                                 value_expr = 'c_pmt_pvec_get_el(' + value + ', {})'.format(index_value)
                                                 self.statement([], 'c_pmt_pvec_set_el(', target.value.id, ', {}'.format(index), ', {}'.format(value_expr), ');')
@@ -1864,8 +1830,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                     # if value is a pmat
                     if self.typed_record[self.scope][value] == 'pmat':
                         slice_value = get_slice_value(node.value.slice)
-                        first_index_value = Num_or_Name(slice_value.elts[0])
-                        second_index_value = Num_or_Name(slice_value.elts[1])
+                        first_index_value = unparse(slice_value.elts[0])
+                        second_index_value = unparse(slice_value.elts[1])
                         value_expr = 'c_pmt_pmat_get_el(' + value + ', {}, {})'.format(first_index_value, second_index_value)
                         self.statement([], target, ' = {}'.format(value_expr), ';')
                         return
@@ -1874,15 +1840,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                         # if value is a pvec
                         if self.typed_record[self.scope][value] == 'pvec':
                             slice_value = get_slice_value(node.value.slice)
-                            sub_type = type(slice_value)
-                            if sub_type in (ast.Constant,):
-                                index_value = slice_value.value
-                            elif sub_type == ast.Name:
-                                index_value = slice_value.id
-                            else:
-                                raise cgenException('Subscripting with value \
-                                    of type {} not implemented.'.format(sub_type), \
-                                    node.lineno)
+                            index_value = unparse(slice_value)
 
                             value_expr = 'c_pmt_pvec_get_el(' + value + ', {})'.format(index_value)
                             self.statement([], target, ' = {}'.format(value_expr), ';')
@@ -2383,12 +2341,14 @@ class SourceGenerator(ExplicitNodeVisitor):
             self.write('    prometeo_tic(&timer0);\n', dest = 'src')
             self.write('    ___c_pmt_8_heap = malloc(HEAP8_SIZE); \n', dest = 'src')
             self.write('    ___c_pmt_8_heap_head = ___c_pmt_8_heap;\n', dest = 'src')
+            self.write('    ___c_pmt_8_heap_end = (char *) ___c_pmt_8_heap + HEAP8_SIZE;\n', dest = 'src')
             self.write('    char * pmem_ptr = (char *)___c_pmt_8_heap;\n', dest = 'src')
             self.write('    align_char_to(8, &pmem_ptr);\n', dest = 'src')
             self.write('    ___c_pmt_8_heap = pmem_ptr;\n', dest = 'src')
 
             self.write('    ___c_pmt_64_heap = malloc(HEAP64_SIZE);\n', dest = 'src')
             self.write('    ___c_pmt_64_heap_head = ___c_pmt_64_heap;\n', dest = 'src')
+            self.write('    ___c_pmt_64_heap_end = (char *) ___c_pmt_64_heap + HEAP64_SIZE;\n', dest = 'src')
             self.write('    pmem_ptr = (char *)___c_pmt_64_heap;\n', dest = 'src')
             self.write('    align_char_to(64, &pmem_ptr);\n', dest = 'src')
             self.write('    ___c_pmt_64_heap = pmem_ptr;\n', dest = 'src')
@@ -3150,7 +3110,10 @@ class SourceGenerator(ExplicitNodeVisitor):
             # what the parent operation was...
             node.operand._p_op = node.op
             sym = get_op_symbol(node.op)
-            self.write(sym, ' ' if sym.isalpha() else '', node.operand, dest = 'src')
+            # separate nested unary operators: '--x' is a decrement in C
+            nested = isinstance(node.operand, ast.UnaryOp) or (isinstance(node.operand, ast.Constant)
+                and isinstance(node.operand.value, (int, float)) and node.operand.value < 0)
+            self.write(sym, ' ' if sym.isalpha() or nested else '', node.operand, dest = 'src')
 
     def visit_Subscript(self, node):
         self.current_line = node.lineno

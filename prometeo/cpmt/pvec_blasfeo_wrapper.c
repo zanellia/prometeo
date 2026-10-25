@@ -41,6 +41,8 @@ void c_pmt_assign_and_advance_blasfeo_dvec(int m, struct blasfeo_dvec **bvec) {
     int memsize = (*bvec)->memsize;
     make_int_multiple_of(64, &memsize);
     ___c_pmt_64_heap += memsize;	
+    // check the bound before writing to the new memory
+    c_pmt_check_heap();
 
     // zero allocated memory
 	int i;

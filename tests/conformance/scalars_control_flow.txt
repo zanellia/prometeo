@@ -1,0 +1,174 @@
+### int_arith
+# expect: ok
+    a : int = 7
+    b : int = 2
+    c : int = a + b * 3 - 1
+    print('%i\n' % c)
+
+### int_div
+# expect: error not supported (yet): the '//' operator
+    a : int = 7
+    b : int = 2
+    c : int = a // b
+    print('%i\n' % c)
+
+### int_mod
+# expect: warning '%' on negative integers gives different results in Python a
+    a : int = 7
+    c : int = a % 3
+    print('%i\n' % c)
+
+### float_arith
+# expect: ok
+    x : float = 1.5
+    y : float = x * 2.0 - 0.5
+    print('%f\n' % y)
+
+### float_div
+# expect: ok
+    x : float = 1.5
+    y : float = x / 2.0
+    print('%f\n' % y)
+
+### float_pow
+# expect: error not supported (yet): the '**' operator
+    x : float = 1.5
+    y : float = x ** 2.0
+    print('%f\n' % y)
+
+### unary_minus
+# expect: ok
+    x : float = 1.5
+    y : float = -x
+    print('%f\n' % y)
+
+### mixed_int_float
+# expect: error mixed int/float arithmetic is not supported: use float liter
+    x : float = 1.5
+    k : int = 2
+    y : float = x * k
+    print('%f\n' % y)
+
+### int_literal_to_float
+# expect: ok
+    x : float = 2
+    print('%f\n' % x)
+
+### aug_assign_int
+# expect: error not supported (yet): augmented assignment ('+='); write 'x =
+    a : int = 1
+    a += 2
+    print('%i\n' % a)
+
+### aug_assign_float
+# expect: error not supported (yet): augmented assignment ('+='); write 'x =
+    x : float = 1.0
+    x += 2.0
+    print('%f\n' % x)
+
+### if_else
+# expect: ok
+    a : int = 3
+    b : int = 0
+    if a > 2:
+        b = 1
+    else:
+        b = 2
+    print('%i\n' % b)
+
+### if_elif
+# expect: ok
+    a : int = 3
+    b : int = 0
+    if a > 5:
+        b = 1
+    elif a > 2:
+        b = 2
+    else:
+        b = 3
+    print('%i\n' % b)
+
+### if_and_or
+# expect: error not supported (yet): 'and' / 'or' in conditions
+    a : int = 3
+    b : int = 0
+    if a > 2 and a < 5:
+        b = 1
+    print('%i\n' % b)
+
+### if_not
+# expect: error not supported (yet): 'not' in conditions
+    a : int = 3
+    b : int = 0
+    if not a > 5:
+        b = 1
+    print('%i\n' % b)
+
+### compare_eq_float
+# expect: ok
+    x : float = 1.0
+    b : int = 0
+    if x == 1.0:
+        b = 1
+    print('%i\n' % b)
+
+### while_loop
+# expect: ok
+    a : int = 0
+    while a < 5:
+        a = a + 1
+    print('%i\n' % a)
+
+### for_range_start
+# expect: error not supported (yet): using the loop variable 'i' outside of
+    s : int = 0
+    for i in range(2, 5):
+        s = s + i
+    print('%i\n' % s)
+
+### for_range_step
+# expect: error not supported (yet): range with a step
+    s : int = 0
+    for i in range(0, 10, 3):
+        s = s + i
+    print('%i\n' % s)
+
+### for_break
+# expect: error not supported (yet): 'break'
+    s : int = 0
+    for i in range(10):
+        if i > 3:
+            break
+        s = s + i
+    print('%i\n' % s)
+
+### for_continue
+# expect: error not supported (yet): 'continue'
+    s : int = 0
+    for i in range(5):
+        if i == 2:
+            continue
+        s = s + i
+    print('%i\n' % s)
+
+### bool_var
+# expect: error unknown type 'bool'
+    f : bool = True
+    b : int = 0
+    if f:
+        b = 1
+    print('%i\n' % b)
+
+### pass_stmt
+# expect: error not supported (yet): 'pass'
+    a : int = 1
+    if a > 0:
+        pass
+    print('%i\n' % a)
+
+### loop_var_after_loop
+# expect: error not supported (yet): using the loop variable 'i' outside of
+    s : int = 0
+    for i in range(3):
+        s = i
+    print('%i\n' % s)

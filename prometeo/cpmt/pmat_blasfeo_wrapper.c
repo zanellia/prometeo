@@ -41,6 +41,8 @@ void c_pmt_assign_and_advance_blasfeo_dmat(int m, int n, struct blasfeo_dmat **b
     int memsize = (*bmat)->memsize;
     make_int_multiple_of(64, &memsize);
     ___c_pmt_64_heap += memsize;	
+    // check the bound before writing to the new memory
+    c_pmt_check_heap();
 
     // zero allocated memory
 	int i;
@@ -92,6 +94,11 @@ struct pmat * _c_pmt_gemm_nn(struct pmat *A, struct pmat *B) {
 
     blasfeo_dgemm_nn(mA, nB, nA, 1.0, bA, 0, 0, bB, 0, 0, 1, bC, 0, 0, bC, 0, 0);
     return C;
+}
+
+// D <= beta * C + alpha * A * B
+void c_pmt_gemm_ab(double alpha, struct pmat *A, struct pmat *B, double beta, struct pmat *C, struct pmat *D) {
+    blasfeo_dgemm_nn(A->bmat->m, B->bmat->n, A->bmat->n, alpha, A->bmat, 0, 0, B->bmat, 0, 0, beta, C->bmat, 0, 0, D->bmat, 0, 0);
 }
 
 void c_pmt_gemm_tn(struct pmat *A, struct pmat *B, struct pmat *C, struct pmat *D) {

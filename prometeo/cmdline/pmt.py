@@ -51,6 +51,44 @@ all: casadi sources
 clean:
 	rm -f *.o {{ filename }}
 '''
+def strip_pure_blocks(code):
+    """Blank out '# pure >' ... '# pure <' blocks (Python-only code), keeping
+    line numbers unchanged."""
+    lines = code.splitlines()
+    in_pure = False
+    for i, line in enumerate(lines):
+        if '# pure >' in line:
+            in_pure = True
+        if in_pure:
+            lines[i] = ''
+        if '# pure <' in line:
+            in_pure = False
+    return '\n'.join(lines) + '\n'
+
+def check_program(filename):
+    """Run the static checker; print its diagnostics and return False if the
+    program is not valid prometeo code."""
+    code = open(filename).read()
+    source_lines = code.splitlines()
+    try:
+        tree = normalize_plist_types(ast.parse(strip_pure_blocks(code), filename))
+    except SyntaxError as e:
+        print('\n\033[;1m > prometeo:\033[0;0m \033[91msyntax error\033[0;0m at {}:{}: {}'.format(
+            filename, e.lineno, e.msg))
+        return False
+    diagnostics = prometeo.frontend.check(tree)
+    for d in diagnostics:
+        color = '\033[91m' if d.severity == 'error' else '\033[93m'
+        print('\n\033[;1m > prometeo:\033[0;0m {}{}\033[0;0m at {}:{}:{}: {}'.format(
+            color, d.severity, filename, d.lineno, d.col + 1, d.message))
+        if 0 < d.lineno <= len(source_lines):
+            print('     \033[34m' + source_lines[d.lineno - 1] + '\033[0;0m')
+            print('     ' + ' ' * d.col + '^')
+    errors = [d for d in diagnostics if d.severity == 'error']
+    if errors:
+        print('\n\033[;1m > prometeo:\033[0;0m {} error(s), exiting.\n'.format(len(errors)))
+    return not errors
+
 def normalize_plist_types(tree):
     """Rewrite plist(pmat, ...) as plist('pmat', ...): the code generator and
     the heap analysis expect the element type of a plist as a string."""
@@ -91,10 +129,11 @@ def resolve_dims_value(dim_vars):
                     # if there are unresolved dim vars, then chars is non empty
                     if chars:
                         for dim_var2_key, dim_var2_value in dim_vars.items():
-                            dim_value = re.sub(r'\b' + dim_var2_key + r'\b', dim_var2_value, dim_var1_value)
-                            chars = ''.join(re.split("[^a-zA-Z]*", dim_value)).replace(' ', '')
-                            if not chars:
-                                break
+                            if not isinstance(dim_var2_value, list):
+                                dim_value = re.sub(r'\b' + dim_var2_key + r'\b', dim_var2_value, dim_value)
+                                chars = ''.join(re.split("[^a-zA-Z]*", dim_value)).replace(' ', '')
+                                if not chars:
+                                    break
 
                     if chars:
                         raise Exception('Could not resolve value {} of dims \
@@ -207,11 +246,22 @@ def pmt_main():
     parser.add_argument("--debug", type=str, default=False, \
             help="call raise instead of exit() upon Exception")
 
+    parser.add_argument("--check", type=str2bool, default="True", \
+            help="check that the program is valid prometeo code before running "
+            "or transpiling it (disable only to try experimental features)")
+
     args = parser.parse_args()
     filename = args.program_name
     cgen = args.cgen
     red_stdout = args.out
     debug = args.debug
+
+    if not os.path.isfile(filename):
+        print('\n\033[;1m > prometeo:\033[0;0m \033[91m file {} not found.\033[0;0m'.format(filename))
+        return 1
+
+    if args.check and not check_program(filename):
+        return 1
 
     if cgen is False:
         post = '''main()'''
@@ -222,13 +272,6 @@ def pmt_main():
         toc = time.time() - tic
         print('Execution time = {:0.3f} sec'.format(toc))
     else:
-        try:
-            f = open(filename)
-            f.close()
-        except FileNotFoundError:
-            print('\n\033[;1m > prometeo:\033[0;0m \033[91m file {} not found.\033[0;0m'.format(filename))
-            exit()
-
         print('\n\033[;1m > prometeo:\033[0;0m starting transpilation')
         pmt_path = os.path.dirname(prometeo.__file__)
         filename_ = filename.split('.')[0]
@@ -340,12 +383,16 @@ def pmt_main():
 
         for caller, callees in call_graph.items():
             for callee in callees:
-                # if call is a constructor, then account for 
-                # escaped memory
-                if callee in constructors_list:
-                    heap64_data[caller] = str(int(heap64_data[caller]) 
+                # if call is a constructor, then account for
+                # escaped memory (calls are recorded with mangled names,
+                # e.g. global@_Z7qp_data, constructors as global@qp_data)
+                mangled = re.match(r'(.*@)_Z(\d+)(\w+)$', callee)
+                if mangled:
+                    callee = mangled.group(1) + mangled.group(3)[:int(mangled.group(2))]
+                if callee in constructors_list and callee in heap64_data:
+                    heap64_data[caller] = str(int(heap64_data[caller])
                         + int(heap64_data[callee]))
-                    heap8_data[caller] = str(int(heap8_data[caller]) 
+                    heap8_data[caller] = str(int(heap8_data[caller])
                         + int(heap8_data[callee]))
 
         # print('reach_map:\n\n', reach_map, '\n\n')
@@ -425,9 +472,13 @@ def pmt_main():
         # generate Makefile
         makefile_code = makefile_template.replace('{{ filename }}', filename_)
 
-        makefile_code = makefile_code.replace('{{ HEAP8_SIZE }}', str(2*worst_case_heap_usage_8))
-        # NOTE: factor 2 due to alignment
-        makefile_code = makefile_code.replace('{{ HEAP64_SIZE }}', str(2*worst_case_heap_usage_64))
+        # allocate margin x the computed bound (default 2), plus the padding
+        # needed to align the start of the heaps
+        margin = float(os.environ.get('PMT_HEAP_MARGIN', '2'))
+        makefile_code = makefile_code.replace('{{ HEAP8_SIZE }}',
+            str(int(margin*worst_case_heap_usage_8) + 8))
+        makefile_code = makefile_code.replace('{{ HEAP64_SIZE }}',
+            str(int(margin*worst_case_heap_usage_64) + 64))
 
         makefile_code = makefile_code.replace('\n','', 1)
         makefile_code = makefile_code.replace('{{ INSTALL_DIR }}', os.path.dirname(__file__) + '/..')

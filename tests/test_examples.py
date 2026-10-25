@@ -12,10 +12,10 @@ import math
 import os
 import re
 import shutil
-import subprocess
-import sys
 
 import pytest
+
+from pmt_testing import run_pmt, extract_numbers, assert_same_numbers
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EXAMPLES_DIR = os.path.join(ROOT, 'examples')
@@ -44,27 +44,6 @@ EXAMPLES = [
     # the interpreted run fails (method called with a missing argument)
     ('simple_class', 'simple_class', False),
 ]
-
-NUMBER = re.compile(r'[-+]?(?:\d+\.\d*|\.\d+|\d+)(?:[eE][-+]?\d+)?|[-+]?nan|[-+]?inf')
-IGNORED_LINE = re.compile(r'prometeo|execution time|total time|Execution time|bytes aligned')
-
-
-def run_pmt(workdir, name, cgen):
-    cmd = [sys.executable, '-m', 'prometeo', name + '.py', '--cgen={}'.format(cgen)]
-    proc = subprocess.run(cmd, cwd=workdir, stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT, universal_newlines=True, timeout=600)
-    assert proc.returncode == 0, proc.stdout
-    return proc.stdout
-
-
-def extract_numbers(output):
-    numbers = []
-    for line in output.splitlines():
-        if IGNORED_LINE.search(line):
-            continue
-        numbers += [float(x) for x in NUMBER.findall(line)]
-    return numbers
-
 
 def heap_sizes(makefile):
     with open(makefile) as f:
@@ -98,7 +77,8 @@ def workdir(tmp_path, request):
 @pytest.mark.parametrize('workdir, name, differential',
     EXAMPLES, indirect=['workdir'], ids=[e[1] for e in EXAMPLES])
 def test_example(workdir, name, differential):
-    c_output = run_pmt(workdir, name, cgen=True)
+    code, c_output = run_pmt(workdir, name + '.py', cgen=True)
+    assert code == 0, c_output
 
     cache = os.path.join(workdir, '__pmt_cache__')
     for ext in ('c', 'h'):
@@ -106,11 +86,9 @@ def test_example(workdir, name, differential):
             check_golden(name + '.' + ext, f.read())
     check_golden(name + '.heap', heap_sizes(os.path.join(cache, 'Makefile')))
 
-    c_numbers = extract_numbers(c_output)
-    assert not any(math.isnan(x) for x in c_numbers), c_output
+    assert not any(math.isnan(x) for x in extract_numbers(c_output)), c_output
 
     if differential:
-        py_numbers = extract_numbers(run_pmt(workdir, name, cgen=False))
-        assert len(c_numbers) == len(py_numbers), (c_output, py_numbers)
-        for c, py in zip(c_numbers, py_numbers):
-            assert math.isclose(c, py, rel_tol=1e-6, abs_tol=1e-9), (c_output, py_numbers)
+        code, py_output = run_pmt(workdir, name + '.py', cgen=False)
+        assert code == 0, py_output
+        assert_same_numbers(py_output, c_output)

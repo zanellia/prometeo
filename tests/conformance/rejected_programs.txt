@@ -1,0 +1,323 @@
+### decl_in_loop
+# expect: error matrices, vectors, lists and objects must be declared outsid
+    for i in range(n):
+        A : pmat = pmat(n, n)
+        A[0, 0] = 1.0
+    print('done\n')
+
+### decl_in_if
+# expect: error matrices, vectors, lists and objects must be declared outsid
+    k : int = 1
+    if k > 0:
+        A : pmat = pmat(n, n)
+        pmat_print(A)
+
+### scalar_decl_in_block
+# expect: ok
+    k : int = 1
+    if k > 0:
+        j : int = 2
+        k = j
+    print('%i\n' % k)
+
+### block_scoping
+# expect: error 'j' is not defined
+    k : int = 1
+    if k > 0:
+        j : int = 2
+    k = j
+    print('%i\n' % k)
+
+### loopvar_after_loop_use
+# expect: error 'i' is not defined
+    k : int = 0
+    for i in range(n):
+        k = 1
+    k = i
+    print('%i\n' % k)
+
+### int_true_division
+# expect: error '/' on integers gives a float in Python but truncates in C:
+    a : int = 7
+    b : int = 2
+    c : int = a / b
+    print('%i\n' % c)
+
+### printf_type_mismatch
+# expect: error '%i' expects an int, got float
+    x : float = 1.5
+    print('%i\n' % x)
+
+### printf_int_as_float
+# expect: error '%f' expects a float, got int (the C printf would print garb
+    k : int = 1
+    print('%f\n' % k)
+
+### c_keyword_name
+# expect: error 'double' is reserved and cannot be used as a name
+    double : float = 1.0
+    print('%f\n' % double)
+
+### reserved_prefix_name
+# expect: error names starting with 'c_pmt_' are reserved
+    c_pmt_x : int = 1
+    print('%i\n' % c_pmt_x)
+
+### builtin_redefined
+# expect: error 'pmat_print' is a built-in function and cannot be redefined
+@def pmat_print(k : int) -> int:
+@    return k
+    print('ok\n')
+
+### undefined_name
+# expect: error 'j' is not defined
+    k : int = 1
+    k = j
+    print('%i\n' % k)
+
+### missing_annotation
+# expect: error argument 'a' needs a type annotation
+@def f(a) -> int:
+@    return a
+    print('ok\n')
+
+### missing_return
+# expect: error function 'f' must end with a return statement
+@def f(a : int) -> int:
+@    a = a + 1
+    k : int = f(1)
+    print('%i\n' % k)
+
+### wrong_return_type
+# expect: error function 'f' must return a float, not int
+@def f(a : int) -> float:
+@    return a
+    x : float = f(1)
+    print('%f\n' % x)
+
+### wrong_arg_type
+# expect: error no definition of 'f' takes (int)
+@def f(x : float) -> float:
+@    return x
+    k : int = 1
+    y : float = f(k)
+    print('%f\n' % y)
+
+### wrong_arg_count
+# expect: error pmat_copy(pmat) does not match pmat_copy(pmat, pmat)
+    A : pmat = pmat(n, n)
+    pmat_copy(A)
+
+### float_index
+# expect: error indices must be integers, not float
+    A : pmat = pmat(n, n)
+    x : float = 1.0
+    A[x, 0] = 1.0
+
+### int_to_element
+# expect: error matrix and vector elements are float, not int
+    A : pmat = pmat(n, n)
+    k : int = 1
+    A[0, 0] = k
+
+### import_numpy
+# expect: error only 'from prometeo import *' can be imported (use '# pure >
+@import numpy as np
+    print('ok\n')
+
+### numpy_in_pure_block
+# expect: ok
+@# pure >
+@import numpy as np
+@# pure <
+    print('ok\n')
+
+### list_comprehension
+# expect: error not supported (yet): list comprehensions
+    k : int = 0
+    k = [i for i in range(3)]
+
+### while_float_cond
+# expect: ok
+    x : float = 0.0
+    while x < 1.0:
+        x = x + 0.25
+    print('%f\n' % x)
+
+### nested_loops_index
+# expect: ok
+    A : pmat = pmat(n, n)
+    for i in range(n):
+        for j in range(n):
+            A[i, j] = 1.0
+    pmat_print(A)
+
+### dims_arithmetic_index
+# expect: ok
+    A : pmat = pmat(n, n)
+    for i in range(n - 1):
+        A[i + 1, i] = 1.0
+    pmat_print(A)
+
+### matrix_operator_result_is_operand
+# expect: error the result of a matrix operation must be stored in a different matrix
+    A : pmat = pmat(n, n)
+    B : pmat = pmat(n, n)
+    A = A + B
+
+### matrix_product_result_is_operand
+# expect: error the result of a matrix operation must be stored in a different matrix
+    A : pmat = pmat(n, n)
+    B : pmat = pmat(n, n)
+    B = A * B
+
+### matrix_operator_fresh_result
+# expect: ok
+    A : pmat = pmat(n, n)
+    B : pmat = pmat(n, n)
+    C : pmat = pmat(n, n)
+    pmat_fill(A, 1.0)
+    pmat_fill(B, 2.0)
+    pmat_fill(C, 5.0)
+    C = A * B
+    pmat_print(C)
+
+### transpose_in_place
+# expect: error the output of pmat_tran must be a different matrix than its input
+    A : pmat = pmat(n, n)
+    pmat_tran(A, A)
+
+### gemm_output_is_input
+# expect: error the output of pmt_gemm_nn must be a different matrix than its input
+    A : pmat = pmat(n, n)
+    B : pmat = pmat(n, n)
+    pmt_gemm_nn(A, B, A, A)
+
+### gemm_accumulate_in_place
+# expect: ok
+    A : pmat = pmat(n, n)
+    C : pmat = pmat(n, n)
+    pmat_fill(A, 1.0)
+    pmat_fill(C, 1.0)
+    pmt_gemm_nn(A, A, C, C)
+    pmat_print(C)
+
+### potrf_in_place
+# expect: ok
+    A : pmat = pmat(n, n)
+    for i in range(n):
+        A[i, i] = 4.0
+    pmt_potrf(A, A)
+    pmat_print(A)
+
+### double_negation
+# expect: ok
+    x : float = 1.5
+    x = - -x
+    print('%f\n' % x)
+
+### dims_to_int
+# expect: ok
+    k : int = 0
+    k = n
+    k = k + n * 2
+    print('%i\n' % k)
+
+### element_read_index_expression
+# expect: ok
+    A : pmat = pmat(n, n)
+    x : float = 0.0
+    for i in range(n):
+        A[i, n - 1 - i] = 2.0
+    for i in range(n):
+        x = A[n - 1 - i, i]
+        print('%f\n' % x)
+
+### vector_read_index_expression
+# expect: ok
+    v : pvec = pvec(n)
+    x : float = 0.0
+    v[n - 1] = 3.0
+    for i in range(n):
+        x = v[n - 1 - i]
+        print('%f\n' % x)
+
+### gemm_overwrites_by_default
+# expect: ok
+    A : pmat = pmat(n, n)
+    B : pmat = pmat(n, n)
+    C : pmat = pmat(n, n)
+    D : pmat = pmat(n, n)
+    pmat_fill(A, 1.0)
+    pmat_fill(B, 1.0)
+    pmat_fill(C, 10.0)
+    pmat_fill(D, 7.0)
+    pmt_gemm(A, B, C, D)
+    pmat_print(D)
+    pmt_gemm(A, B, D)
+    pmat_print(D)
+
+### gemm_alpha_beta
+# expect: ok
+    A : pmat = pmat(n, n)
+    B : pmat = pmat(n, n)
+    C : pmat = pmat(n, n)
+    D : pmat = pmat(n, n)
+    pmat_fill(A, 1.0)
+    pmat_fill(B, 1.0)
+    pmat_fill(C, 10.0)
+    pmt_gemm(A, B, C, D, alpha=-1.0, beta=0.5)
+    pmat_print(D)
+
+### gemm_keyword_not_literal
+# expect: error 'beta' must be a float literal
+    A : pmat = pmat(n, n)
+    x : float = 1.0
+    pmt_gemm(A, A, A, A, beta=x)
+
+### gemm_nn_three_arguments
+# expect: error pmt_gemm_nn(pmat, pmat, pmat) does not match
+    A : pmat = pmat(n, n)
+    B : pmat = pmat(n, n)
+    C : pmat = pmat(n, n)
+    pmt_gemm_nn(A, B, C)
+
+### module_constant_name_reused
+# expect: error 'n' is a module-level constant: its name cannot be reused
+    n : int = 1
+    print('%i\n' % n)
+
+### module_constant_in_assignment
+# expect: ok
+@c : int = 4
+@t : float = 0.5
+    k : int = 0
+    x : float = 0.0
+    k = c
+    x = t
+    print('%i\n' % k)
+    print('%f\n' % x)
+
+### dimv_of_dims
+# expect: ok
+@sizes : dimv = [[n, n], [n, 2]]
+@class C:
+@    def __init__(self) -> None:
+@        self.L : List = plist(pmat, sizes)
+    c : C = C()
+    A : pmat = pmat(n, n)
+    pmat_fill(A, 2.0)
+    c.L[0] = A
+    pmat_print(c.L[0])
+
+### local_list_of_matrices
+# expect: error not supported (yet): Lists of pmat as local variables
+@sizes : dimv = [[n, n]]
+    L : List = plist(pmat, sizes)
+
+### constructor_with_arguments
+# expect: error the constructor must be defined as 'def __init__(self) -> None'
+@class C:
+@    def __init__(self, a : int) -> None:
+@        self.a : int = a
+    c : C = C()

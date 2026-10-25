@@ -7,4 +7,4 @@ def console_entry() -> None:
     return pmt_main()
 
 if __name__ == '__main__':
-    pmt_main()
+    sys.exit(pmt_main())

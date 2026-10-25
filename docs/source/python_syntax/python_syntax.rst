@@ -3,7 +3,9 @@ Python syntax
 
 prometeo is an embedded domain specific language based on Python. Hence, its 
 syntax is based on Python. Below you find details regarding the most common 
-supported Python constructs that prometeo is able to transpile to C.
+supported Python constructs that prometeo is able to transpile to C. The
+complete rules, which ``pmt`` checks before running or transpiling a program,
+are described in the :doc:`language reference <../language/language>`.
 
 variable declaration
 --------------------
@@ -76,7 +78,7 @@ prometeo supports basic classes of the following form
 .. code-block:: python3 
 
     class <name>:
-        def __init__(self, <arg1> : <arg_1_type>, ...) -> None:
+        def __init__(self) -> None:
             self.<attribute> : <type> = <value>
             ...
 

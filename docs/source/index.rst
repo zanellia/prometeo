@@ -25,6 +25,7 @@ features
 
    installation/installation
    python_syntax/python_syntax
+   language/language
    blas_api/blas_api
    performance/performance
 

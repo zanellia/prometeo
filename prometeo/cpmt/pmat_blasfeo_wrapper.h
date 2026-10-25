@@ -25,6 +25,7 @@ void c_pmt_assign_and_advance_blasfeo_dmat(int m, int n, struct blasfeo_dmat **b
 
 // BLAS API
 void c_pmt_gemm_nn(struct pmat *A, struct pmat *B, struct pmat *C, struct pmat *D);
+void c_pmt_gemm_ab(double alpha, struct pmat *A, struct pmat *B, double beta, struct pmat *C, struct pmat *D);
 struct pmat * _c_pmt_gemm_nn(struct pmat *A, struct pmat *B);
 void c_pmt_gemm_tn(struct pmat *A, struct pmat *B, struct pmat *C, struct pmat *D);
 void c_pmt_gemm_nt(struct pmat *A, struct pmat *B, struct pmat *C, struct pmat *D);

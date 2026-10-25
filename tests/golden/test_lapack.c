@@ -4,6 +4,8 @@ void * ___c_pmt_8_heap;
 void * ___c_pmt_64_heap;
 void * ___c_pmt_8_heap_head;
 void * ___c_pmt_64_heap_head;
+void * ___c_pmt_8_heap_end;
+void * ___c_pmt_64_heap_end;
 
 #include "prometeo.h"
 int main() {
@@ -12,11 +14,13 @@ int main() {
     prometeo_tic(&timer0);
     ___c_pmt_8_heap = malloc(HEAP8_SIZE); 
     ___c_pmt_8_heap_head = ___c_pmt_8_heap;
+    ___c_pmt_8_heap_end = (char *) ___c_pmt_8_heap + HEAP8_SIZE;
     char * pmem_ptr = (char *)___c_pmt_8_heap;
     align_char_to(8, &pmem_ptr);
     ___c_pmt_8_heap = pmem_ptr;
     ___c_pmt_64_heap = malloc(HEAP64_SIZE);
     ___c_pmt_64_heap_head = ___c_pmt_64_heap;
+    ___c_pmt_64_heap_end = (char *) ___c_pmt_64_heap + HEAP64_SIZE;
     pmem_ptr = (char *)___c_pmt_64_heap;
     align_char_to(64, &pmem_ptr);
     ___c_pmt_64_heap = pmem_ptr;

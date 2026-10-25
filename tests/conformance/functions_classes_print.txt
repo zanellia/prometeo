@@ -1,0 +1,157 @@
+### fun_int
+# expect: ok
+@def f(a : int) -> int:
+@    return a + 1
+    k : int = f(2)
+    print('%i\n' % k)
+
+### fun_float
+# expect: ok
+@def f(x : float) -> float:
+@    return x * 2.0
+    y : float = f(1.5)
+    print('%f\n' % y)
+
+### fun_pmat_arg
+# expect: ok
+@def f(A : pmat) -> None:
+@    A[0, 0] = 1.0
+@    return
+    A : pmat = pmat(n, n)
+    f(A)
+    pmat_print(A)
+
+### fun_pmat_return
+# expect: ok
+@def f() -> pmat:
+@    A : pmat = pmat(n, n)
+@    A[0, 0] = 1.0
+@    return A
+    B : pmat = pmat(n, n)
+    B = f()
+    pmat_print(B)
+
+### fun_call_in_expr
+# expect: error not supported (yet): calling a function inside an expression
+@def f(a : int) -> int:
+@    return a + 1
+    k : int = f(2) * 3
+    print('%i\n' % k)
+
+### fun_no_return_stmt
+# expect: ok
+@def f(A : pmat) -> None:
+@    A[0, 0] = 1.0
+    A : pmat = pmat(n, n)
+    f(A)
+    pmat_print(A)
+
+### fun_local_float
+# expect: ok
+@def f(x : float) -> float:
+@    y : float = x + 1.0
+@    return y
+    y : float = f(1.0)
+    print('%f\n' % y)
+
+### recursion_int
+# expect: error not supported (yet): calling a function inside an expression
+@def fact(k : int) -> int:
+@    if k < 2:
+@        return 1
+@    return k * fact(k - 1)
+    r : int = fact(5)
+    print('%i\n' % r)
+
+### class_attr_method
+# expect: ok
+@class C:
+@    def __init__(self) -> None:
+@        self.a : int = 2
+@    def get(self) -> int:
+@        return self.a
+    c : C = C()
+    k : int = c.get()
+    print('%i\n' % k)
+
+### class_pmat_attr
+# expect: error not supported (yet): assigning to elements of a matrix that
+@class C:
+@    def __init__(self) -> None:
+@        self.A : pmat = pmat(n, n)
+@    def set(self) -> None:
+@        self.A[0, 0] = 2.0
+@        return
+    c : C = C()
+    c.set()
+    pmat_print(c.A)
+
+### class_method_arg
+# expect: ok
+@class C:
+@    def __init__(self) -> None:
+@        self.a : int = 2
+@    def add(self, b : int) -> int:
+@        return self.a + b
+    c : C = C()
+    k : int = c.add(3)
+    print('%i\n' % k)
+
+### print_str
+# expect: ok
+    print('hello\n')
+
+### print_int_fmt
+# expect: ok
+    k : int = 3
+    print('k=%i\n' % k)
+
+### print_float_fmt
+# expect: ok
+    x : float = 3.5
+    print('x=%f\n' % x)
+
+### print_plain_value
+# expect: error not supported (yet): this form of print; use print('<string>
+    k : int = 3
+    print(k)
+
+### print_two_values
+# expect: error not supported (yet): printing more than one value per print
+    k : int = 3
+    j : int = 4
+    print('%i %i\n' % (k, j))
+
+### print_fstring
+# expect: error not supported (yet): this form of print; use print('<string>
+    k : int = 3
+    print(f'{k}')
+
+### global_int_const
+# expect: ok
+@c : int = 4
+    k : int = c + 1
+    print('%i\n' % k)
+
+### global_float_const
+# expect: ok
+@c : float = 4.0
+    x : float = c + 1.0
+    print('%f\n' % x)
+
+### shadow_global
+# expect: error 'c' is a module-level constant: its name cannot be reused
+@c : int = 4
+    c : int = 5
+    print('%i\n' % c)
+
+### undeclared_assign
+# expect: error 'k' must be declared before it is assigned, e.g. 'k: float =
+    k = 3
+    print('%i\n' % k)
+
+### redeclare
+# expect: error 'k' is already declared
+    k : int = 3
+    k : int = 4
+    print('%i\n' % k)

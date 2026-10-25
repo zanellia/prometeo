@@ -51,13 +51,13 @@ def c_pmt_create_blasfeo_dmat(m: int, n: int):
 # low-level
 
 # intermediate-level linear algebra
-def c_pmt_dgemm_nn(A, B, C, D):
+def c_pmt_dgemm_nn(A, B, C, D, alpha=1.0, beta=1.0):
     bA = A.blasfeo_dmat
     bB = B.blasfeo_dmat
     bC = C.blasfeo_dmat
     bD = D.blasfeo_dmat
 
-    bw.blasfeo_dgemm_nn(bA.m, bB.n, bA.n, 1.0, byref(bA), 0, 0, byref(bB), 0, 0, 1, byref(bC), 0, 0, byref(bD), 0, 0)
+    bw.blasfeo_dgemm_nn(bA.m, bB.n, bA.n, alpha, byref(bA), 0, 0, byref(bB), 0, 0, beta, byref(bC), 0, 0, byref(bD), 0, 0)
     return
 
 def c_pmt_dgemm_nt(A, B, C, D):

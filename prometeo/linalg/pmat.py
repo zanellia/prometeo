@@ -30,9 +30,10 @@ class pmat(pmat_):
                 raise Exception ('pmat subscript should be a 2-dimensional tuples, \
                         you have: {}\n. Exiting'.format(index))
             if isinstance(index[0], int) and isinstance(index[1], int):
-                if index[0] < 0 or index[0] > self.m or \
-                        index[1] < 0 or index[1] > self.n:
-                    raise Exception('Invalid subscripting values. Exiting. \n')
+                if index[0] < 0 or index[0] >= self.m or \
+                        index[1] < 0 or index[1] >= self.n:
+                    raise IndexError('index ({}, {}) out of range for a {}x{} pmat'.format(
+                        index[0], index[1], self.m, self.n))
                 el = pmat_get(self, index[0], index[1])
                 return el
             elif isinstance(index[0], slice) and isinstance(index[1], slice):
@@ -63,9 +64,10 @@ class pmat(pmat_):
                 raise Exception ('pmat subscript should be a 2-dimensional tuples, \
                         you have: {}\n. Exiting'.format(index))
             if isinstance(index[0], int) and isinstance(index[1], int):
-                if index[0] < 0 or index[0] > self.m or \
-                        index[1] < 0 or index[1] > self.n:
-                    raise Exception('Invalid subscripting values. Exiting. \n')
+                if index[0] < 0 or index[0] >= self.m or \
+                        index[1] < 0 or index[1] >= self.n:
+                    raise IndexError('index ({}, {}) out of range for a {}x{} pmat'.format(
+                        index[0], index[1], self.m, self.n))
                 pmat_set(self, value, index[0], index[1])
             elif isinstance(index[0], slice) and isinstance(index[1], slice):
                 m_target = index[0].stop - index[0].start
@@ -262,24 +264,21 @@ def pmt_potrsv(fact: pmat, rhs: pvec):
 
 # intermediate-level linear algebra
 # def pmt_gemm(A: pmat, B: pmat, C: pmat, D: pmat):
-def pmt_gemm(*argv):
-    if len(argv) < 3:
+# D <= beta * C + alpha * A * B, called as pmt_gemm(A, B, D) or pmt_gemm(A, B, C, D)
+def pmt_gemm(*argv, alpha=1.0, beta=0.0):
+    if len(argv) not in (3, 4):
         raise Exception('Invalid number of arguments')
     A = argv[0]
     B = argv[1]
-    if len(argv) == 4:
-        C = argv[2]
-        D = argv[3]
-    else:
-        C = argv[2]
-        D = argv[2]
+    C = argv[2]
+    D = argv[3] if len(argv) == 4 else argv[2]
 
     if A.n != B.m or A.m != C.m or B.n != C.n or C.m != D.m or C.n != D.n:
         raise Exception('pmt_gemm: mismatching dimensions:'
                 ' ({}, {}) <- ({},{}) + ({}, {}) x ({}, {})'.format(\
                     D.m, D.n, C.m, C.n, A.m, A.n, B.m, B.n))
 
-    c_pmt_dgemm_nn(A, B, C, D)
+    c_pmt_dgemm_nn(A, B, C, D, alpha, beta)
     return
 
 def pmt_gemm_nn(*argv):

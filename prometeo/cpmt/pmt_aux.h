@@ -6,6 +6,7 @@ extern "C" {
 #endif
 
 int align_char_to(int num, char **c_ptr);
+void c_pmt_check_heap(void);
 
 #ifdef __cplusplus
 }
