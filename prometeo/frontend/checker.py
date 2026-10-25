@@ -27,6 +27,11 @@ C_KEYWORDS = {
 }
 RESERVED_PREFIXES = ('c_pmt_', '_c_pmt_', '___c_pmt', 'blasfeo_', '_Z')
 
+# scalar functions (sin, cos, ... on floats; abs, min, max on ints or floats)
+# -> number of arguments
+MATH_FUNCTIONS = {'sin': 1, 'cos': 1, 'tan': 1, 'exp': 1, 'log': 1, 'sqrt': 1,
+    'abs': 1, 'min': 2, 'max': 2}
+
 
 class Diagnostic:
     def __init__(self, severity, lineno, col, message):
@@ -122,7 +127,7 @@ class Checker:
         elif name.startswith(RESERVED_PREFIXES):
             self.error(node, "names starting with '{}' are reserved".format(
                 [p for p in RESERVED_PREFIXES if name.startswith(p)][0]))
-        elif name in BUILTINS or name in UNSUPPORTED_BUILTINS:
+        elif name in BUILTINS or name in UNSUPPORTED_BUILTINS or name in MATH_FUNCTIONS:
             self.error(node, "'{}' is a built-in function and cannot be redefined".format(name))
 
     # module
@@ -486,9 +491,6 @@ class Checker:
         t = self.dims_expr(node)
         if t is None:
             return
-        if t != DIMS:
-            self.error(node, 'sizes must be dims constants (declare e.g. '
-                "'m : dims = 2' at module level and use 'm')")
 
     def dims_expr(self, node):
         if isinstance(node, ast.Constant) and type(node.value) is int:
@@ -865,8 +867,16 @@ class Checker:
         if isinstance(node, ast.Attribute):
             return self.attribute_type(node, scope)
         if isinstance(node, ast.Subscript):
-            self.unsupported(node, 'indexing an element of a List directly (e.g. l[k][i, j])')
-            return None
+            # element of a matrix or vector in a List, e.g. l[k][i, j]
+            t = self.subscript_base(node.value, scope)
+            if t is None:
+                return None
+            if not (is_list(t) and t.elem in (PMAT, PVEC)) or \
+                    isinstance(node.slice, (ast.Tuple, ast.Slice)):
+                self.error(node, 'expected an element of a List of matrices or vectors, l[k]')
+                return None
+            self.index_expr(node.slice, scope)
+            return t.elem
         self.unsupported(node, 'indexing {}'.format(describe(node)))
         return None
 
@@ -974,6 +984,8 @@ class Checker:
             if name in UNSUPPORTED_BUILTINS:
                 self.unsupported(node, "the built-in function '{}'".format(name))
                 return None
+            if name in MATH_FUNCTIONS:
+                return self.check_math_call(node, name, scope)
             if name in ('pmat', 'pvec', 'plist') or name in self.classes:
                 self.error(node, '{}() can only be used to initialize a declaration'.format(name))
                 return None
@@ -1013,6 +1025,28 @@ class Checker:
             return self.check_overloaded_call(node, cls.methods[func.attr], scope)
         self.unsupported(node, 'this kind of call')
         return None
+
+    def check_math_call(self, node, name, scope):
+        arity = MATH_FUNCTIONS[name]
+        if len(node.args) != arity:
+            self.error(node, '{} takes {} argument{}'.format(name, arity, 's' if arity > 1 else ''))
+            return None
+        types = [self.scalar_expr(a, scope) for a in node.args]
+        if None in types:
+            return None
+        if name in ('abs', 'min', 'max'):
+            if DIMS in types:
+                self.unsupported(node, '{} of dims constants'.format(name),
+                    'assign the value to an int variable first')
+                return None
+            if len(set(types)) > 1:
+                self.error(node, 'the arguments of {} must be both int or both float'.format(name))
+                return None
+            return types[0]
+        if types[0] != FLOAT:
+            self.error(node, '{} takes a float argument, not {} (use e.g. 2.0)'.format(name, types[0]))
+            return None
+        return FLOAT
 
     def check_builtin_call(self, node, name, scope):
         arg_types = [self.argument_type(a, scope) for a in node.args]

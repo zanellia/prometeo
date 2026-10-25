@@ -1,6 +1,7 @@
 import ast
 from collections import defaultdict
 from ..cgen.node_util import ExplicitNodeVisitor
+from ..cgen.extra_functions import extra_functions
 import astpretty as ap
 from ..cgen.op_util import get_op_symbol, get_op_precedence, Precedence
 import json
@@ -38,6 +39,7 @@ pmt_functions = {\
     'global@_Z5pliststrdims' : [], \
 
 }
+pmt_functions.update({'global@' + k: [] for k in extra_functions})
 
 native_types = ['int', 'float']
 
@@ -246,6 +248,12 @@ class ast_visitor(ExplicitNodeVisitor):
                 # the type of a subscripted List is given by the type of 
                 # its elements
                 return type_val.split('[')[1].split(',')[0], None
+            elif my_isinstance(node.value, ast.Subscript):
+                # element of a matrix or vector in a List, e.g. l[k][i, j]
+                elem_type, s = self.get_type_of_node(node.value, scope)
+                if elem_type.split('@')[-1] in ('pmat', 'pvec'):
+                    return 'float', None
+                raise cgenException('Invalid subscript', node.lineno)
             else:
                 raise Exception("Invalid node type {}".format(node.value))
 
@@ -673,7 +681,10 @@ def compute_reach_graph(call_graph, typed_record, meta_info):
         scopes = call.split('@')
         if scopes[0] != 'global':
             raise Exception('Invalid leading scope {}'.format(scopes[0]))
-        if scopes[1] not in typed_record[caller]:
+        if scopes[1] == 'self':
+            # method of the class of the calling method (global@<class>@<method>)
+            scopes[1] = caller.split('@')[1]
+        elif scopes[1] not in typed_record[caller]:
             raise Exception('Could not resolve scope name {}'.format(scopes[1]))
         else:
             scopes[1] = typed_record[caller][scopes[1]]

@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+#include <math.h>
 #include "pmat_blasfeo_wrapper.h"
 #include "pvec_blasfeo_wrapper.h"
 #include "pmt_heap.h"

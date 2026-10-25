@@ -31,6 +31,8 @@ EXAMPLES = [
     ('test', 'test_forward_call', True),
     ('test', 'test_lapack', True),
     ('riccati_example', 'riccati', True),
+    # SQP for MPC (cart-pole), also checked against IPOPT in test_sqp_reference.py
+    ('sqp_mpc', 'sqp_mpc', True),
     # README benchmark: the interpreted run (10000 repetitions) takes too long
     ('riccati_example', 'riccati_mass_spring', False),
     ('riccati_example', 'riccati_mass_spring_2', True),

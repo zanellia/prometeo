@@ -43,6 +43,7 @@ and ``*``:
     n : dims = 4                      # integer constant usable as a size
     m : dims = 2 * n
     sizes : dimv = [[n, n], [n, m]]   # [rows, cols] pairs, to size a List of matrices
+    xs : dimv = [[n, 1]] * (N + 1)    # N + 1 pairs [n, 1]
     nrep : int = 100
     tol : float = 1e-8
 
@@ -90,8 +91,8 @@ Every variable is declared, with its type, before it is used:
   program's worst-case memory usage from the declarations: a declaration in a
   loop would allocate memory at every iteration and overflow the computed
   bound.
-- Matrix and vector sizes must be ``dims`` constants: ``pmat(2, 2)`` is not
-  accepted, declare ``k : dims = 2`` and use ``pmat(k, k)``.
+- Matrix and vector sizes are integer literals or ``dims`` constants, and
+  ``+``, ``-``, ``*`` combinations of them, e.g. ``pmat(n, 1)``.
 - Lists of matrices or vectors (``plist(pmat, sizes)``, with ``sizes`` a
   ``dimv`` constant) can only be declared as class attributes *(not supported
   yet as local variables)*.
@@ -109,6 +110,7 @@ Assignments
     v[i] = x
     obj.k = 2                  # scalar attribute (also self.k in methods)
     obj.A[i, j] = x            # element of a matrix attribute
+    obj.L[k][i, j] = x         # element of a matrix in a List attribute
     L[i] = A                   # make a List element refer to A (shared, as in Python)
     C = A * B                  # matrix product, sum (+) and difference (-)
 
@@ -129,8 +131,11 @@ Expressions
 
 Scalar expressions combine numbers, scalar variables, loop variables,
 constants, attributes (``obj.x``), matrix and vector elements (``A[i, j]``,
-``v[i]``) and calls of functions and methods returning ``int`` or ``float``,
-with ``+``, ``-``, ``*``, ``/``, ``%`` and unary ``-``:
+``v[i]``, ``obj.L[k][i, j]``) and calls of functions and methods returning
+``int`` or ``float``, with ``+``, ``-``, ``*``, ``/``, ``%`` and unary ``-``.
+The math functions ``sin``, ``cos``, ``tan``, ``exp``, ``log`` and ``sqrt``
+take a float; ``abs``, ``min`` and ``max`` take ints or floats (both
+arguments of the same type).
 
 - int and float values cannot be mixed: write ``2.0 * x``, not ``2 * x``
   (an integer literal is accepted where a float is expected as a whole value,

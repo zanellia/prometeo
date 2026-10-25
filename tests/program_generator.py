@@ -50,7 +50,26 @@ class ProgramGenerator:
             return var if self.rng.random() < 0.6 else '{} - 1 - {}'.format(dim, var)
         return str(self.rng.randint(0, self.dims[dim] - 1))
 
+    def math_call(self):
+        """Math function with a bounded result."""
+        rng = self.rng
+        arg = self.float_expr(1)
+        kind = rng.choice(['sin', 'cos', 'exp', 'sqrt', 'abs', 'min', 'max', 'tanh'])
+        if kind == 'exp':
+            return 'exp(-abs({}))'.format(arg)
+        if kind == 'sqrt':
+            return 'sqrt(abs({}))'.format(arg)
+        if kind in ('min', 'max'):
+            return '{}({}, {})'.format(kind, arg, self.float_leaf())
+        if kind == 'tanh':
+            # log and exp: log(1 + exp(-|x|)) is bounded
+            return 'log(1.0 + exp(-abs({})))'.format(arg)
+        return '{}({})'.format(kind, arg)
+
     def element(self):
+        if self.rng.random() < 0.15:
+            # element of a vector in a List attribute
+            return 'acc.hist[{}][{}, 0]'.format(self.rng.randint(0, 2), self.index('n'))
         if self.rng.random() < 0.75:
             a = self.matrix()
             r, c = self.matrices[a]
@@ -60,10 +79,12 @@ class ProgramGenerator:
 
     def float_leaf(self):
         r = self.rng.random()
-        if r < 0.4:
+        if r < 0.35:
             return self.rng.choice(self.floats)
-        if r < 0.6:
+        if r < 0.5:
             return self.element()
+        if r < 0.6:
+            return self.math_call()
         if r < 0.7:
             return 'acc.total'
         if r < 0.8 and self.pure_functions:
@@ -91,6 +112,9 @@ class ProgramGenerator:
             loop_vars = [v for v, d in self.loops if v is not None]
             if r < 0.3 and loop_vars:
                 return rng.choice(loop_vars)
+            if r < 0.4:
+                return '{}({}, {})'.format(rng.choice(['min', 'max']), str(rng.randint(-3, 5)),
+                    rng.choice(self.ints))
             return rng.choice(list(self.dims)) if r < 0.6 else str(rng.randint(-3, 5))
         return '({} {} {})'.format(self.int_const_expr(depth - 1), rng.choice(['+', '-', '*']),
             self.int_const_expr(depth - 1))
@@ -180,8 +204,11 @@ class ProgramGenerator:
             else:
                 self.emit(indent, 'pvec_print({})'.format(rng.choice(list(self.vectors))))
         elif kind == 'method':
-            if rng.random() < 0.5:
+            r = rng.random()
+            if r < 0.4:
                 self.emit(indent, 'acc.add({})'.format(self.float_expr(1)))
+            elif r < 0.6:
+                self.emit(indent, 'acc.bump()')
             else:
                 self.emit(indent, '{} = acc.get()'.format(rng.choice(self.floats)))
         elif kind == 'for':
@@ -326,6 +353,7 @@ class ProgramGenerator:
             '        self.total : float = 0.0',
             '        self.count : int = 0',
             '        self.M : pmat = pmat(n, n)',
+            '        self.hist : List = plist(pmat, hist_sizes)',
             '',
             '    def add(self, x: float) -> None:',
             '        self.total += x',
@@ -336,12 +364,21 @@ class ProgramGenerator:
             '    def get(self) -> float:',
             '        return self.total * 0.5 + self.M[0, 0]',
             '',
+            '    def bump(self) -> None:',
+            '        # methods calling methods; shift the history',
+            '        self.add(0.25)',
+            '        pmat_copy(self.hist[1], self.hist[2])',
+            '        pmat_copy(self.hist[0], self.hist[1])',
+            '        self.hist[0][0, 0] = self.get()',
+            '        return',
+            '',
         ]
 
     def generate(self):
         rng = self.rng
         header = ['from prometeo import *', '']
         header += ['{} : dims = {}'.format(d, v) for d, v in self.dims.items()]
+        header.append('hist_sizes : dimv = [[n, 1]] * 3')
         header.append('')
         functions = self.accumulator_class()
         for k in range(rng.randint(0, 2)):
@@ -384,6 +421,8 @@ class ProgramGenerator:
         for v in self.vectors:
             self.emit(1, 'pvec_print({})'.format(v))
         self.emit(1, 'pmat_print(acc.M)')
+        for j in range(3):
+            self.emit(1, 'pmat_print(acc.hist[{}])'.format(j))
         self.emit(1, 'return 0')
         return '\n'.join(header + functions + ['def main() -> int:'] + self.lines) + '\n'
 

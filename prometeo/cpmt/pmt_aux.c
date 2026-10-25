@@ -23,3 +23,7 @@ int align_char_to(int num, char **c_ptr)
     *c_ptr = (char *) s_ptr;
     return offset;
 }
+
+int c_pmt_imin(int a, int b) { return a < b ? a : b; }
+
+int c_pmt_imax(int a, int b) { return a > b ? a : b; }

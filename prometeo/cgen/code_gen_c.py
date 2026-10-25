@@ -17,6 +17,7 @@ This module converts a Python AST into C source code.
 import ast
 import sys
 
+from .extra_functions import extra_functions
 from .op_util import get_op_symbol, get_op_precedence, Precedence
 from .node_util import ExplicitNodeVisitor
 from .string_repr import pretty_string
@@ -66,6 +67,8 @@ pmt_temp_functions = {\
         # 'pmt_potrsv': 'c_pmt_potrsv', \
         # 'pvec_fill': 'c_pmt_pvec_fill', \
         # 'print': 'printf'}
+
+pmt_temp_functions.update({k: v[0] for k, v in extra_functions.items()})
 
 pmt_temp_types = {\
         'pmat': 'struct pmat *', \
@@ -182,6 +185,12 @@ class PmtCall:
         self.arg_num = 0
         self.args = []
         self.keywords = None
+
+def c_lvalue(node):
+    """C expression of a variable, an attribute or a List element."""
+    if my_isinstance(node, ast.Subscript):
+        return c_lvalue(node.value) + '[' + unparse(node.slice) + ']'
+    return recurse_attributes(node)
 
 def recurse_attributes(node):
     if my_isinstance(node, ast.Name):
@@ -648,6 +657,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                 }
             }
         }
+        for fun_name_m, (c_name, arg_types, ret_type) in extra_functions.items():
+            self.function_record['global'][fun_name_m] = {'arg_types': arg_types, 'ret_type': ret_type}
 
         self.in_main = False
 
@@ -814,6 +825,12 @@ class SourceGenerator(ExplicitNodeVisitor):
                 # the type of a subscripted List is given by the type of
                 # its elements
                 return type_val.split('[')[1].split(',')[0], None
+            elif my_isinstance(node.value, ast.Subscript):
+                # element of a matrix or vector in a List, e.g. l[k][i, j]
+                elem_type, s = self.get_type_of_node(node.value, scope)
+                if elem_type.split('@')[-1] in ('pmat', 'pvec'):
+                    return 'float', None
+                raise cgenException('Invalid subscript', node.lineno)
             else:
                 raise cgenException("Invalid node type {}".format(node.value), node.lineno)
 
@@ -852,7 +869,11 @@ class SourceGenerator(ExplicitNodeVisitor):
                 else:
                     raise cgenException('Undefined function {}'.format(fun_name), node.lineno)
             elif my_isinstance(node.func, ast.Attribute):
-                type_val = self.get_type_of_node_rec(node.func.value, scope)
+                if my_isinstance(node.func.value, ast.Name) and node.func.value.id == 'self':
+                    # method of the class of the current method
+                    type_val = '@'.join(scope.split('@')[:-1])
+                else:
+                    type_val = self.get_type_of_node_rec(node.func.value, scope)
 
                 fun_name = node.func.attr
                 pre_mangl = '_Z' + str(len(fun_name))
@@ -1668,6 +1689,19 @@ class SourceGenerator(ExplicitNodeVisitor):
             type_val_t, arg_types = self.get_type_of_node(node.targets[0], self.scope)
             if type_val != type_val_t and not (type_val_t == 'int' and type_val == 'dims'):
                 raise cgenException('Mismatching types in assignment {} = {}'.format(type_val_t, type_val), node.lineno)
+            # element of a matrix or vector in a List, e.g. l[k][i, j] = <value>
+            if my_isinstance(node.targets[0], ast.Subscript) and \
+                    my_isinstance(node.targets[0].value, ast.Subscript):
+                base_type = self.get_type_of_node(node.targets[0].value, self.scope)[0]
+                set_precedence(Precedence.Comma, node.value)
+                if base_type.split('@')[-1] == 'pmat':
+                    indices = node.targets[0].slice.elts
+                    self.statement([], 'c_pmt_pmat_set_el(', c_lvalue(node.targets[0].value), ', ',
+                        unparse(indices[0]), ', ', unparse(indices[1]), ', ', node.value, ');')
+                else:
+                    self.statement([], 'c_pmt_pvec_set_el(', c_lvalue(node.targets[0].value), ', ',
+                        unparse(node.targets[0].slice), ', ', node.value, ');')
+                return
             # check the subscripted variable (or attribute) of subscript targets
             if my_isinstance(node.targets[0], ast.Subscript):
                 if hasattr(node.targets[0].value, 'attr'):
@@ -1731,34 +1765,6 @@ class SourceGenerator(ExplicitNodeVisitor):
                             unparse(node.targets[0].slice), ', ', node.value, ');')
                         return
 
-            elif type(node.value) == ast.Subscript:
-                target = node.targets[0].id
-                if target not in self.typed_record[self.scope]:
-                    raise cgenException('Undefined variable {}.'.format(target), node.lineno)
-                # target must be a float
-                if self.typed_record[self.scope][target] != 'float':
-
-                    raise cgenException('Target must be a float {}.'.format(target), node.lineno)
-                value = node.value.value.id
-                if value in self.typed_record[self.scope]:
-                    # if value is a pmat
-                    if self.typed_record[self.scope][value] == 'pmat':
-                        slice_value = get_slice_value(node.value.slice)
-                        first_index_value = unparse(slice_value.elts[0])
-                        second_index_value = unparse(slice_value.elts[1])
-                        value_expr = 'c_pmt_pmat_get_el(' + value + ', {}, {})'.format(first_index_value, second_index_value)
-                        self.statement([], target, ' = {}'.format(value_expr), ';')
-                        return
-                    # single subscripting
-                    else:
-                        # if value is a pvec
-                        if self.typed_record[self.scope][value] == 'pvec':
-                            slice_value = get_slice_value(node.value.slice)
-                            index_value = unparse(slice_value)
-
-                            value_expr = 'c_pmt_pvec_get_el(' + value + ', {})'.format(index_value)
-                            self.statement([], target, ' = {}'.format(value_expr), ';')
-                            return
             elif 'id' in node.targets[0].__dict__:
 
                 # check for Assigns targeting pmats
@@ -2744,12 +2750,13 @@ class SourceGenerator(ExplicitNodeVisitor):
             call = PmtCall(fun_name)
             for arg in args:
                 transpose = False
-                if my_isinstance(arg, ast.Name):
-                    arg_name = arg.id
-                elif my_isinstance(arg, ast.Attribute):
-                    if arg.attr == 'T' and self.typed_record[self.scope][arg.value.id]:
-                        transpose = True
-                        arg_name = arg.value.id
+                if my_isinstance(arg, ast.Attribute) and arg.attr == 'T' and \
+                        my_isinstance(arg.value, ast.Name) and arg.value.id in self.typed_record[self.scope]:
+                    transpose = True
+                    arg_name = arg.value.id
+                else:
+                    # variable, attribute or List element
+                    arg_name = c_lvalue(arg)
                 this_arg = PmtArg(arg_name)
                 this_arg.tran = transpose
                 call.args.append(this_arg)
@@ -2778,7 +2785,10 @@ class SourceGenerator(ExplicitNodeVisitor):
             #     write('(', dest = 'src')
 
 
-            if attr:
+            if attr and attr_name == 'self':
+                # method of the class of the current method
+                fun_scope = '@'.join(self.scope.split('@')[:-1])
+            elif attr:
                 # TODO(andrea): assume that classes ALWAYS live in the global space? Not sure...
                 fun_scope = 'global@' + self.typed_record[self.scope][attr_name]
             else:
@@ -3047,7 +3057,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.current_line = node.lineno
         self.current_col = node.col_offset
         # elements of matrices and vectors read inside expressions
-        if my_isinstance(node.value, (ast.Name, ast.Attribute)):
+        if my_isinstance(node.value, (ast.Name, ast.Attribute, ast.Subscript)):
             try:
                 base_type, _ = self.get_type_of_node(node.value, self.scope)
                 base_type = base_type.split('@')[-1]

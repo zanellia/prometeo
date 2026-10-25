@@ -1,0 +1,101 @@
+### math_functions
+# expect: ok
+    x : float = 0.7
+    y : float = 0.0
+    y = sin(x) + cos(x) * tan(0.3) + exp(-x) + log(2.0 + x) + sqrt(4.0 * x)
+    print('%.12f\n' % y)
+
+### abs_min_max_float
+# expect: ok
+    x : float = -1.5
+    y : float = 0.0
+    y = abs(x) + min(x, 2.0) * max(0.5, x)
+    print('%.12f\n' % y)
+
+### abs_min_max_int
+# expect: ok
+    k : int = -3
+    j : int = 0
+    j = abs(k) + min(k, 2) * max(4, k)
+    print('%i\n' % j)
+
+### math_on_elements
+# expect: ok
+    A : pmat = pmat(n, n)
+    for i in range(n):
+        A[i, i] = sin(0.1 + A[i, i]) + 1.0
+    pmat_print(A)
+
+### math_int_argument
+# expect: error sin takes a float argument, not int (use e.g. 2.0)
+    k : int = 1
+    x : float = 0.0
+    x = sin(k)
+
+### min_mixed_types
+# expect: error the arguments of min must be both int or both float
+    x : float = 1.0
+    k : int = 1
+    x = min(x, k)
+
+### abs_of_dims
+# expect: error not supported (yet): abs of dims constants; assign the value
+    k : int = 0
+    k = abs(n)
+
+### math_name_reserved
+# expect: error 'sqrt' is a built-in function and cannot be redefined
+    sqrt : float = 1.0
+
+### dimv_repeated
+# expect: ok
+@sizes : dimv = [[n, 1]] * (n + 1)
+@class C:
+@    def __init__(self) -> None:
+@        self.L : List = plist(pmat, sizes)
+    c : C = C()
+    for k in range(n + 1):
+        c.L[k][0, 0] = 1.5
+    pmat_print(c.L[n])
+
+### literal_sizes
+# expect: ok
+    A : pmat = pmat(n, 1)
+    B : pmat = pmat(1, n)
+    C : pmat = pmat(1, 1)
+    v : pvec = pvec(2)
+    pmat_fill(A, 1.0)
+    pmat_fill(B, 2.0)
+    pmt_gemm(B, A, C)
+    pmat_print(C)
+    pvec_print(v)
+
+### list_element_element
+# expect: ok
+@sizes : dimv = [[n, n]] * 2
+@class C:
+@    def __init__(self) -> None:
+@        self.L : List = plist(pmat, sizes)
+    c : C = C()
+    x : float = 0.0
+    c.L[1][0, 1] = 2.5
+    c.L[0][1, 1] = c.L[1][0, 1] * 2.0
+    x = c.L[0][1, 1] + c.L[1][0, 1]
+    print('%f\n' % x)
+
+### self_method_calls
+# expect: ok
+@class C:
+@    def __init__(self) -> None:
+@        self.k : int = 0
+@    def inc(self) -> None:
+@        self.k += 1
+@        return
+@    def twice(self) -> int:
+@        self.inc()
+@        self.inc()
+@        return self.k
+    c : C = C()
+    j : int = 0
+    j = c.twice()
+    print('%i\n' % j)

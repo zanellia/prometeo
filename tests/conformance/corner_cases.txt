@@ -50,7 +50,7 @@
     print('%i\n' % k)
 
 ### pmat_literal_dims
-# expect: error sizes must be dims constants (declare e.g. 'm : dims = 2' at
+# expect: ok
     A : pmat = pmat(2, 2)
     pmat_print(A)
 
