@@ -62,7 +62,7 @@ void _Z9factorizeqp_data_impl(qp_data *self) {
     struct pmat * BA = c_pmt_create_pmat(nx, nxu);
     struct pmat * BAtP = c_pmt_create_pmat(nxu, nx);
     c_pmt_pmat_copy(self->Q[N - 1], self->P[N - 1]);
-    for(int i = 1; i < N; i+=1) {
+    for(int i = 1, ___pmt_end_1 = N; i < ___pmt_end_1; i += 1) {
         c_pmt_pmat_hcat(self->B[N - i], self->A[N - i], BA);
         c_pmt_pmat_fill(BAtP, 0.0);
         c_pmt_gemm_tn(BA, self->P[N - i], BAtP, BAtP);
@@ -123,19 +123,19 @@ void _Z9factorizeqp_data_impl(qp_data *self) {
     struct qp_data qp___;
     struct qp_data * qp= &qp___;
     qp_data_constructor(qp); //
-    for(int i = 0; i < N; i++) {
+    for(int i = 0, ___pmt_end_2 = N; i < ___pmt_end_2; i += 1) {
         qp->A[i] = A;
     }
 
-    for(int i = 0; i < N; i++) {
+    for(int i = 0, ___pmt_end_3 = N; i < ___pmt_end_3; i += 1) {
         qp->B[i] = B;
     }
 
-    for(int i = 0; i < N; i++) {
+    for(int i = 0, ___pmt_end_4 = N; i < ___pmt_end_4; i += 1) {
         qp->Q[i] = Q;
     }
 
-    for(int i = 0; i < N; i++) {
+    for(int i = 0, ___pmt_end_5 = N; i < ___pmt_end_5; i += 1) {
         qp->R[i] = R;
     }
 

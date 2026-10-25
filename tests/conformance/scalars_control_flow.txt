@@ -55,13 +55,13 @@
     print('%f\n' % x)
 
 ### aug_assign_int
-# expect: error not supported (yet): augmented assignment ('+='); write 'x =
+# expect: ok
     a : int = 1
     a += 2
     print('%i\n' % a)
 
 ### aug_assign_float
-# expect: error not supported (yet): augmented assignment ('+='); write 'x =
+# expect: ok
     x : float = 1.0
     x += 2.0
     print('%f\n' % x)
@@ -89,7 +89,7 @@
     print('%i\n' % b)
 
 ### if_and_or
-# expect: error not supported (yet): 'and' / 'or' in conditions
+# expect: ok
     a : int = 3
     b : int = 0
     if a > 2 and a < 5:
@@ -97,7 +97,7 @@
     print('%i\n' % b)
 
 ### if_not
-# expect: error not supported (yet): 'not' in conditions
+# expect: ok
     a : int = 3
     b : int = 0
     if not a > 5:
@@ -120,21 +120,21 @@
     print('%i\n' % a)
 
 ### for_range_start
-# expect: error not supported (yet): using the loop variable 'i' outside of
+# expect: ok
     s : int = 0
     for i in range(2, 5):
         s = s + i
     print('%i\n' % s)
 
 ### for_range_step
-# expect: error not supported (yet): range with a step
+# expect: ok
     s : int = 0
     for i in range(0, 10, 3):
         s = s + i
     print('%i\n' % s)
 
 ### for_break
-# expect: error not supported (yet): 'break'
+# expect: ok
     s : int = 0
     for i in range(10):
         if i > 3:
@@ -143,7 +143,7 @@
     print('%i\n' % s)
 
 ### for_continue
-# expect: error not supported (yet): 'continue'
+# expect: ok
     s : int = 0
     for i in range(5):
         if i == 2:
@@ -160,14 +160,14 @@
     print('%i\n' % b)
 
 ### pass_stmt
-# expect: error not supported (yet): 'pass'
+# expect: ok
     a : int = 1
     if a > 0:
         pass
     print('%i\n' % a)
 
 ### loop_var_after_loop
-# expect: error not supported (yet): using the loop variable 'i' outside of
+# expect: ok
     s : int = 0
     for i in range(3):
         s = i

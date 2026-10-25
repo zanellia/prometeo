@@ -92,8 +92,6 @@ Every variable is declared, with its type, before it is used:
   bound.
 - Matrix and vector sizes must be ``dims`` constants: ``pmat(2, 2)`` is not
   accepted, declare ``k : dims = 2`` and use ``pmat(k, k)``.
-- A scalar cannot be initialized with a matrix element (``x : float = A[0, 0]``)
-  *(not supported yet)*: declare it, then assign it.
 - Lists of matrices or vectors (``plist(pmat, sizes)``, with ``sizes`` a
   ``dimv`` constant) can only be declared as class attributes *(not supported
   yet as local variables)*.
@@ -103,13 +101,14 @@ Assignments
 
 .. code-block:: python
 
-    x = 2.0 * y - 1.0          # scalar expression
-    x = A[i, j]                # read an element (as the whole right-hand side)
-    x = f(y)                   # result of a call (as the whole right-hand side)
-    A[i, j] = x                # write an element
+    x = 2.0 * A[i, j] + f(y)   # scalar expression
+    x += 1.0                   # also -=, *=, /=
+    A[i, j] = x                # write an element (also A[i, j] += x)
     A[0:2, 1:3] = B            # copy a matrix into a block
     A[0:2, 1:3] = B[2:4, 0:2]  # copy a block into a block
     v[i] = x
+    obj.k = 2                  # scalar attribute (also self.k in methods)
+    obj.A[i, j] = x            # element of a matrix attribute
     L[i] = A                   # make a List element refer to A (shared, as in Python)
     C = A * B                  # matrix product, sum (+) and difference (-)
 
@@ -120,15 +119,18 @@ Assignments
 - ``B = A`` between two matrix (or vector) variables is rejected: in Python
   both names would refer to the same matrix, while in C ``B`` keeps its own
   memory, so later updates would differ. Use ``pmat_copy(A, B)``.
-- Augmented assignments (``x += 1``) *(not supported yet)*.
+- Matrix and vector attributes cannot be assigned as a whole
+  (``obj.A = B``), for the same reason: copy into them instead.
 - Elements of a List of ``int`` or ``float`` cannot be assigned or read
   *(not supported yet)*.
 
 Expressions
 -----------
 
-Scalar expressions combine numbers, scalar variables, attributes and
-constants with ``+``, ``-``, ``*``, ``/``, ``%`` and unary ``-``:
+Scalar expressions combine numbers, scalar variables, loop variables,
+constants, attributes (``obj.x``), matrix and vector elements (``A[i, j]``,
+``v[i]``) and calls of functions and methods returning ``int`` or ``float``,
+with ``+``, ``-``, ``*``, ``/``, ``%`` and unary ``-``:
 
 - int and float values cannot be mixed: write ``2.0 * x``, not ``2 * x``
   (an integer literal is accepted where a float is expected as a whole value,
@@ -138,19 +140,23 @@ constants with ``+``, ``-``, ``*``, ``/``, ``%`` and unary ``-``:
 - ``%`` on integers gives a warning: for negative operands the result differs
   between Python and C. ``%`` is not defined on floats.
 - ``//`` and ``**`` *(not supported yet)*.
-- Matrix elements (``A[i, j]``) and calls cannot appear inside a larger
-  expression *(not supported yet)*: assign them to a variable first.
+- Python evaluates operands from left to right, C in an unspecified order.
+  A call that can modify data (a method call, or a call taking a matrix,
+  vector, list or object) cannot be combined with other operands that read
+  data (elements, attributes, calls): ``f(A) + A[0, 0]`` is rejected, assign
+  ``f(A)`` to a variable first.
 - Indices are integer expressions, and must be in range: indices are not
-  checked at run time in C.
+  checked at run time in C. They cannot contain calls or element reads *(not
+  supported yet)*.
 
 Control flow
 ------------
 
 .. code-block:: python
 
-    for i in range(n):            # or range(start, stop); no step (not supported yet)
+    for i in range(n):            # or range(start, stop[, step])
         ...
-    while k < n:
+    while k < n and not done == 1:
         ...
     if x < 0.0:
         ...
@@ -159,16 +165,19 @@ Control flow
     else:
         ...
 
-- Conditions are comparisons (``<``, ``<=``, ``>``, ``>=``, ``==``, ``!=``,
-  also chained: ``0 < k < n``) of values of the same kind (int or float).
-  ``and``, ``or``, ``not`` *(not supported yet)*.
-- The loop variable can be used in indices (``A[i, n - 1 - i]``) and
-  conditions, but not in other expressions or as a function argument *(not
-  supported yet)*. It cannot be assigned, and is not visible after the loop.
+- Conditions are comparisons (``<``, ``<=``, ``>``, ``>=``, ``==``, ``!=``)
+  of values of the same kind (int or float), combined with ``and``, ``or``
+  and ``not``. Chained comparisons (``0 < k < n``) are supported, without
+  calls in the middle operand (which C would evaluate twice).
+- ``range`` bounds are evaluated once, before the loop, as in Python. The
+  step must be a non-zero integer literal (e.g. ``range(n - 1, -1, -1)``).
+- The loop variable is an ``int`` that can be used in any expression. It
+  cannot be assigned (in C this would change the iteration, in Python it
+  would not), and is not visible after the loop.
 - Reusing the loop variable of an enclosing loop gives a warning: after the
   inner loop, the outer variable has a different value in Python and in C.
-- ``break``, ``continue``, ``pass`` and ``else`` clauses on loops *(not
-  supported yet)*.
+- ``break``, ``continue`` and ``pass`` are supported; ``else`` clauses on
+  loops *(not supported yet)*.
 
 Functions
 ---------
@@ -212,8 +221,10 @@ Classes
   ``self`` *(not supported yet)*.
 - Methods take ``self`` as first argument (not annotated); there is no
   inheritance and there are no special methods other than ``__init__``.
-- Elements of matrix attributes cannot be assigned directly
-  (``self.A[i, j] = x``) *(not supported yet)*.
+- Methods can update scalar attributes (``self.k += 1``) and elements of
+  matrix and vector attributes (``self.A[i, j] = x``), and matrix and vector
+  attributes can be passed to functions (``pmat_print(self.A)``). List
+  attributes cannot be passed to functions *(not supported yet)*.
 
 Printing
 --------
@@ -221,7 +232,7 @@ Printing
 .. code-block:: python
 
     print('text\n')
-    print('k = %i\n' % k)       # one value per print; %d or %i for int, %f, %e, %g for float
+    print('k = %i\n' % (k + 1)) # one value per print; %d or %i for int, %f, %e, %g for float
     pmat_print(A)
     pvec_print(v)
 

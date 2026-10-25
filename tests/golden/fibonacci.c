@@ -15,7 +15,7 @@ int _Z3fibint(int n) {
     int a = 0;
     int b = 1;
     int c = 0;
-    for(int i = 0; i < n; i++) {
+    for(int i = 0, ___pmt_end_1 = n; i < ___pmt_end_1; i += 1) {
         c = a + b;
         a = b;
         b = c;
@@ -47,9 +47,9 @@ int _Z3fibint(int n) {
 
     int res = 0;
     int counter = 0;
-    for(int i = 0; i < 30; i++) {
-        for(int j = 0; j < 1000000; j++) {
-            res = _Z3fibint(counter);;
+    for(int i = 0, ___pmt_end_2 = 30; i < ___pmt_end_2; i += 1) {
+        for(int j = 0, ___pmt_end_3 = 1000000; j < ___pmt_end_3; j += 1) {
+            res = _Z3fibint(counter);
     }
 
         counter = counter + 1;

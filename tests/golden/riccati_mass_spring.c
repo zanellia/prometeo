@@ -31,77 +31,77 @@ int main() {
     int nrep = 10000;
     struct pmat * A = c_pmt_create_pmat(nx, nx);
     struct pmat * Ac11 = c_pmt_create_pmat(nm, nm);
-    for(int i = 0; i < nm; i++) {
+    for(int i = 0, ___pmt_end_1 = nm; i < ___pmt_end_1; i += 1) {
         c_pmt_pmat_set_el(Ac11, i, i, 1.0);
     }
 
     struct pmat * Ac12 = c_pmt_create_pmat(nm, nm);
-    for(int i = 0; i < nm; i++) {
+    for(int i = 0, ___pmt_end_2 = nm; i < ___pmt_end_2; i += 1) {
         c_pmt_pmat_set_el(Ac12, i, i, 1.0);
     }
 
     struct pmat * Ac21 = c_pmt_create_pmat(nm, nm);
-    for(int i = 0; i < nm; i++) {
-        c_pmt_pmat_set_el(Ac21, i, i, (-2.0));
+    for(int i = 0, ___pmt_end_3 = nm; i < ___pmt_end_3; i += 1) {
+        c_pmt_pmat_set_el(Ac21, i, i, -2.0);
     }
 
-    for(int i = 0; i < (nm - 1); i++) {
+    for(int i = 0, ___pmt_end_4 = (nm - 1); i < ___pmt_end_4; i += 1) {
         c_pmt_pmat_set_el(Ac21, (i + 1), i, 1.0);
         c_pmt_pmat_set_el(Ac21, i, (i + 1), 1.0);
     }
 
     struct pmat * Ac22 = c_pmt_create_pmat(nm, nm);
-    for(int i = 0; i < nm; i++) {
+    for(int i = 0, ___pmt_end_5 = nm; i < ___pmt_end_5; i += 1) {
         c_pmt_pmat_set_el(Ac22, i, i, 1.0);
     }
 
-    for(int i = 0; i < nm; i++) {
-        for(int j = 0; j < nm; j++) {
-            c_pmt_pmat_set_el(A, i,                                             j, c_pmt_pmat_get_el(Ac11, i, j));
+    for(int i = 0, ___pmt_end_6 = nm; i < ___pmt_end_6; i += 1) {
+        for(int j = 0, ___pmt_end_7 = nm; j < ___pmt_end_7; j += 1) {
+            c_pmt_pmat_set_el(A, i, j, c_pmt_pmat_get_el(Ac11, i, j));
     }
 
     }
 
-    for(int i = 0; i < nm; i++) {
-        for(int j = 0; j < nm; j++) {
-            c_pmt_pmat_set_el(A, i,                                             (nm + j), c_pmt_pmat_get_el(Ac12, i, j));
+    for(int i = 0, ___pmt_end_8 = nm; i < ___pmt_end_8; i += 1) {
+        for(int j = 0, ___pmt_end_9 = nm; j < ___pmt_end_9; j += 1) {
+            c_pmt_pmat_set_el(A, i, (nm + j), c_pmt_pmat_get_el(Ac12, i, j));
     }
 
     }
 
-    for(int i = 0; i < nm; i++) {
-        for(int j = 0; j < nm; j++) {
-            c_pmt_pmat_set_el(A, (nm + i),                                             j, c_pmt_pmat_get_el(Ac21, i, j));
+    for(int i = 0, ___pmt_end_10 = nm; i < ___pmt_end_10; i += 1) {
+        for(int j = 0, ___pmt_end_11 = nm; j < ___pmt_end_11; j += 1) {
+            c_pmt_pmat_set_el(A, (nm + i), j, c_pmt_pmat_get_el(Ac21, i, j));
     }
 
     }
 
-    for(int i = 0; i < nm; i++) {
-        for(int j = 0; j < nm; j++) {
-            c_pmt_pmat_set_el(A, (nm + i),                                             (nm + j), c_pmt_pmat_get_el(Ac22, i, j));
+    for(int i = 0, ___pmt_end_12 = nm; i < ___pmt_end_12; i += 1) {
+        for(int j = 0, ___pmt_end_13 = nm; j < ___pmt_end_13; j += 1) {
+            c_pmt_pmat_set_el(A, (nm + i), (nm + j), c_pmt_pmat_get_el(Ac22, i, j));
     }
 
     }
 
     double tmp = 0.0;
-    for(int i = 0; i < nx; i++) {
+    for(int i = 0, ___pmt_end_14 = nx; i < ___pmt_end_14; i += 1) {
         tmp = c_pmt_pmat_get_el(A, i, i);
         tmp = tmp + 1.0;
         c_pmt_pmat_set_el(A, i, i, tmp);
     }
 
     struct pmat * B = c_pmt_create_pmat(nx, nu);
-    for(int i = 0; i < nu; i++) {
+    for(int i = 0, ___pmt_end_15 = nu; i < ___pmt_end_15; i += 1) {
         c_pmt_pmat_set_el(B, (nm + i), i, 1.0);
     }
 
     struct pmat * Q = c_pmt_create_pmat(nx, nx);
-    for(int i = 0; i < nx; i++) {
+    for(int i = 0, ___pmt_end_16 = nx; i < ___pmt_end_16; i += 1) {
         c_pmt_pmat_set_el(Q, i, i, 1.0);
     }
 
     struct pmat * R = c_pmt_create_pmat(nu, nu);
-    for(int i = 0; i < nu; i++) {
+    for(int i = 0, ___pmt_end_17 = nu; i < ___pmt_end_17; i += 1) {
         c_pmt_pmat_set_el(R, i, i, 1.0);
     }
 
@@ -115,10 +115,10 @@ int main() {
     c_pmt_pmat_tran(BA, BAt);
     c_pmt_gecp(nu-0, nu-0, R, 0, 0, RSQ, 0, 0);
     c_pmt_gecp((nu + nx)-nu, (nu + nx)-nu, Q, 0, 0, RSQ, nu, nu);
-    for(int i = 0; i < nrep; i++) {
+    for(int i = 0, ___pmt_end_18 = nrep; i < ___pmt_end_18; i += 1) {
         c_pmt_potrf(Q, Lxx);
         c_pmt_gecp((nu + nx)-nu, (nu + nx)-nu, Lxx, 0, 0, M, nu, nu);
-        for(int i = 1; i < N; i+=1) {
+        for(int i = 1, ___pmt_end_19 = N; i < ___pmt_end_19; i += 1) {
             c_pmt_trmm_rlnn(Lxx, BAt, w_nxu_nx);
             c_pmt_syrk_ln(w_nxu_nx, w_nxu_nx, RSQ, M);
             c_pmt_potrf(M, M);

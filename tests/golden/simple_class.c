@@ -107,13 +107,13 @@ int _Z7method1intSimple_class_impl(Simple_class *self, int b) {
     struct Simple_class * S= &S___;
     Simple_class_constructor(S); //
     int a = 1;
-    a = _Z3fooint(a);;
-    a = S->_Z7method1int(S, a);;
-    a = S->_Z7method1(S);;
-    a = S->_Z7method1int(S, S->number->value);;
-    a = S->number->_Z9get_value(S->number);;
+    a = _Z3fooint(a);
+    a = S->_Z7method1int(S, a);
+    a = S->_Z7method1(S);
+    a = S->_Z7method1int(S, S->number->value);
+    a = S->number->_Z9get_value(S->number);
     a = S->number->value;
-    a = S->number->_Z9get_value(S->number);;
+    a = S->number->_Z9get_value(S->number);
 	___c_pmt_8_heap = callee_pmt_8_heap;
 	___c_pmt_64_heap = callee_pmt_64_heap;
 

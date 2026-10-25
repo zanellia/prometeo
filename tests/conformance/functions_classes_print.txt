@@ -32,7 +32,7 @@
     pmat_print(B)
 
 ### fun_call_in_expr
-# expect: error not supported (yet): calling a function inside an expression
+# expect: ok
 @def f(a : int) -> int:
 @    return a + 1
     k : int = f(2) * 3
@@ -55,7 +55,7 @@
     print('%f\n' % y)
 
 ### recursion_int
-# expect: error not supported (yet): calling a function inside an expression
+# expect: ok
 @def fact(k : int) -> int:
 @    if k < 2:
 @        return 1
@@ -75,7 +75,7 @@
     print('%i\n' % k)
 
 ### class_pmat_attr
-# expect: error not supported (yet): assigning to elements of a matrix that
+# expect: ok
 @class C:
 @    def __init__(self) -> None:
 @        self.A : pmat = pmat(n, n)

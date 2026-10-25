@@ -1,5 +1,5 @@
 ### pmat_el_rw
-# expect: error not supported (yet): initializing a variable with an element
+# expect: ok
     A : pmat = pmat(n, n)
     A[0, 1] = 2.0
     x : float = A[0, 1]
@@ -13,7 +13,7 @@
     pmat_print(A)
 
 ### pmat_el_in_binop
-# expect: error not supported (yet): reading an element inside an expression
+# expect: ok
     A : pmat = pmat(n, n)
     A[0, 0] = 2.0
     x : float = A[0, 0] + 1.0
@@ -135,7 +135,7 @@
     pmat_print(B)
 
 ### pvec_rw
-# expect: error not supported (yet): initializing a variable with an element
+# expect: ok
     v : pvec = pvec(n)
     v[1] = 2.0
     x : float = v[1]

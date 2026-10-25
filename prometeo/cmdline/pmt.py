@@ -16,6 +16,7 @@ from prometeo.mem.ast_analyzer import ast_visitor
 from prometeo.mem.ast_analyzer import compute_reach_graph
 
 from copy import deepcopy
+from prometeo.frontend.normalize import normalize
 
 import casadi as ca
 import time
@@ -71,7 +72,7 @@ def check_program(filename):
     code = open(filename).read()
     source_lines = code.splitlines()
     try:
-        tree = normalize_plist_types(ast.parse(strip_pure_blocks(code), filename))
+        tree = normalize(ast.parse(strip_pure_blocks(code), filename))
     except SyntaxError as e:
         print('\n\033[;1m > prometeo:\033[0;0m \033[91msyntax error\033[0;0m at {}:{}: {}'.format(
             filename, e.lineno, e.msg))
@@ -88,16 +89,6 @@ def check_program(filename):
     if errors:
         print('\n\033[;1m > prometeo:\033[0;0m {} error(s), exiting.\n'.format(len(errors)))
     return not errors
-
-def normalize_plist_types(tree):
-    """Rewrite plist(pmat, ...) as plist('pmat', ...): the code generator and
-    the heap analysis expect the element type of a plist as a string."""
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) \
-                and node.func.id == 'plist' and node.args \
-                and isinstance(node.args[0], ast.Name):
-            node.args[0] = ast.copy_location(ast.Constant(node.args[0].id), node.args[0])
-    return tree
 
 def str2bool(v):
     if isinstance(v, bool):
@@ -277,7 +268,7 @@ def pmt_main():
         filename_ = filename.split('.')[0]
         sed_cmd = "sed '/# pure >/,/# pure </d' " + filename_ + '.py'
         code = ''.join(os.popen(sed_cmd).read())
-        tree = normalize_plist_types(ast.parse(code))
+        tree = normalize(ast.parse(code))
         # ap.pprint(tree)
         tree_copy = deepcopy(tree)
 
@@ -299,11 +290,11 @@ def pmt_main():
                 return 1
 
         dest_file = open('__pmt_cache__/' + filename_ + '.c', 'w')
-        dest_file.write(prometeo.cgen.source_repr.pretty_source(result.source))
+        dest_file.write(''.join(result.source))
         dest_file.close()
 
         dest_file = open('__pmt_cache__/' + filename_ + '.h', 'w')
-        dest_file.write(prometeo.cgen.source_repr.pretty_source(result.header))
+        dest_file.write(''.join(result.header))
         dest_file.close()
 
         print('\033[;1m > prometeo:\033[0;0m code-generation successfully completed')

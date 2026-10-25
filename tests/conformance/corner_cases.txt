@@ -1,5 +1,5 @@
 ### for_break_only
-# expect: error not supported (yet): 'break'
+# expect: ok
     A : pmat = pmat(n, n)
     for i in range(n):
         A[i, i] = 1.0
@@ -7,7 +7,7 @@
     pmat_print(A)
 
 ### for_continue_only
-# expect: error not supported (yet): 'continue'
+# expect: ok
     A : pmat = pmat(n, n)
     for i in range(n):
         continue
@@ -29,7 +29,7 @@
     pmat_print(A)
 
 ### loopvar_as_call_arg
-# expect: error not supported (yet): passing the loop variable 'i' as an arg
+# expect: ok
 @def f(k : int) -> int:
 @    return k
     s : int = 0
@@ -38,7 +38,7 @@
     print('%i\n' % s)
 
 ### loopvar_assign_to_int
-# expect: error not supported (yet): using the loop variable 'i' outside of
+# expect: ok
     s : int = 0
     for i in range(n):
         s = i
@@ -99,7 +99,7 @@
     print('ok\n')
 
 ### class_pmat_attr_print
-# expect: error not supported (yet): passing an attribute of type pmat as an
+# expect: ok
 @class C:
 @    def __init__(self) -> None:
 @        self.A : pmat = pmat(n, n)
@@ -107,7 +107,7 @@
     pmat_print(c.A)
 
 ### class_pmat_attr_set
-# expect: error not supported (yet): assigning to elements of a matrix that
+# expect: ok
 @class C:
 @    def __init__(self) -> None:
 @        self.A : pmat = pmat(n, n)
@@ -127,7 +127,7 @@
     print('%i\n' % b)
 
 ### print_dims
-# expect: error not supported (yet): printing dims constants; assign the val
+# expect: ok
     print('%i\n' % n)
 
 ### fun_dims_arg

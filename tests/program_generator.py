@@ -21,12 +21,16 @@ class ProgramGenerator:
         # make sure there are square matrices and transposable pairs
         self.matrices['S0'] = ('n', 'n')
         self.matrices['T0'] = ('m', 'n')
+        self.vectors = {'V0': 'n', 'V1': 'm'}
         self.floats = ['x{}'.format(k) for k in range(rng.randint(2, 4))]
         self.ints = ['k{}'.format(k) for k in range(rng.randint(1, 3))]
         self.counters = ['c{}'.format(k) for k in range(2)]
+        # functions that modify their matrix argument, and pure scalar functions
         self.functions = []
+        self.pure_functions = []
         self.lines = []
-        self.loop_depth = 0
+        # enclosing loops: (loop variable or None for while loops, dims name)
+        self.loops = []
         self.statements = 0
 
     # expressions
@@ -34,10 +38,43 @@ class ProgramGenerator:
     def float_literal(self):
         return '{:.2f}'.format(self.rng.choice([-1, 1]) * self.rng.uniform(0.1, 2.0))
 
+    def loop_var(self, dim):
+        """A loop variable ranging over range(dim), if any."""
+        candidates = [v for v, d in self.loops if v is not None and d == dim]
+        return self.rng.choice(candidates) if candidates else None
+
+    def index(self, dim):
+        """Index in range(dim): a literal, a loop variable or dim - 1 - i."""
+        var = self.loop_var(dim)
+        if var is not None and self.rng.random() < 0.7:
+            return var if self.rng.random() < 0.6 else '{} - 1 - {}'.format(dim, var)
+        return str(self.rng.randint(0, self.dims[dim] - 1))
+
+    def element(self):
+        if self.rng.random() < 0.75:
+            a = self.matrix()
+            r, c = self.matrices[a]
+            return '{}[{}, {}]'.format(a, self.index(r), self.index(c))
+        v = self.rng.choice(list(self.vectors))
+        return '{}[{}]'.format(v, self.index(self.vectors[v]))
+
+    def float_leaf(self):
+        r = self.rng.random()
+        if r < 0.4:
+            return self.rng.choice(self.floats)
+        if r < 0.6:
+            return self.element()
+        if r < 0.7:
+            return 'acc.total'
+        if r < 0.8 and self.pure_functions:
+            return '{}({})'.format(self.rng.choice(self.pure_functions), self.float_expr(1))
+        return self.float_literal()
+
     def float_expr(self, depth=2):
+        """Float expression without side effects."""
         rng = self.rng
         if depth == 0 or rng.random() < 0.3:
-            return rng.choice(self.floats) if rng.random() < 0.6 else self.float_literal()
+            return self.float_leaf()
         op = rng.choice(['+', '-', '*', '/', 'neg'])
         if op == 'neg':
             return '-' + self.float_expr(depth - 1)
@@ -47,31 +84,42 @@ class ProgramGenerator:
         return '({} {} {})'.format(self.float_expr(depth - 1), op, self.float_expr(depth - 1))
 
     def int_const_expr(self, depth=2):
-        """Integer expression of literals and dims constants."""
+        """Integer expression of literals, dims constants and loop variables."""
         rng = self.rng
         if depth == 0 or rng.random() < 0.4:
-            return rng.choice(list(self.dims)) if rng.random() < 0.4 else str(rng.randint(-3, 5))
+            r = rng.random()
+            loop_vars = [v for v, d in self.loops if v is not None]
+            if r < 0.3 and loop_vars:
+                return rng.choice(loop_vars)
+            return rng.choice(list(self.dims)) if r < 0.6 else str(rng.randint(-3, 5))
         return '({} {} {})'.format(self.int_const_expr(depth - 1), rng.choice(['+', '-', '*']),
             self.int_const_expr(depth - 1))
-
-    def index(self, dim, loop_var=None):
-        """Index in range(dim): a literal, a loop variable or dim - 1 - i."""
-        size = self.dims[dim]
-        if loop_var is not None and self.rng.random() < 0.7:
-            return loop_var if self.rng.random() < 0.6 else '{} - 1 - {}'.format(dim, loop_var)
-        return str(self.rng.randint(0, size - 1))
 
     def matrix(self, shape=None):
         names = [m for m, s in self.matrices.items() if shape is None or s == shape]
         return self.rng.choice(names) if names else None
 
-    def condition(self):
+    def comparison(self):
         rng = self.rng
-        if rng.random() < 0.5:
-            return '{} {} {}'.format(rng.choice(self.floats), rng.choice(['<', '>', '<=', '>=']),
+        r = rng.random()
+        if r < 0.4:
+            return '{} {} {}'.format(self.float_expr(1), rng.choice(['<', '>', '<=', '>=']),
                 self.float_literal())
-        return '{} {} {}'.format(rng.choice(self.ints), rng.choice(['<', '>', '==', '!=']),
-            rng.randint(-3, 5))
+        if r < 0.55:
+            low, high = sorted([self.float_literal(), self.float_literal()], key=float)
+            return '{} < {} < {}'.format(low, rng.choice(self.floats), high)
+        return '{} {} {}'.format(rng.choice(self.ints + [v for v, d in self.loops if v]),
+            rng.choice(['<', '>', '==', '!=']), rng.randint(-3, 5))
+
+    def condition(self, depth=1):
+        rng = self.rng
+        r = rng.random()
+        if depth == 0 or r < 0.5:
+            return self.comparison()
+        if r < 0.65:
+            return 'not {}'.format(self.comparison())
+        return '({} {} {})'.format(self.condition(depth - 1), rng.choice(['and', 'or']),
+            self.condition(depth - 1))
 
     # statements
 
@@ -85,12 +133,14 @@ class ProgramGenerator:
     def statement(self, indent):
         self.statements += 1
         rng = self.rng
-        kinds = ['float', 'float', 'int', 'el_write', 'el_read', 'builtin', 'builtin', 'operator',
-            'print']
-        if indent < 3 and self.statements < self.max_statements:
+        kinds = ['float', 'float', 'int', 'el_write', 'el_write', 'aug', 'builtin', 'builtin',
+            'operator', 'print', 'method']
+        if indent < 4 and self.statements < self.max_statements:
             kinds += ['for', 'if', 'while']
         if self.functions:
             kinds.append('call')
+        if self.loops:
+            kinds.append('jump')
         kind = rng.choice(kinds)
         if kind == 'float':
             self.emit(indent, '{} = {}'.format(rng.choice(self.floats), self.float_expr()))
@@ -102,29 +152,46 @@ class ProgramGenerator:
                 const = '{} {} {}'.format(rng.choice(self.ints), rng.choice(['+', '-']), const)
             self.emit(indent, '{} = {}'.format(rng.choice(self.ints), const))
         elif kind == 'el_write':
-            a = self.matrix()
-            r, c = self.matrices[a]
-            self.emit(indent, '{}[{}, {}] = {}'.format(a, self.index(r), self.index(c),
-                rng.choice(self.floats + [self.float_literal()])))
-        elif kind == 'el_read':
-            a = self.matrix()
-            r, c = self.matrices[a]
-            self.emit(indent, '{} = {}[{}, {}]'.format(rng.choice(self.floats), a,
-                self.index(r), self.index(c)))
+            self.emit(indent, '{} = {}'.format(self.element(), self.float_expr(1)))
+        elif kind == 'aug':
+            r = rng.random()
+            if r < 0.4:
+                self.emit(indent, '{} {}= {}'.format(rng.choice(self.floats), rng.choice('+-*'),
+                    self.float_expr(1)))
+            elif r < 0.8:
+                # '*=' on elements could grow without bound in loops
+                self.emit(indent, '{} {}= {}'.format(self.element(), rng.choice('+-'),
+                    self.float_expr(1)))
+            else:
+                self.emit(indent, '{} {}= {}'.format(rng.choice(self.ints), rng.choice('+-'),
+                    self.int_const_expr(1)))
         elif kind == 'builtin':
             self.builtin(indent)
         elif kind == 'operator':
             self.operator(indent)
         elif kind == 'print':
-            if rng.random() < 0.5:
-                self.emit(indent, "print('%f\\n' % {})".format(rng.choice(self.floats)))
-            else:
+            r = rng.random()
+            if r < 0.4:
+                self.emit(indent, "print('%f\\n' % ({}))".format(self.float_expr(1)))
+            elif r < 0.6:
+                self.emit(indent, "print('%i\\n' % ({}))".format(self.int_const_expr(1)))
+            elif r < 0.8:
                 self.emit(indent, 'pmat_print({})'.format(self.matrix()))
+            else:
+                self.emit(indent, 'pvec_print({})'.format(rng.choice(list(self.vectors))))
+        elif kind == 'method':
+            if rng.random() < 0.5:
+                self.emit(indent, 'acc.add({})'.format(self.float_expr(1)))
+            else:
+                self.emit(indent, '{} = acc.get()'.format(rng.choice(self.floats)))
         elif kind == 'for':
             self.loop(indent)
         elif kind == 'if':
             self.emit(indent, 'if {}:'.format(self.condition()))
             self.block(indent + 1, rng.randint(1, 3))
+            if rng.random() < 0.3:
+                self.emit(indent, 'elif {}:'.format(self.condition()))
+                self.block(indent + 1, rng.randint(1, 2))
             if rng.random() < 0.5:
                 self.emit(indent, 'else:')
                 self.block(indent + 1, rng.randint(1, 3))
@@ -136,37 +203,39 @@ class ProgramGenerator:
             self.active_counters.append(c)
             self.emit(indent, '{} = 0'.format(c))
             self.emit(indent, 'while {} < {}:'.format(c, rng.randint(1, 3)))
+            # the counter is incremented first: 'continue' cannot skip it
+            self.emit(indent + 1, '{} += 1'.format(c))
+            self.loops.append((None, None))
             self.block(indent + 1, rng.randint(1, 3))
-            self.emit(indent + 1, '{} = {} + 1'.format(c, c))
+            self.loops.pop()
             self.active_counters.remove(c)
+        elif kind == 'jump':
+            self.emit(indent, 'if {}:'.format(self.condition()))
+            self.emit(indent + 1, rng.choice(['break', 'continue']))
         elif kind == 'call':
             name, shape = rng.choice(self.functions)
             self.emit(indent, '{} = {}({}, {})'.format(rng.choice(self.floats), name,
-                self.matrix(shape), rng.choice(self.floats)))
+                self.matrix(shape), self.float_expr(1)))
 
     def loop(self, indent):
         rng = self.rng
-        a = self.matrix()
-        r, c = self.matrices[a]
-        i = 'i{}'.format(self.loop_depth)
-        self.emit(indent, 'for {} in range({}):'.format(i, r))
-        self.loop_depth += 1
-        if rng.random() < 0.5:
-            j = 'i{}'.format(self.loop_depth)
-            self.emit(indent + 1, 'for {} in range({}):'.format(j, c))
-            self.emit(indent + 2, '{}[{}, {}] = {}'.format(a, self.index(r, i), self.index(c, j),
-                rng.choice(self.floats + [self.float_literal()])))
+        i = 'i{}'.format(len(self.loops))
+        dim = rng.choice(list(self.dims))
+        r = rng.random()
+        if r < 0.6:
+            iterator = 'range({})'.format(dim)
+        elif r < 0.8:
+            iterator = 'range({} - 1, -1, -1)'.format(dim)
         else:
-            self.emit(indent + 1, '{}[{}, {}] = {}'.format(a, self.index(r, i), self.index(c),
-                rng.choice(self.floats + [self.float_literal()])))
-            if rng.random() < 0.5:
-                self.emit(indent + 1, '{} = {}[{}, {}]'.format(rng.choice(self.floats), a,
-                    self.index(r, i), self.index(c)))
-        self.loop_depth -= 1
+            iterator = 'range(0, {}, 2)'.format(dim)
+        self.emit(indent, 'for {} in {}:'.format(i, iterator))
+        self.loops.append((i, dim))
+        self.block(indent + 1, rng.randint(1, 3))
+        self.loops.pop()
 
     def builtin(self, indent):
         rng = self.rng
-        kind = rng.choice(['copy', 'tran', 'gemm', 'gead', 'fill'])
+        kind = rng.choice(['copy', 'tran', 'gemm', 'gead', 'fill', 'attr'])
         if kind == 'copy':
             a = self.matrix()
             b = self.matrix(self.matrices[a])
@@ -192,8 +261,15 @@ class ProgramGenerator:
             a = self.matrix()
             b = self.matrix(self.matrices[a])
             self.emit(indent, 'pmt_gead({}, {}, {})'.format(self.float_literal(), a, b))
-        else:
+        elif kind == 'fill':
             self.emit(indent, 'pmat_fill({}, {})'.format(self.matrix(), self.float_literal()))
+        else:
+            # matrix attribute as an argument
+            s = self.matrix(('n', 'n'))
+            if rng.random() < 0.5:
+                self.emit(indent, 'pmat_copy({}, acc.M)'.format(s))
+            else:
+                self.emit(indent, 'pmat_copy(acc.M, {})'.format(s))
 
     def operator(self, indent):
         rng = self.rng
@@ -222,10 +298,9 @@ class ProgramGenerator:
         r, c = shape
         lines = [
             'def {}(A: pmat, x: float) -> float:'.format(name),
-            '    y : float = 0.0',
-            '    y = A[{}, {}]'.format(self.rng.randint(0, self.dims[r] - 1),
+            '    y : float = A[{}, {}]'.format(self.rng.randint(0, self.dims[r] - 1),
                 self.rng.randint(0, self.dims[c] - 1)),
-            '    A[{}, {}] = x'.format(self.rng.randint(0, self.dims[r] - 1),
+            '    A[{}, {}] += x'.format(self.rng.randint(0, self.dims[r] - 1),
                 self.rng.randint(0, self.dims[c] - 1)),
             '    return y * {} + x'.format(self.float_literal()),
             '',
@@ -233,29 +308,67 @@ class ProgramGenerator:
         self.functions.append((name, shape))
         return lines
 
+    def pure_function(self, k):
+        name = 'g{}'.format(k)
+        self.pure_functions.append(name)
+        return [
+            'def {}(x: float) -> float:'.format(name),
+            '    if x > {}:'.format(self.float_literal()),
+            '        return x * {}'.format(self.float_literal()),
+            '    return x - {}'.format(self.float_literal()),
+            '',
+        ]
+
+    def accumulator_class(self):
+        return [
+            'class Acc:',
+            '    def __init__(self) -> None:',
+            '        self.total : float = 0.0',
+            '        self.count : int = 0',
+            '        self.M : pmat = pmat(n, n)',
+            '',
+            '    def add(self, x: float) -> None:',
+            '        self.total += x',
+            '        self.count += 1',
+            '        self.M[0, 0] = self.M[0, 0] + x',
+            '        return',
+            '',
+            '    def get(self) -> float:',
+            '        return self.total * 0.5 + self.M[0, 0]',
+            '',
+        ]
+
     def generate(self):
         rng = self.rng
         header = ['from prometeo import *', '']
         header += ['{} : dims = {}'.format(d, v) for d, v in self.dims.items()]
         header.append('')
-        functions = []
+        functions = self.accumulator_class()
         for k in range(rng.randint(0, 2)):
             functions += self.function(k)
+        for k in range(rng.randint(0, 2)):
+            functions += self.pure_function(k)
         self.active_counters = []
         self.emit(1, '# declarations')
+        self.emit(1, 'acc : Acc = Acc()')
         for a, (r, c) in self.matrices.items():
             self.emit(1, '{} : pmat = pmat({}, {})'.format(a, r, c))
+        for v, d in self.vectors.items():
+            self.emit(1, '{} : pvec = pvec({})'.format(v, d))
         for x in self.floats:
             self.emit(1, '{} : float = {}'.format(x, self.float_literal()))
         for k in self.ints:
             self.emit(1, '{} : int = {}'.format(k, rng.randint(-3, 5)))
         for c in self.counters:
             self.emit(1, '{} : int = 0'.format(c))
-        # start from non-zero matrices
+        # start from non-zero matrices and vectors
         for a, (r, c) in self.matrices.items():
             self.emit(1, 'for i in range({}):'.format(r))
             self.emit(2, 'for j in range({}):'.format(c))
             self.emit(3, '{}[i, j] = {}'.format(a, self.float_literal()))
+        for v, d in self.vectors.items():
+            self.emit(1, 'for i in range({}):'.format(d))
+            self.emit(2, '{}[i] = {}'.format(v, self.float_literal()))
         self.emit(1, '# random statements')
         while self.statements < self.max_statements:
             self.statement(1)
@@ -264,8 +377,13 @@ class ProgramGenerator:
             self.emit(1, "print('%f\\n' % {})".format(x))
         for k in self.ints:
             self.emit(1, "print('%i\\n' % {})".format(k))
+        self.emit(1, "print('%f\\n' % acc.total)")
+        self.emit(1, "print('%i\\n' % acc.count)")
         for a in self.matrices:
             self.emit(1, 'pmat_print({})'.format(a))
+        for v in self.vectors:
+            self.emit(1, 'pvec_print({})'.format(v))
+        self.emit(1, 'pmat_print(acc.M)')
         self.emit(1, 'return 0')
         return '\n'.join(header + functions + ['def main() -> int:'] + self.lines) + '\n'
 

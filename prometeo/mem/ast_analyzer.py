@@ -125,6 +125,7 @@ class ast_visitor(ExplicitNodeVisitor):
         self.caller_scope = 'global'
         self.callee_scope = 'global'
         self.in_call = False
+        self.loop_vars = []
         # load local typed_record
 
         with open('__pmt_cache__/typed_record.json', 'r') as f:
@@ -175,10 +176,16 @@ class ast_visitor(ExplicitNodeVisitor):
 
         """
         if my_isinstance(node, ast.Name):
-            if node.id in self.typed_record[scope]:
+            if node.id in self.loop_vars:
+                type_val = 'int'
+            elif node.id in self.typed_record[scope]:
                 type_val = self.typed_record[scope][node.id]
             elif  node.id in self.dim_record:
                 type_val = 'dims'
+            elif node.id in self.typed_record['global'] and \
+                    self.typed_record['global'][node.id] in ('int', 'float'):
+                # module-level constant
+                type_val = self.typed_record['global'][node.id]
             else:
                 raise cgenException('Undefined variable {}'.format(node.id), node.lineno)
             return type_val,  None
@@ -205,8 +212,11 @@ class ast_visitor(ExplicitNodeVisitor):
         elif my_isinstance(node, ast.BinOp):
             type_l, s  = self.get_type_of_node(node.left, scope)
             type_r, s = self.get_type_of_node(node.right, scope)
+            # dims are integer constants: dims combined with int gives int
+            if {type_l, type_r} == {'dims', 'int'}:
+                return 'int', None
             if type_l != type_r:
-                if type_l != 'str' or (type_r != 'int' and type_r != 'float'): # allow for this case for printing TODO : improve
+                if type_l != 'str' or type_r not in ('int', 'float', 'dims'): # allow for this case for printing TODO : improve
                     raise Exception("Type mismatch in BinOp: left = {}, right = {}".format(type_l,type_r))
             return type_l, None
 
@@ -225,6 +235,14 @@ class ast_visitor(ExplicitNodeVisitor):
                     raise Exception("Not implemented")
             elif my_isinstance(node.value, ast.Attribute):
                 type_val, s = self.get_type_of_node(node.value, scope)
+                # attribute types other than int and float carry a scope prefix
+                if type_val.split('@')[-1] == 'pmat':
+                    indices = node.slice.elts if my_isinstance(node.slice, ast.Tuple) else [node.slice]
+                    if any(my_isinstance(index, ast.Slice) for index in indices):
+                        return 'pmat', None
+                    return 'float', None
+                if type_val.split('@')[-1] == 'pvec':
+                    return 'float', None
                 # the type of a subscripted List is given by the type of 
                 # its elements
                 return type_val.split('[')[1].split(',')[0], None
@@ -369,10 +387,11 @@ class ast_visitor(ExplicitNodeVisitor):
                 else:
                     # arg_value = arg.id
                     type_val, s = self.get_type_of_node(arg, self.caller_scope)
-                    # Lists are mangled as 'List' (see cgen.code_gen_c.mangling_type)
+                    # Lists are mangled as 'List' and attribute types without their
+                    # scope prefix (see cgen.code_gen_c.mangling_type)
                     if type_val.startswith('List['):
                         type_val = 'List'
-                    post_mangl = post_mangl + type_val
+                    post_mangl = post_mangl + type_val.split('@')[-1]
             return post_mangl
 
         if is_call:
@@ -521,7 +540,10 @@ class ast_visitor(ExplicitNodeVisitor):
         self.else_body(node.orelse)
 
     def visit_For(self, node, is_async=False):
+        # the loop variable is an int, visible in the loop body
+        self.loop_vars.append(node.target.id)
         self.body_or_else(node)
+        self.loop_vars.pop()
 
     def visit_While(self, node, is_async=False):
         self.body_or_else(node)
@@ -533,7 +555,9 @@ class ast_visitor(ExplicitNodeVisitor):
         return
 
     def visit_If(self, node):
-        return
+        # conservatively, both branches can be executed
+        self.visit(node.test)
+        self.body_or_else(node)
 
     def visit_AnnAssign(self, node):
         self.visit(node.value)
@@ -545,10 +569,31 @@ class ast_visitor(ExplicitNodeVisitor):
     def visit_List(self, node):
         return
 
+    # expressions can contain calls: visit their operands
+
     def visit_BinOp(self, node):
-        return
+        self.visit(node.left)
+        self.visit(node.right)
 
     def visit_UnaryOp(self, node):
+        self.visit(node.operand)
+
+    def visit_BoolOp(self, node):
+        for value in node.values:
+            self.visit(value)
+
+    def visit_Compare(self, node):
+        self.visit(node.left)
+        for comparator in node.comparators:
+            self.visit(comparator)
+
+    def visit_Break(self, node):
+        return
+
+    def visit_Continue(self, node):
+        return
+
+    def visit_Pass(self, node):
         return
 
 def merge_call_graphs(dict1, dict2):

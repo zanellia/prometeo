@@ -64,12 +64,13 @@ int main() {
     float_var = c_pmt_pmat_get_el(pmat_var, 1, 1);
     printf("pmat to float:\n%f\n\n", float_var);
 
-    for(int i = 0; i < 2; i++) {
-        c_pmt_pmat_set_el(pmat_var, 0,                                             i, c_pmt_pmat_get_el(pmat_var, 0, i));
+    for(int i = 0, ___pmt_end_1 = 2; i < ___pmt_end_1; i += 1) {
+        c_pmt_pmat_set_el(pmat_var, 0, i, c_pmt_pmat_get_el(pmat_var, 0, i));
     }
 
     c_pmt_pvec_set_el(pvec_var, 0, c_pmt_pvec_get_el(pvec_var, 1));
-    c_pmt_pmat_set_el(pmat_var, 0,                                             2, c_pmt_pvec_get_el(pvec_var, 1));
+    c_pmt_pvec_set_el(pvec_var, 1, c_pmt_pmat_get_el(pmat_var, 0, 2));
+    c_pmt_pmat_set_el(pmat_var, 0, 2, c_pmt_pvec_get_el(pvec_var, 1));
 	___c_pmt_8_heap = callee_pmt_8_heap;
 	___c_pmt_64_heap = callee_pmt_64_heap;
 

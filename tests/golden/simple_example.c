@@ -37,15 +37,15 @@ int _Z3fooint(int a) {
 	void *callee_pmt_64_heap = ___c_pmt_64_heap;
 
     struct pmat * A = c_pmt_create_pmat(nv, nv);
-    for(int i = 0; i < nv; i++) {
-        for(int j = 0; j < nv; j++) {
+    for(int i = 0, ___pmt_end_1 = nv; i < ___pmt_end_1; i += 1) {
+        for(int j = 0, ___pmt_end_2 = nv; j < ___pmt_end_2; j += 1) {
             c_pmt_pmat_set_el(A, i, j, 1.0);
     }
 
     }
 
     struct pmat * B = c_pmt_create_pmat(nv, nv);
-    for(int i = 0; i < nv; i++) {
+    for(int i = 0, ___pmt_end_3 = nv; i < ___pmt_end_3; i += 1) {
         c_pmt_pmat_set_el(B, 0, i, 2.0);
     }
 
@@ -54,7 +54,7 @@ int _Z3fooint(int a) {
     int b = 1;
     int c = 1;
     a = (a + b) * c;
-    b = _Z3fooint(b);;
+    b = _Z3fooint(b);
     c_pmt_pmat_print(A);
     c_pmt_pmat_print(B);
     c_pmt_gemm_ab(1.0, A, B, 0.0, D, D);

@@ -114,12 +114,19 @@ def unparse(node):
         return code
     return '(' + code + ')'
 
+def c_string_literal(value):
+    """C string literal with the content of the Python string value."""
+    escapes = {'\\': '\\\\', '"': '\\"', '\n': '\\n', '\t': '\\t', '\r': '\\r'}
+    return '"' + ''.join(escapes.get(c, c if c.isprintable() else '\\x%02x' % ord(c))
+        for c in value) + '"'
+
 def mangling_type(type_val):
     # Lists are mangled as 'List', regardless of element type and size
     # (e.g. 'List[int, n]'), as in function definitions
     if type_val.startswith('List['):
         return 'List'
-    return type_val
+    # types of attributes have a scope prefix (e.g. global@pmat)
+    return type_val.split('@')[-1]
 
 legacy_classinfo = ["ast.Num", "ast.Str", "ast.NameConstant"]
 
@@ -525,8 +532,10 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.scope = 'global'
         self.call_scope = 'global'
         self.casadi_funs = []
-        # nesting depth of calls whose arguments are being generated
-        self.call_depth = 0
+        # call that makes up the expression statement being generated
+        self.statement_call = None
+        # number of for loops generated so far (to name their bounds)
+        self.loop_count = 0
         self.var_dim_record = {'global': dict()}
         self.dim_record = dict()
         self.constructor_record = []
@@ -794,7 +803,15 @@ class SourceGenerator(ExplicitNodeVisitor):
                     raise Exception("Not implemented")
             elif my_isinstance(node.value, ast.Attribute):
                 type_val, s = self.get_type_of_node(node.value, scope)
-                # the type of a subscripted List is given by the type of 
+                # attribute types other than int and float carry a scope prefix
+                if type_val.split('@')[-1] == 'pmat':
+                    indices = node.slice.elts if my_isinstance(node.slice, ast.Tuple) else [node.slice]
+                    if any(my_isinstance(index, ast.Slice) for index in indices):
+                        return 'pmat', None
+                    return 'float', None
+                if type_val.split('@')[-1] == 'pvec':
+                    return 'float', None
+                # the type of a subscripted List is given by the type of
                 # its elements
                 return type_val.split('[')[1].split(',')[0], None
             else:
@@ -1651,16 +1668,18 @@ class SourceGenerator(ExplicitNodeVisitor):
             type_val_t, arg_types = self.get_type_of_node(node.targets[0], self.scope)
             if type_val != type_val_t and not (type_val_t == 'int' and type_val == 'dims'):
                 raise cgenException('Mismatching types in assignment {} = {}'.format(type_val_t, type_val), node.lineno)
-            # check for attributes
-            if hasattr(node.targets[0], 'value'):
+            # check the subscripted variable (or attribute) of subscript targets
+            if my_isinstance(node.targets[0], ast.Subscript):
                 if hasattr(node.targets[0].value, 'attr'):
                     # TODO(andrea): need to handle attributes recursively
                     target = node.targets[0].value.attr
                     obj_name = node.targets[0].value.value.id
-                    # TODO(andrea): need to compute local scope (find strings
-                    # that contain scope and have a string in common with self.scope)
-                    # this assumes that the class has been defined in the global scope
-                    scope = 'global@' + self.typed_record[self.scope][obj_name]
+                    if obj_name == 'self':
+                        # scope of the class of the current method
+                        scope = '@'.join(self.scope.split('@')[:-1])
+                    else:
+                        # this assumes that the class has been defined in the global scope
+                        scope = 'global@' + self.typed_record[self.scope][obj_name]
                     # the attribute must be defined in the object's class
                     if target not in self.typed_record.get(scope, {}):
                         raise cgenException('Unknown variable {}.'.format(target), node.lineno)
@@ -1670,152 +1689,47 @@ class SourceGenerator(ExplicitNodeVisitor):
                                 node.targets[0].value.id), node.lineno)
                     target = node.targets[0].value.id
                     scope = self.scope
-            else:
+            elif my_isinstance(node.targets[0], ast.Name):
                 if node.targets[0].id not in self.typed_record[self.scope]:
                     raise cgenException('Unknown variable {}.'.format(node.targets[0].id), node.lineno)
             if type(node.targets[0]) == ast.Subscript:
                 if target in self.typed_record[scope]:
                     # map subscript for pmats to blasfeo el assign
                     if self.typed_record[scope][target] == 'pmat':
-
-
-                        # check for ExtSlices
-                        isExtSlice = False
-                        if isinstance(node.targets[0].slice.elts[0], ast.Slice):
-                            isExtSlice = True
-
-                        if isExtSlice:
-                            first_arg = node.targets[0].slice.elts[0]
-                            second_arg = node.targets[0].slice.elts[1]
-
-                            first_index_l  = unparse( \
-                                first_arg.lower).strip('\n')
-
-                            first_index_u  = unparse( \
-                                first_arg.upper).strip('\n')
-
-                            second_index_l = unparse( \
-                                second_arg.lower).strip('\n')
-
-                            second_index_u = unparse( \
-                                second_arg.upper).strip('\n')
-
-                            # check if subscripted expression is used in the value
-                            if hasattr(node.value, 'slice'):
-                                first_arg_value = node.value.slice.elts[0]
-                                second_arg_value = node.value.slice.elts[1]
-
-                                first_index_value_l  = unparse( \
-                                    first_arg_value.lower).strip('\n')
-
-                                first_index_value_u  = unparse( \
-                                    first_arg_value.upper).strip('\n')
-
-                                second_index_value_l = unparse( \
-                                    second_arg_value.lower).strip('\n')
-
-                                second_index_value_u = unparse( \
-                                    second_arg_value.upper).strip('\n')
-
-                                ai = first_index_value_l
-                                aj = second_index_value_l
-                                value = node.value.value.id
+                        # C expression of the matrix, e.g. A or self->A
+                        target_c = recurse_attributes(node.targets[0].value)
+                        indices = node.targets[0].slice.elts
+                        if my_isinstance(indices[0], ast.Slice):
+                            # copy a matrix or a block into a block
+                            first_index_l = unparse(indices[0].lower)
+                            first_index_u = unparse(indices[0].upper)
+                            second_index_l = unparse(indices[1].lower)
+                            second_index_u = unparse(indices[1].upper)
+                            if my_isinstance(node.value, ast.Subscript):
+                                value = recurse_attributes(node.value.value)
+                                ai = unparse(node.value.slice.elts[0].lower)
+                                aj = unparse(node.value.slice.elts[1].lower)
                             else:
+                                value = recurse_attributes(node.value)
                                 ai = '0'
                                 aj = '0'
-                                value = node.value.id
                             m = first_index_u + '-' + first_index_l
                             n = second_index_u + '-' + second_index_l
-                            bi = second_index_l
-                            bj = second_index_l
-                            self.statement([], 'c_pmt_gecp(', m, ', ', n, ', ', value, \
-                                ', ', ai, ', ', aj, ', ', target, ', ', bi, ', ', bj, ');')
+                            self.statement([], 'c_pmt_gecp(', m, ', ', n, ', ', value, ', ', ai,
+                                ', ', aj, ', ', target_c, ', ', first_index_l, ', ', second_index_l, ');')
                         else:
-                            slice_target = get_slice_value(node.targets[0].slice)
-
-                            if not my_isinstance(slice_target, ast.Tuple):
-                                # ap.pprint(node)
-                                raise cgenException('Subscript to a pmat object'  
-                                    'must be of type Tuple.', node.lineno)
-
-                            # unparse slice expression
-                            first_index = unparse(slice_target.elts[0]).strip('\n')
-                            second_index = unparse(slice_target.elts[1]).strip('\n')
-
-                            # check if subscripted expression is used in the value
-                            if my_isinstance(node.value, ast.Subscript):
-                                # if value is a pmat
-                                value = node.value.value.id
-                                if value in self.typed_record[scope]:
-                                    if self.typed_record[scope][value] == 'pmat':
-                                        slice_value = get_slice_value(node.value.slice)
-                                        first_index_value = unparse(slice_value.elts[0]).strip('\n')
-                                        second_index_value = unparse(slice_value.elts[1]).strip('\n')
-
-                                        value_expr = 'c_pmt_pmat_get_el(' + value \
-                                            + ', {}, {})'.format(first_index_value, \
-                                            second_index_value)
-
-                                        self.statement([], 'c_pmt_pmat_set_el(', \
-                                            target, ', {}'.format(first_index), ', \
-                                            {}'.format(second_index), ', {}'.format( \
-                                            value_expr), ');')
-
-                                    elif self.typed_record[scope][value] == 'pvec':
-                                        # if value is a pvec
-                                        slice_value = get_slice_value(node.value.slice)
-                                        index_value = unparse(slice_value)
-
-                                        value_expr = 'c_pmt_pvec_get_el(' + value + \
-                                            ', {})'.format(index_value)
-                                        self.statement([], 'c_pmt_pmat_set_el(', \
-                                            target, ', {}'.format(first_index), ', \
-                                            {}'.format(second_index), ', {}'.format(value_expr), ');')
-                                else:
-                                    raise cgenException('Undefined variable {}.'.format(value), node.lineno)
-                            else:
-                                if not check_expression(node.value, tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]),
-                                        tuple([ast.USub]), ('dims'), tuple([ast.Constant, ast.Name]), self.dim_record):
-                                    raise cgenException('Invalid value {}'.format(unparse(node.value)), node.lineno)
-                                value = unparse(node.value)
-                                self.statement([], 'c_pmt_pmat_set_el(', target, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value), ');')
+                            # element (the value can read elements)
+                            set_precedence(Precedence.Comma, node.value)
+                            self.statement([], 'c_pmt_pmat_set_el(', target_c, ', ', unparse(indices[0]),
+                                ', ', unparse(indices[1]), ', ', node.value, ');')
                         return
 
-                    # check for pvec
                     elif self.typed_record[scope][target] == 'pvec':
-                        slice_target = get_slice_value(node.targets[0].slice)
-                        target = node.targets[0].value.id
-                        if target in self.typed_record[self.scope]:
-                            # map subscript for pvec to blasfeo el assign
-                            if self.typed_record[self.scope][target] in ('pvec'):
-                                target = node.targets[0]
-                                index = unparse(slice_target)
-
-                                # check if subscripted expression is used in the value
-                                if type(node.value) == ast.Subscript:
-                                    # if value is a pmat
-                                    value = node.value.value.id
-                                    if value in self.typed_record[self.scope]:
-                                        if self.typed_record[self.scope][value] == 'pmat':
-                                            slice_value = get_slice_value(node.value.slice)
-                                            first_index_value = unparse(slice_value.elts[0])
-                                            second_index_value = unparse(slice_value.elts[1])
-                                            value_expr = 'c_pmt_pmat_get_el(' + value + ', {}, {})'.format(first_index_value, second_index_value)
-                                        # single subscripting
-                                        else:
-                                            value = node.value.value.id
-                                            # if value is a pvec
-                                            if self.typed_record[self.scope][value] == 'pvec':
-                                                slice_value = get_slice_value(node.value.slice)
-                                                index_value = unparse(slice_value)
-
-                                                value_expr = 'c_pmt_pvec_get_el(' + value + ', {})'.format(index_value)
-                                                self.statement([], 'c_pmt_pvec_set_el(', target.value.id, ', {}'.format(index), ', {}'.format(value_expr), ');')
-                                else:
-                                    target = node.targets[0].value.id
-                                    value = Num_or_Name(node.value)
-                                    self.statement([], 'c_pmt_pvec_set_el(', target, ', {}'.format(index), ', {}'.format(value), ');')
-                                return
+                        target_c = recurse_attributes(node.targets[0].value)
+                        set_precedence(Precedence.Comma, node.value)
+                        self.statement([], 'c_pmt_pvec_set_el(', target_c, ', ',
+                            unparse(node.targets[0].slice), ', ', node.value, ');')
+                        return
 
             elif type(node.value) == ast.Subscript:
                 target = node.targets[0].id
@@ -1912,16 +1826,10 @@ class SourceGenerator(ExplicitNodeVisitor):
 
 
             elif my_isinstance(node.targets[0], ast.Attribute):
-                print('CHECK THIS')
-                # Assign targeting a user-defined class (C struct)
-                struct_name = node.targets[0].value.id
-                code = recurse_attributes(node.targets[0])
-                if struct_name in self.typed_record[self.scope]:
-                    attr_value = node.value.value
-                    attr_name = node.targets[0].attr
-                    self.statement([], struct_name, '->', attr_name, ' = ', str(attr_value), ';')
-                else:
-                    raise cgenException('Unknown variable {}.'.format(struct_name), node.lineno)
+                # Assign targeting an attribute of an object (C struct), e.g.
+                # self.a = <value> or obj.attr.b = <value>
+                set_precedence(Precedence.Comma, node.value)
+                self.statement([], recurse_attributes(node.targets[0]), ' = ', node.value, ';')
                 return
 
             else:
@@ -2107,10 +2015,10 @@ class SourceGenerator(ExplicitNodeVisitor):
             node.annotation.id = pmt_temp_types[ann]
             # assume that AnnAssigns on attributes are only used to declare instance attributes
             if my_isinstance(node.target, ast.Attribute):
-                self.write('\nself->' + str(node.target.attr) + ' = ', node.value, '\n', dest = 'src') 
+                self.write('\nself->' + str(node.target.attr) + ' = ', node.value, ';\n', dest = 'src') 
             else:
                 self.statement(node, node.annotation, ' ', node.target)
-                self.conditional_write(' = ', node.value, '', dest = 'src')
+                self.conditional_write(' = ', node.value, ';', dest = 'src')
 
             # increment scoped heap usage (3 pointers and 6 ints for pmats)
             self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
@@ -2142,10 +2050,10 @@ class SourceGenerator(ExplicitNodeVisitor):
 
             # assume that AnnAssigns on attributes are only used to declare instance attributes
             if my_isinstance(node.target, ast.Attribute):
-                self.write('\nself->' + str(node.target.attr) + ' = ', node.value, '\n', dest = 'src') 
+                self.write('\nself->' + str(node.target.attr) + ' = ', node.value, ';\n', dest = 'src') 
             else:
                 self.statement(node, node.annotation, ' ', node.target)
-                self.conditional_write(' = ', node.value, '', dest = 'src')
+                self.conditional_write(' = ', node.value, ';', dest = 'src')
 
             # increment scoped heap usage (2 pointers and 3 ints for pvecs)
             self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
@@ -2236,7 +2144,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         #         self.conditional_write(';', dest = 'src')
         # else:
         #     if node.value is not None:
-        #         self.conditional_write(' = ', node.value, '', dest = 'src')
+        #         self.conditional_write(' = ', node.value, ';', dest = 'src')
         #     else:
         #         self.conditional_write('', dest = 'src')
 
@@ -2276,8 +2184,10 @@ class SourceGenerator(ExplicitNodeVisitor):
                         node.value.func.attr = 'c_pmt_pmat_' + fun_name
         set_precedence(node, node.value)
 
+        self.statement_call = node.value
         self.statement(node)
         self.generic_visit(node)
+        self.statement_call = None
 
     def visit_FunctionDef(self, node, is_async=False):
         self.current_line = node.lineno
@@ -2447,27 +2357,35 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.current_line = node.lineno
         self.current_col = node.col_offset
         set_precedence(node, node.target)
-        prefix = 'is_async ' if is_async else ''
-        if len(node.iter.args) == 1:
-            # range(<value>)
-            range_value = unparse(node.iter.args[0]).strip('\n')
-            self.statement(node, 'for(int ',
-                    node.target, ' = 0; ', node.target,
-                    ' < {}'.format(range_value),
-                    '; ',node.target, '++) {')
-        elif len(node.iter.args) == 2:
-            # range(<value>, <value>)
-            range_value_1 = unparse(node.iter.args[0]).strip('\n')
-            range_value_2 = unparse(node.iter.args[1]).strip('\n')
-            increment = 1
-            self.statement(node, 'for(int ',
-                    node.target, ' = {}; '.format(range_value_1), node.target,
-                    ' < {}'.format(range_value_2),
-                    '; ',node.target, '+={})'.format(increment), ' {')
+        var = node.target.id
+        args = node.iter.args
+        if len(args) == 1:
+            start, stop, step = '0', unparse(args[0]), 1
+        elif len(args) in (2, 3):
+            start, stop = unparse(args[0]), unparse(args[1])
+            step = 1
+            if len(args) == 3:
+                # the step is an int literal (checked by the frontend)
+                if my_isinstance(args[2], ast.UnaryOp):
+                    step = -args[2].operand.value
+                else:
+                    step = args[2].value
         else:
             raise cgenException('Too many arguments for range().', node.lineno)
+        # as in Python, the bound is evaluated once, before the loop
+        self.loop_count += 1
+        end = '___pmt_end_{}'.format(self.loop_count)
+        self.statement(node, 'for(int {} = {}, {} = {}; {} {} {}; {} += {}) {{'.format(
+            var, start, end, stop, var, '<' if step > 0 else '>', end, var, step))
 
+        # the loop variable is an int, visible only in the loop body
+        previous = self.typed_record[self.scope].get(var)
+        self.typed_record[self.scope][var] = 'int'
         self.body_or_else(node)
+        if previous is None:
+            del self.typed_record[self.scope][var]
+        else:
+            self.typed_record[self.scope][var] = previous
         self.write('\n    }\n', dest = 'src')
 
     # introduced in Python 3.5
@@ -2518,7 +2436,7 @@ class SourceGenerator(ExplicitNodeVisitor):
     def visit_Pass(self, node):
         self.current_line = node.lineno
         self.current_col = node.col_offset
-        self.statement(node, 'pass')
+        self.statement(node, ';')
 
     def visit_Print(self, node):
         self.current_line = node.lineno
@@ -2650,12 +2568,12 @@ class SourceGenerator(ExplicitNodeVisitor):
     def visit_Break(self, node):
         self.current_line = node.lineno
         self.current_col = node.col_offset
-        self.statement(node, 'break')
+        self.statement(node, 'break;')
 
     def visit_Continue(self, node):
         self.current_line = node.lineno
         self.current_col = node.col_offset
-        self.statement(node, 'continue')
+        self.statement(node, 'continue;')
 
     def visit_Raise(self, node):
         self.current_line = node.lineno
@@ -2721,16 +2639,19 @@ class SourceGenerator(ExplicitNodeVisitor):
             if node.func.id == 'print':
                 if hasattr(node.args[0], 'op'):
                     if my_isinstance(node.args[0].op, ast.Mod):
-                        # print string with arguments
-                        write('printf("%s' %repr(node.args[0].left.value)[1:-1], '\\n", %s);\n' %node.args[0].right.id, dest = 'src')
+                        # print('<format>' % <value>)
+                        set_precedence(Precedence.Comma, node.args[0].right)
+                        write('printf(', c_string_literal(node.args[0].left.value + '\n'), ', ',
+                            node.args[0].right, ');\n', dest = 'src')
                         return
                     else:
                         raise cgenException('Invalid operator in \
                             call to print().', node.lineno)
 
                 else:
-                    # print string with no arguments
-                    write('printf("%s\\n");\n' %repr(node.args[0].value)[1:-1], dest = 'src')
+                    # print a string: '%' must not be interpreted as a format
+                    write('printf(', c_string_literal(
+                        node.args[0].value.replace('%', '%%') + '\n'), ');\n', dest = 'src')
                     return
             elif node.func.id == 'pparse':
 
@@ -2885,7 +2806,6 @@ class SourceGenerator(ExplicitNodeVisitor):
                     fun_name, len(arg_types), len(args)), node.lineno)
             
             i = 0
-            self.call_depth += 1
             for arg in args:
                 # check arg type
                 if my_isinstance(arg, ast.Name):
@@ -2910,7 +2830,6 @@ class SourceGenerator(ExplicitNodeVisitor):
 
                 write(write_comma, arg, dest = 'src')
                 i+=1
-            self.call_depth -= 1
 
             set_precedence(Precedence.Comma, *(x.value for x in keywords))
             for keyword in keywords:
@@ -2921,8 +2840,8 @@ class SourceGenerator(ExplicitNodeVisitor):
             # 3.5 no longer has these
             self.conditional_write(write_comma, '*', starargs, dest = 'src')
             self.conditional_write(write_comma, '**', kwargs, dest = 'src')
-            # a call used as an argument of another call is not a statement
-            write(')' if self.call_depth > 0 else ');', dest = 'src')
+            # only a call that makes up a whole expression statement ends with ';'
+            write(');' if node is self.statement_call else ')', dest = 'src')
 
     def visit_Name(self, node):
         self.current_line = node.lineno
@@ -3084,20 +3003,25 @@ class SourceGenerator(ExplicitNodeVisitor):
     def visit_BoolOp(self, node):
         self.current_line = node.lineno
         self.current_col = node.col_offset
-        with self.delimit(node, node.op) as delimiters:
-            op = get_op_symbol(node.op, ' %s ')
-            set_precedence(delimiters.p + 1, *node.values)
-            for idx, value in enumerate(node.values):
-                self.write(idx and op or '', value)
+        op = ' && ' if my_isinstance(node.op, ast.And) else ' || '
+        self.write('(', dest = 'src')
+        for idx, value in enumerate(node.values):
+            set_precedence(Precedence.Comma, value)
+            self.write(op if idx else '', '(', value, ')', dest = 'src')
+        self.write(')', dest = 'src')
 
     def visit_Compare(self, node):
         self.current_line = node.lineno
         self.current_col = node.col_offset
-        with self.delimit(node, node.ops[0]) as delimiters:
-            set_precedence(delimiters.p + 1, node.left, *node.comparators)
-            self.visit(node.left)
-            for op, right in zip(node.ops, node.comparators):
-                self.write(get_op_symbol(op, ' %s '), right, dest = 'src')
+        # a < b < c means (a < b) && (b < c), as in Python (in C, a < b < c
+        # would compare the result of a < b with c)
+        operands = [node.left] + node.comparators
+        self.write('(', dest = 'src')
+        for idx, op in enumerate(node.ops):
+            set_precedence(Precedence.Comma, operands[idx], operands[idx + 1])
+            self.write(' && ' if idx else '', '(', operands[idx], get_op_symbol(op, ' %s '),
+                operands[idx + 1], ')', dest = 'src')
+        self.write(')', dest = 'src')
 
     def visit_UnaryOp(self, node):
         self.current_line = node.lineno
@@ -3109,15 +3033,35 @@ class SourceGenerator(ExplicitNodeVisitor):
             # bit of ugliness means it is useful to know
             # what the parent operation was...
             node.operand._p_op = node.op
-            sym = get_op_symbol(node.op)
+            sym = '!' if my_isinstance(node.op, ast.Not) else get_op_symbol(node.op)
             # separate nested unary operators: '--x' is a decrement in C
             nested = isinstance(node.operand, ast.UnaryOp) or (isinstance(node.operand, ast.Constant)
                 and isinstance(node.operand.value, (int, float)) and node.operand.value < 0)
-            self.write(sym, ' ' if sym.isalpha() or nested else '', node.operand, dest = 'src')
+            if sym == '!':
+                set_precedence(Precedence.Comma, node.operand)
+                self.write('!(', node.operand, ')', dest = 'src')
+            else:
+                self.write(sym, ' ' if sym.isalpha() or nested else '', node.operand, dest = 'src')
 
     def visit_Subscript(self, node):
         self.current_line = node.lineno
         self.current_col = node.col_offset
+        # elements of matrices and vectors read inside expressions
+        if my_isinstance(node.value, (ast.Name, ast.Attribute)):
+            try:
+                base_type, _ = self.get_type_of_node(node.value, self.scope)
+                base_type = base_type.split('@')[-1]
+            except (cgenException, AttributeError):
+                base_type = None
+            if base_type == 'pmat' and my_isinstance(node.slice, ast.Tuple) and \
+                    not any(my_isinstance(i, ast.Slice) for i in node.slice.elts):
+                self.write('c_pmt_pmat_get_el(', node.value, ', ', unparse(node.slice.elts[0]),
+                    ', ', unparse(node.slice.elts[1]), ')', dest = 'src')
+                return
+            if base_type == 'pvec' and not my_isinstance(node.slice, (ast.Tuple, ast.Slice)):
+                self.write('c_pmt_pvec_get_el(', node.value, ', ', unparse(node.slice), ')',
+                    dest = 'src')
+                return
         set_precedence(node, node.slice)
         self.write(node.value, '[', node.slice, ']', dest = 'src')
 

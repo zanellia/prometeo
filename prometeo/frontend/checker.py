@@ -10,9 +10,11 @@ location, so that unsupported code is rejected up front instead of failing
 
 import ast
 import re
+from copy import deepcopy
 
 from .types import Type, INT, FLOAT, DIMS, DIMV, STR, NONE, PMAT, PVEC, \
     list_of, is_list, is_int_like, is_scalar, LIST_ELEMENT_TYPES
+from .normalize import normalize
 from .builtins import BUILTINS, UNSUPPORTED_BUILTINS, OUTPUT_ALIASING, BUILTIN_KEYWORDS
 
 C_KEYWORDS = {
@@ -66,6 +68,7 @@ class Scope:
         self.blocks = [{}]
         self.loop_vars = []
         self.depth = 0  # nesting depth of loops and conditionals
+        self.loops = 0  # nesting depth of loops
 
     def lookup(self, name):
         for block in reversed(self.blocks):
@@ -359,9 +362,6 @@ class Checker:
             self.check_declaration(stmt, scope)
         elif isinstance(stmt, ast.Assign):
             self.check_assignment(stmt, scope)
-        elif isinstance(stmt, ast.AugAssign):
-            self.unsupported(stmt, "augmented assignment ('{}=')".format(op_symbol(stmt.op)),
-                "write 'x = x {} ...' instead".format(op_symbol(stmt.op)))
         elif isinstance(stmt, ast.Expr):
             self.check_expression_statement(stmt, scope)
         elif isinstance(stmt, ast.For):
@@ -371,7 +371,9 @@ class Checker:
                 self.unsupported(stmt, "'else' on loops")
             self.check_condition(stmt.test, scope)
             scope.push()
+            scope.loops += 1
             self.check_block(stmt.body, scope)
+            scope.loops -= 1
             scope.pop()
         elif isinstance(stmt, ast.If):
             self.check_condition(stmt.test, scope)
@@ -383,6 +385,11 @@ class Checker:
             scope.pop()
         elif isinstance(stmt, ast.Return):
             self.check_return(stmt, scope)
+        elif isinstance(stmt, (ast.Break, ast.Continue)):
+            if scope.loops == 0:
+                self.error(stmt, '{} outside a loop'.format(describe(stmt)))
+        elif isinstance(stmt, ast.Pass):
+            pass
         else:
             self.unsupported(stmt, describe(stmt))
 
@@ -429,7 +436,7 @@ class Checker:
                     'program would use more memory than the computed bound')
             t = self.check_constructor(stmt.value, t)
         elif t in (INT, FLOAT):
-            self.check_scalar_value(stmt.value, t, scope, allow_element=False)
+            self.check_scalar_value(stmt.value, t, scope)
         if t is not None and isinstance(target, ast.Name):
             scope.declare(name, t)
 
@@ -525,32 +532,31 @@ class Checker:
                         "e.g. '{}: float = 0.0'".format(target.id, target.id))
                 return
             if is_scalar(t):
-                self.check_scalar_value(value, t, scope, allow_element=True)
+                self.check_scalar_value(value, t, scope)
             elif t in (PMAT, PVEC):
                 self.check_matrix_value(value, t, scope, target.id)
             else:
                 self.unsupported(stmt, 'assigning to a variable of type {}'.format(t))
         elif isinstance(target, ast.Subscript):
             self.check_subscript_assignment(target, value, scope)
+        elif isinstance(target, ast.Attribute):
+            t = self.attribute_type(target, scope)
+            if t is None:
+                return
+            if not is_scalar(t):
+                self.unsupported(stmt, 'assigning to an attribute of type {}'.format(t),
+                    'modify it in place instead (e.g. with {}_copy)'.format(t) if t in (PMAT, PVEC) else None)
+                return
+            self.check_scalar_value(value, t, scope)
         else:
             self.unsupported(stmt, 'assigning to {}'.format(describe(target)))
 
-    def check_scalar_value(self, value, t, scope, allow_element):
+    def check_scalar_value(self, value, t, scope):
         """Right-hand side assigned to a scalar of type t."""
         if isinstance(value, ast.Constant) and type(value.value) is int and t == FLOAT:
             return
-        if isinstance(value, ast.Subscript):
-            if not allow_element:
-                self.unsupported(value, 'initializing a variable with an element',
-                    "declare it first (e.g. 'x: float = 0.0'), then assign 'x = A[i, j]'")
-                return
-            vt = self.element_read(value, scope)
-        elif isinstance(value, ast.Call):
-            vt = self.check_call(value, scope)
-        elif isinstance(value, ast.Attribute):
-            vt = self.attribute_type(value, scope)
-        else:
-            vt = self.scalar_expr(value, scope)
+        self.check_evaluation_order(value, scope)
+        vt = self.scalar_expr(value, scope)
         if vt is None:
             return
         if not same_scalar(vt, t):
@@ -589,10 +595,6 @@ class Checker:
         if base_t is None:
             return
         if base_t == PMAT:
-            if not isinstance(target.value, ast.Name):
-                self.unsupported(target, 'assigning to elements of a matrix that is not a local '
-                    'variable or argument')
-                return
             indices = matrix_indices(target)
             if indices is None:
                 self.error(target, 'a pmat must be indexed with two indices, A[i, j] or A[a:b, c:d]')
@@ -619,10 +621,6 @@ class Checker:
                 self.index_expr(i, scope)
             self.check_element_value(value, scope)
         elif base_t == PVEC:
-            if not isinstance(target.value, ast.Name):
-                self.unsupported(target, 'assigning to elements of a vector that is not a local '
-                    'variable or argument')
-                return
             if isinstance(target.slice, (ast.Tuple, ast.Slice)):
                 self.error(target, 'a pvec must be indexed with one index, v[i]')
                 return
@@ -646,14 +644,8 @@ class Checker:
         """Value assigned to a matrix or vector element."""
         if isinstance(value, ast.Constant) and type(value.value) is int:
             return
-        if isinstance(value, ast.Subscript):
-            vt = self.element_read(value, scope)
-        elif isinstance(value, ast.Call):
-            self.unsupported(value, 'assigning the result of a call to an element',
-                'assign it to a variable first')
-            return
-        else:
-            vt = self.scalar_expr(value, scope)
+        self.check_evaluation_order(value, scope)
+        vt = self.scalar_expr(value, scope)
         if vt is not None and vt != FLOAT:
             self.error(value, 'matrix and vector elements are float, not {}'.format(vt))
 
@@ -680,8 +672,9 @@ class Checker:
         return None
 
     def scalar_expr(self, node, scope, in_index=False):
-        """Type of an arithmetic expression on int and float values. Loop
-        variables can only be used in indices and conditions (in_index)."""
+        """Type of an arithmetic expression on int and float values. Indices
+        (in_index) cannot contain calls and element reads, which are emitted
+        as plain text in the generated code."""
         if isinstance(node, ast.Constant):
             if type(node.value) in (int, float):
                 return INT if type(node.value) is int else FLOAT
@@ -691,12 +684,6 @@ class Checker:
             self.error(node, 'expected a number, got {}'.format(describe(node)))
             return None
         if isinstance(node, ast.Name):
-            if node.id in scope.loop_vars and scope.lookup(node.id) is None:
-                if not in_index:
-                    self.unsupported(node, "using the loop variable '{}' outside of indices and "
-                        "conditions".format(node.id))
-                    return None
-                return INT
             t = self.name_type(node, scope)
             if t is None:
                 return None
@@ -737,13 +724,21 @@ class Checker:
                 return None
             return FLOAT
         if isinstance(node, ast.Call):
-            self.unsupported(node, 'calling a function inside an expression',
-                'assign the result to a variable first')
-            return None
+            if in_index:
+                self.unsupported(node, 'calling a function in an index',
+                    'assign the result to a variable first')
+                return None
+            t = self.check_call(node, scope)
+            if t is not None and not is_scalar(t):
+                self.error(node, 'expected a number, but this call returns {}'.format(t))
+                return None
+            return t
         if isinstance(node, ast.Subscript):
-            self.unsupported(node, 'reading an element inside an expression',
-                "assign it to a variable first (e.g. 'x = A[i, j]')")
-            return None
+            if in_index:
+                self.unsupported(node, 'reading an element in an index',
+                    'assign it to a variable first')
+                return None
+            return self.element_read(node, scope)
         if isinstance(node, ast.Attribute):
             t = self.attribute_type(node, scope)
             if t is not None and not is_scalar(t):
@@ -753,23 +748,77 @@ class Checker:
         self.unsupported(node, describe(node))
         return None
 
+    def check_evaluation_order(self, node, scope):
+        """Python evaluates operands from left to right, C in an unspecified
+        order: an operand that calls a function with side effects (a method,
+        or a function taking a matrix, vector, list or object, which it can
+        modify) cannot be combined with operands that read data it could
+        modify."""
+        if isinstance(node, ast.BinOp):
+            operands = [node.left, node.right]
+        elif isinstance(node, ast.Compare):
+            operands = [node.left] + node.comparators
+        elif isinstance(node, ast.Call):
+            operands = list(node.args)
+        elif isinstance(node, ast.UnaryOp):
+            operands = [node.operand]
+        elif isinstance(node, ast.BoolOp):
+            # and / or are evaluated from left to right in C too
+            operands = []
+            for value in node.values:
+                self.check_evaluation_order(value, scope)
+        else:
+            operands = []
+        if len(operands) > 1:
+            effects = [self.has_side_effects(o, scope) for o in operands]
+            reads = [any(isinstance(n, (ast.Call, ast.Subscript, ast.Attribute))
+                for n in ast.walk(o)) for o in operands]
+            for i, effect in enumerate(effects):
+                if effect and any(reads[j] for j in range(len(operands)) if j != i):
+                    self.error(operands[i], 'this call can modify data read by the rest of the '
+                        'expression, which is evaluated in a different order in Python and in C: '
+                        'assign its result to a variable first')
+                    return
+        for o in operands:
+            self.check_evaluation_order(o, scope)
+
+    def has_side_effects(self, node, scope):
+        for n in ast.walk(node):
+            if not isinstance(n, ast.Call) or not isinstance(n.func, (ast.Name, ast.Attribute)):
+                continue
+            if isinstance(n.func, ast.Attribute) or n.func.id in BUILTINS:
+                return True
+            for overload in self.functions.get(n.func.id, []):
+                if any(t is not None and not is_scalar(t) for t in overload.arg_types):
+                    return True
+        return False
+
     def index_expr(self, node, scope):
         t = self.scalar_expr(node, scope, in_index=True)
         if t is not None and not is_int_like(t):
             self.error(node, 'indices must be integers, not {}'.format(t))
 
-    def check_condition(self, node, scope):
+    def check_condition(self, node, scope, top=True):
+        """Comparisons, combined with and, or, not."""
+        if top:
+            self.check_evaluation_order(node, scope)
         if isinstance(node, ast.BoolOp):
-            self.unsupported(node, "'and' / 'or' in conditions")
+            for value in node.values:
+                self.check_condition(value, scope, top=False)
             return
         if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
-            self.unsupported(node, "'not' in conditions")
+            self.check_condition(node.operand, scope, top=False)
             return
         if not isinstance(node, ast.Compare):
             self.error(node, 'conditions must be comparisons, e.g. a < b')
             return
         operands = [node.left] + node.comparators
-        types = [self.scalar_expr(o, scope, in_index=True) for o in operands]
+        for middle in operands[1:-1]:
+            if any(isinstance(n, ast.Call) for n in ast.walk(middle)):
+                self.error(middle, 'a call in the middle of a chained comparison would be '
+                    'evaluated twice in C: assign its result to a variable first')
+                return
+        types = [self.scalar_expr(o, scope) for o in operands]
         for op in node.ops:
             if not isinstance(op, (ast.Lt, ast.LtE, ast.Gt, ast.GtE, ast.Eq, ast.NotEq)):
                 self.unsupported(node, "the '{}' comparison".format(op_symbol(op)))
@@ -780,7 +829,7 @@ class Checker:
             self.error(node, 'comparing int and float values is not supported: use float literals (e.g. 2.0)')
 
     def element_read(self, node, scope):
-        """A[i, j], v[i] or l[i] read as a whole right-hand side."""
+        """Value of the element A[i, j], v[i] or l[i]."""
         base_t = self.subscript_base(node.value, scope)
         if base_t is None:
             return None
@@ -866,6 +915,7 @@ class Checker:
         if isinstance(value.func, ast.Name) and value.func.id == 'print':
             self.check_print(value, scope)
             return
+        self.check_evaluation_order(value, scope)
         self.check_call(value, scope)
 
     def check_print(self, node, scope):
@@ -889,10 +939,6 @@ class Checker:
                 return
             t = self.scalar_expr(arg.right, scope)
             if t is None:
-                return
-            if t == DIMS:
-                self.unsupported(arg.right, 'printing dims constants',
-                    'assign the value to an int variable first')
                 return
             if specs[0] in 'di':
                 if not is_int_like(t):
@@ -1006,9 +1052,6 @@ class Checker:
 
     def argument_type(self, node, scope):
         if isinstance(node, ast.Name):
-            if node.id in scope.loop_vars and scope.lookup(node.id) is None:
-                self.unsupported(node, "passing the loop variable '{}' as an argument".format(node.id))
-                return None
             return self.name_type(node, scope)
         if isinstance(node, ast.Subscript):
             base_t = self.subscript_base(node.value, scope)
@@ -1017,13 +1060,16 @@ class Checker:
             if is_list(base_t) and base_t.elem in (PMAT, PVEC):
                 self.index_expr(node.slice, scope)
                 return base_t.elem
-            self.unsupported(node, 'passing an element or a block as an argument',
-                'assign it to a variable first')
-            return None
+            if base_t == PMAT and any(isinstance(i, ast.Slice) for i in
+                    (node.slice.elts if isinstance(node.slice, ast.Tuple) else [node.slice])):
+                self.unsupported(node, 'passing a block of a matrix as an argument',
+                    'copy it to a matrix first')
+                return None
+            return self.element_read(node, scope)
         if isinstance(node, ast.Attribute):
             t = self.attribute_type(node, scope)
-            if t is not None and not is_scalar(t):
-                self.unsupported(node, 'passing an attribute of type {} as an argument'.format(t))
+            if t is not None and is_list(t):
+                self.unsupported(node, 'passing a List attribute as an argument')
                 return None
             return t
         if isinstance(node, ast.Call):
@@ -1050,14 +1096,23 @@ class Checker:
         if not (isinstance(it, ast.Call) and isinstance(it.func, ast.Name) and it.func.id == 'range'):
             self.unsupported(it, 'iterating over anything but range(...)')
             return
-        if not 1 <= len(it.args) <= 2 or it.keywords:
-            self.unsupported(it, 'range with a step')
+        if not 1 <= len(it.args) <= 3 or it.keywords:
+            self.error(it, 'range takes 1 to 3 arguments')
             return
-        for arg in it.args:
+        for arg in it.args[:2]:
             self.index_expr(arg, scope)
+        if len(it.args) == 3:
+            step = it.args[2]
+            literal = step.operand if isinstance(step, ast.UnaryOp) and \
+                isinstance(step.op, ast.USub) else step
+            if not (isinstance(literal, ast.Constant) and type(literal.value) is int and literal.value):
+                self.unsupported(step, 'a range step that is not a non-zero integer literal')
+                return
         scope.loop_vars.append(name)
         scope.push()
+        scope.loops += 1
         self.check_block(stmt.body, scope)
+        scope.loops -= 1
         scope.pop()
         scope.loop_vars.pop()
 
@@ -1078,10 +1133,8 @@ class Checker:
             if not isinstance(value, ast.Name) or self.name_type(value, scope) != ret:
                 self.error(value, 'expected a {} variable'.format(ret))
             return
-        if isinstance(value, ast.Call):
-            vt = self.check_call(value, scope)
-        else:
-            vt = self.scalar_expr(value, scope)
+        self.check_evaluation_order(value, scope)
+        vt = self.scalar_expr(value, scope)
         if vt is not None and not same_scalar(vt, ret) and not (
                 isinstance(value, ast.Constant) and type(value.value) is int and ret == FLOAT):
             self.error(value, "function '{}' must return a {}, not {}".format(scope.fun.name, ret, vt))
@@ -1147,6 +1200,6 @@ def op_symbol(op):
 def check(tree):
     """Check a prometeo program; return the list of diagnostics."""
     checker = Checker()
-    checker.check_module(tree)
+    checker.check_module(normalize(deepcopy(tree)))
     unique = {(d.lineno, d.col, d.severity, d.message): d for d in checker.diagnostics}
     return sorted(unique.values(), key=lambda d: (d.lineno, d.col))

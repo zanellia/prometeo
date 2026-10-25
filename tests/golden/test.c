@@ -71,46 +71,46 @@ void _Z9factorizeqp_data_impl(qp_data *self) {
     struct pmat * BA = c_pmt_create_pmat(nx, nxu);
     struct pmat * BAtP = c_pmt_create_pmat(nxu, nx);
     c_pmt_pmat_copy(self->Q[N - 1], self->P[N - 1]);
-    for(int i = 1; i < N; i+=1) {
+    for(int i = 1, ___pmt_end_1 = N; i < ___pmt_end_1; i += 1) {
         c_pmt_pmat_hcat(self->B[N - i], self->A[N - i], BA);
         c_pmt_gemm_tn(BA, self->P[N - i], BAtP, BAtP);
         c_pmt_pmat_copy(self->Q[N - i], Q);
         c_pmt_pmat_copy(self->R[N - i], R);
         c_pmt_gecp(nu-0, nu-0, R, 0, 0, M, 0, 0);
         c_pmt_gecp((nu + nx)-nu, (nu + nx)-nu, Q, 0, 0, M, nu, nu);
-        for(int j = 0; j < nu; j++) {
-            for(int k = 0; k < nu; k++) {
-                c_pmt_pmat_set_el(M, j,                                             k, c_pmt_pmat_get_el(R, j, k));
+        for(int j = 0, ___pmt_end_2 = nu; j < ___pmt_end_2; j += 1) {
+            for(int k = 0, ___pmt_end_3 = nu; k < ___pmt_end_3; k += 1) {
+                c_pmt_pmat_set_el(M, j, k, c_pmt_pmat_get_el(R, j, k));
     }
 
     }
 
-        for(int j = 0; j < nx; j++) {
-            for(int k = 0; k < nx; k++) {
-                c_pmt_pmat_set_el(M, (nu + j),                                             (nu + k), c_pmt_pmat_get_el(Q, j, k));
+        for(int j = 0, ___pmt_end_4 = nx; j < ___pmt_end_4; j += 1) {
+            for(int k = 0, ___pmt_end_5 = nx; k < ___pmt_end_5; k += 1) {
+                c_pmt_pmat_set_el(M, (nu + j), (nu + k), c_pmt_pmat_get_el(Q, j, k));
     }
 
     }
 
         c_pmt_gemm_nn(BAtP, BA, M, M);
-        for(int j = 0; j < nu; j++) {
-            for(int k = 0; k < nu; k++) {
-                c_pmt_pmat_set_el(Mu, j,                                             k, c_pmt_pmat_get_el(M, j, k));
+        for(int j = 0, ___pmt_end_6 = nu; j < ___pmt_end_6; j += 1) {
+            for(int k = 0, ___pmt_end_7 = nu; k < ___pmt_end_7; k += 1) {
+                c_pmt_pmat_set_el(Mu, j, k, c_pmt_pmat_get_el(M, j, k));
     }
 
     }
 
         c_pmt_potrf(Mu, Lu);
-        for(int j = 0; j < nx; j++) {
-            for(int k = 0; k < nx; k++) {
-                c_pmt_pmat_set_el(Mxut, k,                                             (nu + j), c_pmt_pmat_get_el(M, j, k));
+        for(int j = 0, ___pmt_end_8 = nx; j < ___pmt_end_8; j += 1) {
+            for(int k = 0, ___pmt_end_9 = nx; k < ___pmt_end_9; k += 1) {
+                c_pmt_pmat_set_el(Mxut, k, (nu + j), c_pmt_pmat_get_el(M, j, k));
     }
 
     }
 
-        for(int j = 0; j < nx; j++) {
-            for(int k = 0; k < nx; k++) {
-                c_pmt_pmat_set_el(Mxx, k,                                             j, c_pmt_pmat_get_el(M, (nu + j), (nu + k)));
+        for(int j = 0, ___pmt_end_10 = nx; j < ___pmt_end_10; j += 1) {
+            for(int k = 0, ___pmt_end_11 = nx; k < ___pmt_end_11; k += 1) {
+                c_pmt_pmat_set_el(Mxx, k, j, c_pmt_pmat_get_el(M, (nu + j), (nu + k)));
     }
 
     }
@@ -153,12 +153,13 @@ void _Z9factorizeqp_data_impl(qp_data *self) {
     c_pmt_pvec_set_el(a, 0, d);
     c_pmt_pvec_set_el(a, 0, 1.0);
     d = c_pmt_pvec_get_el(a, 0);
-    for(int i = 0; i < 2; i++) {
-        c_pmt_pmat_set_el(M, 0,                                             i, c_pmt_pmat_get_el(M, 0, i));
+    for(int i = 0, ___pmt_end_12 = 2; i < ___pmt_end_12; i += 1) {
+        c_pmt_pmat_set_el(M, 0, i, c_pmt_pmat_get_el(M, 0, i));
     }
 
     c_pmt_pvec_set_el(a, 0, c_pmt_pvec_get_el(a, 1));
-    c_pmt_pmat_set_el(M, 0,                                             2, c_pmt_pvec_get_el(a, 1));
+    c_pmt_pvec_set_el(a, 1, c_pmt_pmat_get_el(M, 0, 2));
+    c_pmt_pmat_set_el(M, 0, 2, c_pmt_pvec_get_el(a, 1));
     struct pmat * A = c_pmt_create_pmat(nx, nx);
     c_pmt_pmat_set_el(A, 0, 0, 0.8);
     c_pmt_pmat_set_el(A, 0, 1, 0.1);
@@ -182,19 +183,19 @@ void _Z9factorizeqp_data_impl(qp_data *self) {
     struct qp_data qp___;
     struct qp_data * qp= &qp___;
     qp_data_constructor(qp); //
-    for(int i = 0; i < N; i++) {
+    for(int i = 0, ___pmt_end_13 = N; i < ___pmt_end_13; i += 1) {
         qp->A[i] = A;
     }
 
-    for(int i = 0; i < N; i++) {
+    for(int i = 0, ___pmt_end_14 = N; i < ___pmt_end_14; i += 1) {
         qp->B[i] = B;
     }
 
-    for(int i = 0; i < N; i++) {
+    for(int i = 0, ___pmt_end_15 = N; i < ___pmt_end_15; i += 1) {
         qp->Q[i] = Q;
     }
 
-    for(int i = 0; i < N; i++) {
+    for(int i = 0, ___pmt_end_16 = N; i < ___pmt_end_16; i += 1) {
         qp->R[i] = R;
     }
 

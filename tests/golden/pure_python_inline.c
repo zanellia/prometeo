@@ -29,15 +29,15 @@ int main() {
 	void *callee_pmt_64_heap = ___c_pmt_64_heap;
 
     struct pmat * A = c_pmt_create_pmat(n, n);
-    for(int i = 0; i < n; i++) {
-        for(int j = 0; j < n; j++) {
+    for(int i = 0, ___pmt_end_1 = n; i < ___pmt_end_1; i += 1) {
+        for(int j = 0, ___pmt_end_2 = n; j < ___pmt_end_2; j += 1) {
             c_pmt_pmat_set_el(A, i, j, 1.0);
     }
 
     }
 
     struct pmat * B = c_pmt_create_pmat(n, n);
-    for(int i = 0; i < n; i++) {
+    for(int i = 0, ___pmt_end_3 = n; i < ___pmt_end_3; i += 1) {
         c_pmt_pmat_set_el(B, 0, i, 2.0);
     }
 

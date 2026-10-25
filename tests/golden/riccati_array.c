@@ -53,10 +53,10 @@ int main() {
     c_pmt_pmat_tran(BA, BAt);
     c_pmt_gecp(nu-0, nu-0, R, 0, 0, RSQ, 0, 0);
     c_pmt_gecp((nu + nx)-nu, (nu + nx)-nu, Q, 0, 0, RSQ, nu, nu);
-    for(int i = 0; i < nrep; i++) {
+    for(int i = 0, ___pmt_end_1 = nrep; i < ___pmt_end_1; i += 1) {
         c_pmt_potrf(Q, Lxx);
         c_pmt_gecp((nu + nx)-nu, (nu + nx)-nu, Lxx, 0, 0, M, nu, nu);
-        for(int i = 1; i < N; i+=1) {
+        for(int i = 1, ___pmt_end_2 = N; i < ___pmt_end_2; i += 1) {
             c_pmt_trmm_rlnn(Lxx, BAt, w_nxu_nx);
             c_pmt_syrk_ln(w_nxu_nx, w_nxu_nx, RSQ, M);
             c_pmt_potrf(M, M);

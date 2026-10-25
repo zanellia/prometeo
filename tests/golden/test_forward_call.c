@@ -12,8 +12,8 @@ void _Z4fillpmatfloat(struct pmat * A, double value) {
 	void *callee_pmt_8_heap = ___c_pmt_8_heap;
 	void *callee_pmt_64_heap = ___c_pmt_64_heap;
 
-    for(int i = 0; i < n; i++) {
-        for(int j = 0; j < n; j++) {
+    for(int i = 0, ___pmt_end_1 = n; i < ___pmt_end_1; i += 1) {
+        for(int j = 0, ___pmt_end_2 = n; j < ___pmt_end_2; j += 1) {
             c_pmt_pmat_set_el(A, i, j, value);
     }
 
@@ -29,7 +29,7 @@ void _Z4fillpmatfloat(struct pmat * A, double value) {
 	void *callee_pmt_64_heap = ___c_pmt_64_heap;
 
     double tmp = 0.0;
-    for(int i = 0; i < n; i++) {
+    for(int i = 0, ___pmt_end_3 = n; i < ___pmt_end_3; i += 1) {
         tmp = c_pmt_pmat_get_el(A, i, i);
         tmp = tmp + value;
         c_pmt_pmat_set_el(A, i, i, tmp);

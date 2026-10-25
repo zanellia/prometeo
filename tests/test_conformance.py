@@ -20,7 +20,7 @@ import re
 
 import pytest
 
-from prometeo.cmdline.pmt import normalize_plist_types, strip_pure_blocks
+from prometeo.cmdline.pmt import strip_pure_blocks
 from prometeo.frontend import check
 
 from pmt_testing import run_pmt, assert_same_numbers
@@ -51,7 +51,7 @@ CASES = load_cases()
 
 @pytest.mark.parametrize('source, expect, message', CASES)
 def test_checker(source, expect, message):
-    diagnostics = check(normalize_plist_types(ast.parse(strip_pure_blocks(source))))
+    diagnostics = check(ast.parse(strip_pure_blocks(source)))
     errors = [d.message for d in diagnostics if d.severity == 'error']
     warnings = [d.message for d in diagnostics if d.severity == 'warning']
     if expect == 'error':
