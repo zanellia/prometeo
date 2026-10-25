@@ -63,15 +63,6 @@ void c_pmt_pvec_fill(struct pvec *a, double fill_value) {
         blasfeo_dvecin1(fill_value, a->bvec, i);
 }
 
-void c_pmt_pvec_set_el(struct pvec *a, int i, double fill_value) {
-
-    blasfeo_dvecin1(fill_value, a->bvec, i);
-}
-
-double c_pmt_pvec_get_el(struct pvec *a, int i) {
-
-    return blasfeo_dvecex1(a->bvec, i);
-}
 
 void c_pmt_pvec_copy(struct pvec *a, struct pvec *b) {
     int m = a->bvec->m;

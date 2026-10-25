@@ -291,6 +291,48 @@ void c_pmt_casadi_rk4(struct pmat *in_0, struct pmat *in_1, struct pmat *out_0, 
 #define R_sizes_18_1 nu
 #define R_sizes_19_0 nu
 #define R_sizes_19_1 nu
+#define P_sizes_0_0 nx
+#define P_sizes_0_1 nx
+#define P_sizes_1_0 nx
+#define P_sizes_1_1 nx
+#define P_sizes_2_0 nx
+#define P_sizes_2_1 nx
+#define P_sizes_3_0 nx
+#define P_sizes_3_1 nx
+#define P_sizes_4_0 nx
+#define P_sizes_4_1 nx
+#define P_sizes_5_0 nx
+#define P_sizes_5_1 nx
+#define P_sizes_6_0 nx
+#define P_sizes_6_1 nx
+#define P_sizes_7_0 nx
+#define P_sizes_7_1 nx
+#define P_sizes_8_0 nx
+#define P_sizes_8_1 nx
+#define P_sizes_9_0 nx
+#define P_sizes_9_1 nx
+#define P_sizes_10_0 nx
+#define P_sizes_10_1 nx
+#define P_sizes_11_0 nx
+#define P_sizes_11_1 nx
+#define P_sizes_12_0 nx
+#define P_sizes_12_1 nx
+#define P_sizes_13_0 nx
+#define P_sizes_13_1 nx
+#define P_sizes_14_0 nx
+#define P_sizes_14_1 nx
+#define P_sizes_15_0 nx
+#define P_sizes_15_1 nx
+#define P_sizes_16_0 nx
+#define P_sizes_16_1 nx
+#define P_sizes_17_0 nx
+#define P_sizes_17_1 nx
+#define P_sizes_18_0 nx
+#define P_sizes_18_1 nx
+#define P_sizes_19_0 nx
+#define P_sizes_19_1 nx
+#define P_sizes_20_0 nx
+#define P_sizes_20_1 nx
 
 typedef struct SQP SQP;
 
@@ -314,13 +356,27 @@ struct pmat * K[20];
 struct pmat * kk[20];
 struct pmat * dxn[21];
 struct pmat * dun[20];
+struct pmat * P[21];
+struct pmat * L[20];
+struct pmat * Hux[20];
+struct pmat * tl[20];
+struct pmat * tu[20];
+struct pmat * ddu[20];
+struct pmat * dsl[20];
+struct pmat * dsu[20];
+struct pmat * dzl[20];
+struct pmat * dzu[20];
 struct pmat * x0;
 struct pmat * Q;
 struct pmat * R;
 int ipm_iterations;
 void (*_Z8__init__)(SQP *self);
 void (*_Z9linearize)(SQP *self);
-void (*_Z2lq)(SQP *self);
+void (*_Z9lq_factor)(SQP *self);
+void (*_Z8lq_solve)(SQP *self);
+void (*_Z3rhs)(SQP *self);
+void (*_Z10directions)(SQP *self);
+double (*_Z8max_stepfloat)(SQP *self, double frac);
 void (*_Z3ipm)(SQP *self);
 double (*_Z5apply)(SQP *self);
 double (*_Z7iterate)(SQP *self);
@@ -328,7 +384,11 @@ double (*_Z7iterate)(SQP *self);
 
 void (_Z8__init__SQP_impl)(SQP *self);
 void (_Z9linearizeSQP_impl)(SQP *self);
-void (_Z2lqSQP_impl)(SQP *self);
+void (_Z9lq_factorSQP_impl)(SQP *self);
+void (_Z8lq_solveSQP_impl)(SQP *self);
+void (_Z3rhsSQP_impl)(SQP *self);
+void (_Z10directionsSQP_impl)(SQP *self);
+double (_Z8max_stepfloatSQP_impl)(SQP *self, double frac);
 void (_Z3ipmSQP_impl)(SQP *self);
 double (_Z5applySQP_impl)(SQP *self);
 double (_Z7iterateSQP_impl)(SQP *self);

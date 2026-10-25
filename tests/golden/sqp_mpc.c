@@ -21,11 +21,14 @@ double tol = 1e-10;
 int n_mpc = 30;
 int n_ipm = 50;
 double ipm_tol = 1e-12;
-double sigma = 0.1;
 void SQP_constructor(struct SQP *object){
     object->_Z8__init__ = &_Z8__init__SQP_impl;
     object->_Z9linearize = &_Z9linearizeSQP_impl;
-    object->_Z2lq = &_Z2lqSQP_impl;
+    object->_Z9lq_factor = &_Z9lq_factorSQP_impl;
+    object->_Z8lq_solve = &_Z8lq_solveSQP_impl;
+    object->_Z3rhs = &_Z3rhsSQP_impl;
+    object->_Z10directions = &_Z10directionsSQP_impl;
+    object->_Z8max_stepfloat = &_Z8max_stepfloatSQP_impl;
     object->_Z3ipm = &_Z3ipmSQP_impl;
     object->_Z5apply = &_Z5applySQP_impl;
     object->_Z7iterate = &_Z7iterateSQP_impl;
@@ -422,6 +425,207 @@ void _Z8__init__SQP_impl(SQP *self) {
     self->dun[17] = c_pmt_create_pmat(nu, 1);
     self->dun[18] = c_pmt_create_pmat(nu, 1);
     self->dun[19] = c_pmt_create_pmat(nu, 1);
+    self->P[0] = c_pmt_create_pmat(nx, nx);
+    self->P[1] = c_pmt_create_pmat(nx, nx);
+    self->P[2] = c_pmt_create_pmat(nx, nx);
+    self->P[3] = c_pmt_create_pmat(nx, nx);
+    self->P[4] = c_pmt_create_pmat(nx, nx);
+    self->P[5] = c_pmt_create_pmat(nx, nx);
+    self->P[6] = c_pmt_create_pmat(nx, nx);
+    self->P[7] = c_pmt_create_pmat(nx, nx);
+    self->P[8] = c_pmt_create_pmat(nx, nx);
+    self->P[9] = c_pmt_create_pmat(nx, nx);
+    self->P[10] = c_pmt_create_pmat(nx, nx);
+    self->P[11] = c_pmt_create_pmat(nx, nx);
+    self->P[12] = c_pmt_create_pmat(nx, nx);
+    self->P[13] = c_pmt_create_pmat(nx, nx);
+    self->P[14] = c_pmt_create_pmat(nx, nx);
+    self->P[15] = c_pmt_create_pmat(nx, nx);
+    self->P[16] = c_pmt_create_pmat(nx, nx);
+    self->P[17] = c_pmt_create_pmat(nx, nx);
+    self->P[18] = c_pmt_create_pmat(nx, nx);
+    self->P[19] = c_pmt_create_pmat(nx, nx);
+    self->P[20] = c_pmt_create_pmat(nx, nx);
+    self->L[0] = c_pmt_create_pmat(nu, nu);
+    self->L[1] = c_pmt_create_pmat(nu, nu);
+    self->L[2] = c_pmt_create_pmat(nu, nu);
+    self->L[3] = c_pmt_create_pmat(nu, nu);
+    self->L[4] = c_pmt_create_pmat(nu, nu);
+    self->L[5] = c_pmt_create_pmat(nu, nu);
+    self->L[6] = c_pmt_create_pmat(nu, nu);
+    self->L[7] = c_pmt_create_pmat(nu, nu);
+    self->L[8] = c_pmt_create_pmat(nu, nu);
+    self->L[9] = c_pmt_create_pmat(nu, nu);
+    self->L[10] = c_pmt_create_pmat(nu, nu);
+    self->L[11] = c_pmt_create_pmat(nu, nu);
+    self->L[12] = c_pmt_create_pmat(nu, nu);
+    self->L[13] = c_pmt_create_pmat(nu, nu);
+    self->L[14] = c_pmt_create_pmat(nu, nu);
+    self->L[15] = c_pmt_create_pmat(nu, nu);
+    self->L[16] = c_pmt_create_pmat(nu, nu);
+    self->L[17] = c_pmt_create_pmat(nu, nu);
+    self->L[18] = c_pmt_create_pmat(nu, nu);
+    self->L[19] = c_pmt_create_pmat(nu, nu);
+    self->Hux[0] = c_pmt_create_pmat(nu, nx);
+    self->Hux[1] = c_pmt_create_pmat(nu, nx);
+    self->Hux[2] = c_pmt_create_pmat(nu, nx);
+    self->Hux[3] = c_pmt_create_pmat(nu, nx);
+    self->Hux[4] = c_pmt_create_pmat(nu, nx);
+    self->Hux[5] = c_pmt_create_pmat(nu, nx);
+    self->Hux[6] = c_pmt_create_pmat(nu, nx);
+    self->Hux[7] = c_pmt_create_pmat(nu, nx);
+    self->Hux[8] = c_pmt_create_pmat(nu, nx);
+    self->Hux[9] = c_pmt_create_pmat(nu, nx);
+    self->Hux[10] = c_pmt_create_pmat(nu, nx);
+    self->Hux[11] = c_pmt_create_pmat(nu, nx);
+    self->Hux[12] = c_pmt_create_pmat(nu, nx);
+    self->Hux[13] = c_pmt_create_pmat(nu, nx);
+    self->Hux[14] = c_pmt_create_pmat(nu, nx);
+    self->Hux[15] = c_pmt_create_pmat(nu, nx);
+    self->Hux[16] = c_pmt_create_pmat(nu, nx);
+    self->Hux[17] = c_pmt_create_pmat(nu, nx);
+    self->Hux[18] = c_pmt_create_pmat(nu, nx);
+    self->Hux[19] = c_pmt_create_pmat(nu, nx);
+    self->tl[0] = c_pmt_create_pmat(nu, 1);
+    self->tl[1] = c_pmt_create_pmat(nu, 1);
+    self->tl[2] = c_pmt_create_pmat(nu, 1);
+    self->tl[3] = c_pmt_create_pmat(nu, 1);
+    self->tl[4] = c_pmt_create_pmat(nu, 1);
+    self->tl[5] = c_pmt_create_pmat(nu, 1);
+    self->tl[6] = c_pmt_create_pmat(nu, 1);
+    self->tl[7] = c_pmt_create_pmat(nu, 1);
+    self->tl[8] = c_pmt_create_pmat(nu, 1);
+    self->tl[9] = c_pmt_create_pmat(nu, 1);
+    self->tl[10] = c_pmt_create_pmat(nu, 1);
+    self->tl[11] = c_pmt_create_pmat(nu, 1);
+    self->tl[12] = c_pmt_create_pmat(nu, 1);
+    self->tl[13] = c_pmt_create_pmat(nu, 1);
+    self->tl[14] = c_pmt_create_pmat(nu, 1);
+    self->tl[15] = c_pmt_create_pmat(nu, 1);
+    self->tl[16] = c_pmt_create_pmat(nu, 1);
+    self->tl[17] = c_pmt_create_pmat(nu, 1);
+    self->tl[18] = c_pmt_create_pmat(nu, 1);
+    self->tl[19] = c_pmt_create_pmat(nu, 1);
+    self->tu[0] = c_pmt_create_pmat(nu, 1);
+    self->tu[1] = c_pmt_create_pmat(nu, 1);
+    self->tu[2] = c_pmt_create_pmat(nu, 1);
+    self->tu[3] = c_pmt_create_pmat(nu, 1);
+    self->tu[4] = c_pmt_create_pmat(nu, 1);
+    self->tu[5] = c_pmt_create_pmat(nu, 1);
+    self->tu[6] = c_pmt_create_pmat(nu, 1);
+    self->tu[7] = c_pmt_create_pmat(nu, 1);
+    self->tu[8] = c_pmt_create_pmat(nu, 1);
+    self->tu[9] = c_pmt_create_pmat(nu, 1);
+    self->tu[10] = c_pmt_create_pmat(nu, 1);
+    self->tu[11] = c_pmt_create_pmat(nu, 1);
+    self->tu[12] = c_pmt_create_pmat(nu, 1);
+    self->tu[13] = c_pmt_create_pmat(nu, 1);
+    self->tu[14] = c_pmt_create_pmat(nu, 1);
+    self->tu[15] = c_pmt_create_pmat(nu, 1);
+    self->tu[16] = c_pmt_create_pmat(nu, 1);
+    self->tu[17] = c_pmt_create_pmat(nu, 1);
+    self->tu[18] = c_pmt_create_pmat(nu, 1);
+    self->tu[19] = c_pmt_create_pmat(nu, 1);
+    self->ddu[0] = c_pmt_create_pmat(nu, 1);
+    self->ddu[1] = c_pmt_create_pmat(nu, 1);
+    self->ddu[2] = c_pmt_create_pmat(nu, 1);
+    self->ddu[3] = c_pmt_create_pmat(nu, 1);
+    self->ddu[4] = c_pmt_create_pmat(nu, 1);
+    self->ddu[5] = c_pmt_create_pmat(nu, 1);
+    self->ddu[6] = c_pmt_create_pmat(nu, 1);
+    self->ddu[7] = c_pmt_create_pmat(nu, 1);
+    self->ddu[8] = c_pmt_create_pmat(nu, 1);
+    self->ddu[9] = c_pmt_create_pmat(nu, 1);
+    self->ddu[10] = c_pmt_create_pmat(nu, 1);
+    self->ddu[11] = c_pmt_create_pmat(nu, 1);
+    self->ddu[12] = c_pmt_create_pmat(nu, 1);
+    self->ddu[13] = c_pmt_create_pmat(nu, 1);
+    self->ddu[14] = c_pmt_create_pmat(nu, 1);
+    self->ddu[15] = c_pmt_create_pmat(nu, 1);
+    self->ddu[16] = c_pmt_create_pmat(nu, 1);
+    self->ddu[17] = c_pmt_create_pmat(nu, 1);
+    self->ddu[18] = c_pmt_create_pmat(nu, 1);
+    self->ddu[19] = c_pmt_create_pmat(nu, 1);
+    self->dsl[0] = c_pmt_create_pmat(nu, 1);
+    self->dsl[1] = c_pmt_create_pmat(nu, 1);
+    self->dsl[2] = c_pmt_create_pmat(nu, 1);
+    self->dsl[3] = c_pmt_create_pmat(nu, 1);
+    self->dsl[4] = c_pmt_create_pmat(nu, 1);
+    self->dsl[5] = c_pmt_create_pmat(nu, 1);
+    self->dsl[6] = c_pmt_create_pmat(nu, 1);
+    self->dsl[7] = c_pmt_create_pmat(nu, 1);
+    self->dsl[8] = c_pmt_create_pmat(nu, 1);
+    self->dsl[9] = c_pmt_create_pmat(nu, 1);
+    self->dsl[10] = c_pmt_create_pmat(nu, 1);
+    self->dsl[11] = c_pmt_create_pmat(nu, 1);
+    self->dsl[12] = c_pmt_create_pmat(nu, 1);
+    self->dsl[13] = c_pmt_create_pmat(nu, 1);
+    self->dsl[14] = c_pmt_create_pmat(nu, 1);
+    self->dsl[15] = c_pmt_create_pmat(nu, 1);
+    self->dsl[16] = c_pmt_create_pmat(nu, 1);
+    self->dsl[17] = c_pmt_create_pmat(nu, 1);
+    self->dsl[18] = c_pmt_create_pmat(nu, 1);
+    self->dsl[19] = c_pmt_create_pmat(nu, 1);
+    self->dsu[0] = c_pmt_create_pmat(nu, 1);
+    self->dsu[1] = c_pmt_create_pmat(nu, 1);
+    self->dsu[2] = c_pmt_create_pmat(nu, 1);
+    self->dsu[3] = c_pmt_create_pmat(nu, 1);
+    self->dsu[4] = c_pmt_create_pmat(nu, 1);
+    self->dsu[5] = c_pmt_create_pmat(nu, 1);
+    self->dsu[6] = c_pmt_create_pmat(nu, 1);
+    self->dsu[7] = c_pmt_create_pmat(nu, 1);
+    self->dsu[8] = c_pmt_create_pmat(nu, 1);
+    self->dsu[9] = c_pmt_create_pmat(nu, 1);
+    self->dsu[10] = c_pmt_create_pmat(nu, 1);
+    self->dsu[11] = c_pmt_create_pmat(nu, 1);
+    self->dsu[12] = c_pmt_create_pmat(nu, 1);
+    self->dsu[13] = c_pmt_create_pmat(nu, 1);
+    self->dsu[14] = c_pmt_create_pmat(nu, 1);
+    self->dsu[15] = c_pmt_create_pmat(nu, 1);
+    self->dsu[16] = c_pmt_create_pmat(nu, 1);
+    self->dsu[17] = c_pmt_create_pmat(nu, 1);
+    self->dsu[18] = c_pmt_create_pmat(nu, 1);
+    self->dsu[19] = c_pmt_create_pmat(nu, 1);
+    self->dzl[0] = c_pmt_create_pmat(nu, 1);
+    self->dzl[1] = c_pmt_create_pmat(nu, 1);
+    self->dzl[2] = c_pmt_create_pmat(nu, 1);
+    self->dzl[3] = c_pmt_create_pmat(nu, 1);
+    self->dzl[4] = c_pmt_create_pmat(nu, 1);
+    self->dzl[5] = c_pmt_create_pmat(nu, 1);
+    self->dzl[6] = c_pmt_create_pmat(nu, 1);
+    self->dzl[7] = c_pmt_create_pmat(nu, 1);
+    self->dzl[8] = c_pmt_create_pmat(nu, 1);
+    self->dzl[9] = c_pmt_create_pmat(nu, 1);
+    self->dzl[10] = c_pmt_create_pmat(nu, 1);
+    self->dzl[11] = c_pmt_create_pmat(nu, 1);
+    self->dzl[12] = c_pmt_create_pmat(nu, 1);
+    self->dzl[13] = c_pmt_create_pmat(nu, 1);
+    self->dzl[14] = c_pmt_create_pmat(nu, 1);
+    self->dzl[15] = c_pmt_create_pmat(nu, 1);
+    self->dzl[16] = c_pmt_create_pmat(nu, 1);
+    self->dzl[17] = c_pmt_create_pmat(nu, 1);
+    self->dzl[18] = c_pmt_create_pmat(nu, 1);
+    self->dzl[19] = c_pmt_create_pmat(nu, 1);
+    self->dzu[0] = c_pmt_create_pmat(nu, 1);
+    self->dzu[1] = c_pmt_create_pmat(nu, 1);
+    self->dzu[2] = c_pmt_create_pmat(nu, 1);
+    self->dzu[3] = c_pmt_create_pmat(nu, 1);
+    self->dzu[4] = c_pmt_create_pmat(nu, 1);
+    self->dzu[5] = c_pmt_create_pmat(nu, 1);
+    self->dzu[6] = c_pmt_create_pmat(nu, 1);
+    self->dzu[7] = c_pmt_create_pmat(nu, 1);
+    self->dzu[8] = c_pmt_create_pmat(nu, 1);
+    self->dzu[9] = c_pmt_create_pmat(nu, 1);
+    self->dzu[10] = c_pmt_create_pmat(nu, 1);
+    self->dzu[11] = c_pmt_create_pmat(nu, 1);
+    self->dzu[12] = c_pmt_create_pmat(nu, 1);
+    self->dzu[13] = c_pmt_create_pmat(nu, 1);
+    self->dzu[14] = c_pmt_create_pmat(nu, 1);
+    self->dzu[15] = c_pmt_create_pmat(nu, 1);
+    self->dzu[16] = c_pmt_create_pmat(nu, 1);
+    self->dzu[17] = c_pmt_create_pmat(nu, 1);
+    self->dzu[18] = c_pmt_create_pmat(nu, 1);
+    self->dzu[19] = c_pmt_create_pmat(nu, 1);
 self->x0 = c_pmt_create_pmat(nx, 1);
 
 self->Q = c_pmt_create_pmat(nx, nx);
@@ -453,62 +657,74 @@ void _Z9linearizeSQP_impl(SQP *self) {
 }
 
 
-void _Z2lqSQP_impl(SQP *self) {
+void _Z9lq_factorSQP_impl(SQP *self) {
 	void *callee_pmt_8_heap = ___c_pmt_8_heap;
 	void *callee_pmt_64_heap = ___c_pmt_64_heap;
 
-    struct pmat * P = c_pmt_create_pmat(nx, nx);
-    struct pmat * p = c_pmt_create_pmat(nx, 1);
-    struct pmat * Pn = c_pmt_create_pmat(nx, nx);
     struct pmat * PA = c_pmt_create_pmat(nx, nx);
     struct pmat * PB = c_pmt_create_pmat(nx, nu);
-    struct pmat * Pb = c_pmt_create_pmat(nx, 1);
     struct pmat * Huu = c_pmt_create_pmat(nu, nu);
-    struct pmat * L = c_pmt_create_pmat(nu, nu);
-    struct pmat * Hux = c_pmt_create_pmat(nu, nx);
-    struct pmat * hu = c_pmt_create_pmat(nu, 1);
-    c_pmt_pmat_copy(self->Q, P);
-    c_pmt_gemm_ab(1.0, self->Q, self->xs[N], 0.0, p, p);
-
+    c_pmt_pmat_copy(self->Q, self->P[N]);
     for(int k = (N - 1), ___pmt_end_2 = (-1); k > ___pmt_end_2; k += -1) {
-        c_pmt_pmat_copy(p, Pb);
-        c_pmt_gemm_nn(P, self->b[k], Pb, Pb);
-        c_pmt_gemm_ab(1.0, P, self->B[k], 0.0, PB, PB);
+        c_pmt_gemm_ab(1.0, self->P[(k + 1)], self->B[k], 0.0, PB, PB);
 
         c_pmt_pmat_copy(self->Rt[k], Huu);
         c_pmt_gemm_tn(self->B[k], PB, Huu, Huu);
-        c_pmt_gemm_ab(1.0, P, self->A[k], 0.0, PA, PA);
+        c_pmt_gemm_ab(1.0, self->P[(k + 1)], self->A[k], 0.0, PA, PA);
 
-        c_pmt_pmat_fill(Hux, 0.0);
-        c_pmt_gemm_tn(self->B[k], PA, Hux, Hux);
-        c_pmt_pmat_copy(self->rt[k], hu);
-        c_pmt_gemm_tn(self->B[k], Pb, hu, hu);
-        c_pmt_potrf(Huu, L);
-        c_pmt_pmat_copy(Hux, self->K[k]);
-        c_pmt_potrsm(L, self->K[k]);
-        c_pmt_pmat_copy(hu, self->kk[k]);
-        c_pmt_potrsm(L, self->kk[k]);
+        c_pmt_pmat_fill(self->Hux[k], 0.0);
+        c_pmt_gemm_tn(self->B[k], PA, self->Hux[k], self->Hux[k]);
+        c_pmt_potrf(Huu, self->L[k]);
+        c_pmt_pmat_copy(self->Hux[k], self->K[k]);
+        c_pmt_potrsm(self->L[k], self->K[k]);
         for(int i = 0, ___pmt_end_3 = nu; i < ___pmt_end_3; i += 1) {
             for(int j = 0, ___pmt_end_4 = nx; j < ___pmt_end_4; j += 1) {
                 c_pmt_pmat_set_el(self->K[k], i, j, -c_pmt_pmat_get_el(self->K[k], i, j));
     }
 
+    }
+
+        c_pmt_pmat_copy(self->Q, self->P[k]);
+        c_pmt_gemm_tn(self->A[k], PA, self->P[k], self->P[k]);
+        c_pmt_gemm_tn(self->Hux[k], self->K[k], self->P[k], self->P[k]);
+    }
+
+	___c_pmt_8_heap = callee_pmt_8_heap;
+	___c_pmt_64_heap = callee_pmt_64_heap;
+
+    return;
+}
+
+
+void _Z8lq_solveSQP_impl(SQP *self) {
+	void *callee_pmt_8_heap = ___c_pmt_8_heap;
+	void *callee_pmt_64_heap = ___c_pmt_64_heap;
+
+    struct pmat * p = c_pmt_create_pmat(nx, 1);
+    struct pmat * Pb = c_pmt_create_pmat(nx, 1);
+    struct pmat * hu = c_pmt_create_pmat(nu, 1);
+    c_pmt_gemm_ab(1.0, self->Q, self->xs[N], 0.0, p, p);
+
+    for(int k = (N - 1), ___pmt_end_5 = (-1); k > ___pmt_end_5; k += -1) {
+        c_pmt_pmat_copy(p, Pb);
+        c_pmt_gemm_nn(self->P[k + 1], self->b[k], Pb, Pb);
+        c_pmt_pmat_copy(self->rt[k], hu);
+        c_pmt_gemm_tn(self->B[k], Pb, hu, hu);
+        c_pmt_pmat_copy(hu, self->kk[k]);
+        c_pmt_potrsm(self->L[k], self->kk[k]);
+        for(int i = 0, ___pmt_end_6 = nu; i < ___pmt_end_6; i += 1) {
             c_pmt_pmat_set_el(self->kk[k], i, 0, -c_pmt_pmat_get_el(self->kk[k], i, 0));
     }
 
         c_pmt_gemm_ab(1.0, self->Q, self->xs[k], 0.0, p, p);
 
         c_pmt_gemm_tn(self->A[k], Pb, p, p);
-        c_pmt_gemm_tn(Hux, self->kk[k], p, p);
-        c_pmt_pmat_copy(self->Q, Pn);
-        c_pmt_gemm_tn(self->A[k], PA, Pn, Pn);
-        c_pmt_gemm_tn(Hux, self->K[k], Pn, Pn);
-        c_pmt_pmat_copy(Pn, P);
+        c_pmt_gemm_tn(self->Hux[k], self->kk[k], p, p);
     }
 
     c_pmt_pmat_copy(self->x0, self->dxn[0]);
     c_pmt_gead(-1.0, self->xs[0], self->dxn[0]);
-    for(int k = 0, ___pmt_end_5 = N; k < ___pmt_end_5; k += 1) {
+    for(int k = 0, ___pmt_end_7 = N; k < ___pmt_end_7; k += 1) {
         c_pmt_pmat_copy(self->kk[k], self->dun[k]);
         c_pmt_gemm_nn(self->K[k], self->dxn[k], self->dun[k], self->dun[k]);
         c_pmt_pmat_copy(self->b[k], self->dxn[k + 1]);
@@ -523,34 +739,118 @@ void _Z2lqSQP_impl(SQP *self) {
 }
 
 
+void _Z3rhsSQP_impl(SQP *self) {
+	void *callee_pmt_8_heap = ___c_pmt_8_heap;
+	void *callee_pmt_64_heap = ___c_pmt_64_heap;
+
+    for(int k = 0, ___pmt_end_8 = N; k < ___pmt_end_8; k += 1) {
+        c_pmt_gemm_ab(1.0, self->R, self->us[k], 0.0, self->rt[k], self->rt[k]);
+
+        for(int i = 0, ___pmt_end_9 = nu; i < ___pmt_end_9; i += 1) {
+            double du = c_pmt_pmat_get_el(self->du[k], i, 0);
+            double sl = c_pmt_pmat_get_el(self->sl[k], i, 0);
+            double su = c_pmt_pmat_get_el(self->su[k], i, 0);
+            double zl = c_pmt_pmat_get_el(self->zl[k], i, 0);
+            double zu = c_pmt_pmat_get_el(self->zu[k], i, 0);
+            double rl = du - c_pmt_pmat_get_el(self->lb[k], i, 0) - sl;
+            double ru = c_pmt_pmat_get_el(self->ub[k], i, 0) - du - su;
+            c_pmt_pmat_set_el(self->rt[k], i, 0, c_pmt_pmat_get_el(self->rt[k], i, 0) + (-(zl / sl + zu / su) * du - c_pmt_pmat_get_el(self->tl[k], i, 0) / sl + zl * rl / sl + c_pmt_pmat_get_el(self->tu[k], i, 0) / su - zu * ru / su));
+    }
+
+    }
+
+	___c_pmt_8_heap = callee_pmt_8_heap;
+	___c_pmt_64_heap = callee_pmt_64_heap;
+
+    return;
+}
+
+
+void _Z10directionsSQP_impl(SQP *self) {
+	void *callee_pmt_8_heap = ___c_pmt_8_heap;
+	void *callee_pmt_64_heap = ___c_pmt_64_heap;
+
+    for(int k = 0, ___pmt_end_10 = N; k < ___pmt_end_10; k += 1) {
+        for(int i = 0, ___pmt_end_11 = nu; i < ___pmt_end_11; i += 1) {
+            double ddu = c_pmt_pmat_get_el(self->dun[k], i, 0) - c_pmt_pmat_get_el(self->du[k], i, 0);
+            double dsl = ddu + c_pmt_pmat_get_el(self->du[k], i, 0) - c_pmt_pmat_get_el(self->lb[k], i, 0) - c_pmt_pmat_get_el(self->sl[k], i, 0);
+            double dsu = c_pmt_pmat_get_el(self->ub[k], i, 0) - c_pmt_pmat_get_el(self->du[k], i, 0) - c_pmt_pmat_get_el(self->su[k], i, 0) - ddu;
+            c_pmt_pmat_set_el(self->ddu[k], i, 0, ddu);
+            c_pmt_pmat_set_el(self->dsl[k], i, 0, dsl);
+            c_pmt_pmat_set_el(self->dsu[k], i, 0, dsu);
+            c_pmt_pmat_set_el(self->dzl[k], i, 0, (c_pmt_pmat_get_el(self->tl[k], i, 0) - c_pmt_pmat_get_el(self->zl[k], i, 0) * (c_pmt_pmat_get_el(self->sl[k], i, 0) + dsl)) / c_pmt_pmat_get_el(self->sl[k], i, 0));
+            c_pmt_pmat_set_el(self->dzu[k], i, 0, (c_pmt_pmat_get_el(self->tu[k], i, 0) - c_pmt_pmat_get_el(self->zu[k], i, 0) * (c_pmt_pmat_get_el(self->su[k], i, 0) + dsu)) / c_pmt_pmat_get_el(self->su[k], i, 0));
+    }
+
+    }
+
+	___c_pmt_8_heap = callee_pmt_8_heap;
+	___c_pmt_64_heap = callee_pmt_64_heap;
+
+    return;
+}
+
+
+double _Z8max_stepfloatSQP_impl(SQP *self, double frac) {
+	void *callee_pmt_8_heap = ___c_pmt_8_heap;
+	void *callee_pmt_64_heap = ___c_pmt_64_heap;
+
+    double alpha = 1.0;
+    for(int k = 0, ___pmt_end_12 = N; k < ___pmt_end_12; k += 1) {
+        for(int i = 0, ___pmt_end_13 = nu; i < ___pmt_end_13; i += 1) {
+            if(((c_pmt_pmat_get_el(self->dsl[k], i, 0) < 0.0))) {
+                alpha = fmin(alpha, -frac * c_pmt_pmat_get_el(self->sl[k], i, 0) / c_pmt_pmat_get_el(self->dsl[k], i, 0));
+}
+            if(((c_pmt_pmat_get_el(self->dsu[k], i, 0) < 0.0))) {
+                alpha = fmin(alpha, -frac * c_pmt_pmat_get_el(self->su[k], i, 0) / c_pmt_pmat_get_el(self->dsu[k], i, 0));
+}
+            if(((c_pmt_pmat_get_el(self->dzl[k], i, 0) < 0.0))) {
+                alpha = fmin(alpha, -frac * c_pmt_pmat_get_el(self->zl[k], i, 0) / c_pmt_pmat_get_el(self->dzl[k], i, 0));
+}
+            if(((c_pmt_pmat_get_el(self->dzu[k], i, 0) < 0.0))) {
+                alpha = fmin(alpha, -frac * c_pmt_pmat_get_el(self->zu[k], i, 0) / c_pmt_pmat_get_el(self->dzu[k], i, 0));
+}
+    }
+
+    }
+
+	___c_pmt_8_heap = callee_pmt_8_heap;
+	___c_pmt_64_heap = callee_pmt_64_heap;
+
+    return alpha;
+}
+
+
 void _Z3ipmSQP_impl(SQP *self) {
 	void *callee_pmt_8_heap = ___c_pmt_8_heap;
 	void *callee_pmt_64_heap = ___c_pmt_64_heap;
 
     double mu = 0.0;
+    double mu_aff = 0.0;
+    double ratio = 0.0;
     double res = 0.0;
     double pairs = 0.0;
     double alpha = 1.0;
-    for(int k = 0, ___pmt_end_6 = N; k < ___pmt_end_6; k += 1) {
-        for(int i = 0, ___pmt_end_7 = nu; i < ___pmt_end_7; i += 1) {
+    for(int k = 0, ___pmt_end_14 = N; k < ___pmt_end_14; k += 1) {
+        for(int i = 0, ___pmt_end_15 = nu; i < ___pmt_end_15; i += 1) {
             c_pmt_pmat_set_el(self->lb[k], i, 0, u_min - c_pmt_pmat_get_el(self->us[k], i, 0));
             c_pmt_pmat_set_el(self->ub[k], i, 0, u_max - c_pmt_pmat_get_el(self->us[k], i, 0));
             c_pmt_pmat_set_el(self->du[k], i, 0, 0.0);
-            c_pmt_pmat_set_el(self->sl[k], i, 0, 1.0);
-            c_pmt_pmat_set_el(self->su[k], i, 0, 1.0);
+            c_pmt_pmat_set_el(self->sl[k], i, 0, fmax(-c_pmt_pmat_get_el(self->lb[k], i, 0), 1.0));
+            c_pmt_pmat_set_el(self->su[k], i, 0, fmax(c_pmt_pmat_get_el(self->ub[k], i, 0), 1.0));
             c_pmt_pmat_set_el(self->zl[k], i, 0, 1.0);
             c_pmt_pmat_set_el(self->zu[k], i, 0, 1.0);
     }
 
     }
 
-    for(int it = 0, ___pmt_end_8 = n_ipm; it < ___pmt_end_8; it += 1) {
+    for(int it = 0, ___pmt_end_16 = n_ipm; it < ___pmt_end_16; it += 1) {
         self->ipm_iterations = it;
         mu = 0.0;
         res = 0.0;
         pairs = 0.0;
-        for(int k = 0, ___pmt_end_9 = N; k < ___pmt_end_9; k += 1) {
-            for(int i = 0, ___pmt_end_10 = nu; i < ___pmt_end_10; i += 1) {
+        for(int k = 0, ___pmt_end_17 = N; k < ___pmt_end_17; k += 1) {
+            for(int i = 0, ___pmt_end_18 = nu; i < ___pmt_end_18; i += 1) {
                 mu = mu + (c_pmt_pmat_get_el(self->sl[k], i, 0) * c_pmt_pmat_get_el(self->zl[k], i, 0) + c_pmt_pmat_get_el(self->su[k], i, 0) * c_pmt_pmat_get_el(self->zu[k], i, 0));
                 pairs = pairs + 2.0;
                 res = fmax(res, fabs(c_pmt_pmat_get_el(self->du[k], i, 0) - c_pmt_pmat_get_el(self->lb[k], i, 0) - c_pmt_pmat_get_el(self->sl[k], i, 0)));
@@ -563,64 +863,52 @@ void _Z3ipmSQP_impl(SQP *self) {
         if(((((mu < ipm_tol))) && (((res < ipm_tol))))) {
             break;
 }
-        for(int k = 0, ___pmt_end_11 = N; k < ___pmt_end_11; k += 1) {
+        for(int k = 0, ___pmt_end_19 = N; k < ___pmt_end_19; k += 1) {
             c_pmt_pmat_copy(self->R, self->Rt[k]);
-            c_pmt_gemm_ab(1.0, self->R, self->us[k], 0.0, self->rt[k], self->rt[k]);
-
-            for(int i = 0, ___pmt_end_12 = nu; i < ___pmt_end_12; i += 1) {
-                double du = c_pmt_pmat_get_el(self->du[k], i, 0);
-                double sl = c_pmt_pmat_get_el(self->sl[k], i, 0);
-                double su = c_pmt_pmat_get_el(self->su[k], i, 0);
-                double zl = c_pmt_pmat_get_el(self->zl[k], i, 0);
-                double zu = c_pmt_pmat_get_el(self->zu[k], i, 0);
-                double rl = du - c_pmt_pmat_get_el(self->lb[k], i, 0) - sl;
-                double ru = c_pmt_pmat_get_el(self->ub[k], i, 0) - du - su;
-                double D = zl / sl + zu / su;
-                c_pmt_pmat_set_el(self->Rt[k], i, i, c_pmt_pmat_get_el(self->Rt[k], i, i) + D);
-                c_pmt_pmat_set_el(self->rt[k], i, 0, c_pmt_pmat_get_el(self->rt[k], i, 0) + (-D * du - sigma * mu / sl + zl * rl / sl + sigma * mu / su - zu * ru / su));
+            for(int i = 0, ___pmt_end_20 = nu; i < ___pmt_end_20; i += 1) {
+                c_pmt_pmat_set_el(self->Rt[k], i, i, c_pmt_pmat_get_el(self->Rt[k], i, i) + (c_pmt_pmat_get_el(self->zl[k], i, 0) / c_pmt_pmat_get_el(self->sl[k], i, 0) + c_pmt_pmat_get_el(self->zu[k], i, 0) / c_pmt_pmat_get_el(self->su[k], i, 0)));
     }
 
     }
 
-        self->_Z2lq(self);
-        alpha = 1.0;
-        for(int k = 0, ___pmt_end_13 = N; k < ___pmt_end_13; k += 1) {
-            for(int i = 0, ___pmt_end_14 = nu; i < ___pmt_end_14; i += 1) {
-                double ddu = c_pmt_pmat_get_el(self->dun[k], i, 0) - c_pmt_pmat_get_el(self->du[k], i, 0);
-                double dsl = ddu + c_pmt_pmat_get_el(self->du[k], i, 0) - c_pmt_pmat_get_el(self->lb[k], i, 0) - c_pmt_pmat_get_el(self->sl[k], i, 0);
-                double dsu = c_pmt_pmat_get_el(self->ub[k], i, 0) - c_pmt_pmat_get_el(self->du[k], i, 0) - c_pmt_pmat_get_el(self->su[k], i, 0) - ddu;
-                double dzl = (sigma * mu - c_pmt_pmat_get_el(self->zl[k], i, 0) * (c_pmt_pmat_get_el(self->sl[k], i, 0) + dsl)) / c_pmt_pmat_get_el(self->sl[k], i, 0);
-                double dzu = (sigma * mu - c_pmt_pmat_get_el(self->zu[k], i, 0) * (c_pmt_pmat_get_el(self->su[k], i, 0) + dsu)) / c_pmt_pmat_get_el(self->su[k], i, 0);
-                if(((dsl < 0.0))) {
-                    alpha = fmin(alpha, -0.995 * c_pmt_pmat_get_el(self->sl[k], i, 0) / dsl);
-}
-                if(((dsu < 0.0))) {
-                    alpha = fmin(alpha, -0.995 * c_pmt_pmat_get_el(self->su[k], i, 0) / dsu);
-}
-                if(((dzl < 0.0))) {
-                    alpha = fmin(alpha, -0.995 * c_pmt_pmat_get_el(self->zl[k], i, 0) / dzl);
-}
-                if(((dzu < 0.0))) {
-                    alpha = fmin(alpha, -0.995 * c_pmt_pmat_get_el(self->zu[k], i, 0) / dzu);
-}
+        self->_Z9lq_factor(self);
+        for(int k = 0, ___pmt_end_21 = N; k < ___pmt_end_21; k += 1) {
+            c_pmt_pmat_fill(self->tl[k], 0.0);
+            c_pmt_pmat_fill(self->tu[k], 0.0);
+    }
+
+        self->_Z3rhs(self);
+        self->_Z8lq_solve(self);
+        self->_Z10directions(self);
+        alpha = self->_Z8max_stepfloat(self, 1.0);
+        mu_aff = 0.0;
+        for(int k = 0, ___pmt_end_22 = N; k < ___pmt_end_22; k += 1) {
+            for(int i = 0, ___pmt_end_23 = nu; i < ___pmt_end_23; i += 1) {
+                mu_aff = mu_aff + ((c_pmt_pmat_get_el(self->sl[k], i, 0) + alpha * c_pmt_pmat_get_el(self->dsl[k], i, 0)) * (c_pmt_pmat_get_el(self->zl[k], i, 0) + alpha * c_pmt_pmat_get_el(self->dzl[k], i, 0)) + (c_pmt_pmat_get_el(self->su[k], i, 0) + alpha * c_pmt_pmat_get_el(self->dsu[k], i, 0)) * (c_pmt_pmat_get_el(self->zu[k], i, 0) + alpha * c_pmt_pmat_get_el(self->dzu[k], i, 0)));
     }
 
     }
 
-        for(int k = 0, ___pmt_end_15 = N; k < ___pmt_end_15; k += 1) {
-            for(int i = 0, ___pmt_end_16 = nu; i < ___pmt_end_16; i += 1) {
-                double ddu = c_pmt_pmat_get_el(self->dun[k], i, 0) - c_pmt_pmat_get_el(self->du[k], i, 0);
-                double dsl = ddu + c_pmt_pmat_get_el(self->du[k], i, 0) - c_pmt_pmat_get_el(self->lb[k], i, 0) - c_pmt_pmat_get_el(self->sl[k], i, 0);
-                double dsu = c_pmt_pmat_get_el(self->ub[k], i, 0) - c_pmt_pmat_get_el(self->du[k], i, 0) - c_pmt_pmat_get_el(self->su[k], i, 0) - ddu;
-                double dzl = (sigma * mu - c_pmt_pmat_get_el(self->zl[k], i, 0) * (c_pmt_pmat_get_el(self->sl[k], i, 0) + dsl)) / c_pmt_pmat_get_el(self->sl[k], i, 0);
-                double dzu = (sigma * mu - c_pmt_pmat_get_el(self->zu[k], i, 0) * (c_pmt_pmat_get_el(self->su[k], i, 0) + dsu)) / c_pmt_pmat_get_el(self->su[k], i, 0);
-                c_pmt_pmat_set_el(self->du[k], i, 0, c_pmt_pmat_get_el(self->du[k], i, 0) + alpha * ddu);
-                c_pmt_pmat_set_el(self->sl[k], i, 0, c_pmt_pmat_get_el(self->sl[k], i, 0) + alpha * dsl);
-                c_pmt_pmat_set_el(self->su[k], i, 0, c_pmt_pmat_get_el(self->su[k], i, 0) + alpha * dsu);
-                c_pmt_pmat_set_el(self->zl[k], i, 0, c_pmt_pmat_get_el(self->zl[k], i, 0) + alpha * dzl);
-                c_pmt_pmat_set_el(self->zu[k], i, 0, c_pmt_pmat_get_el(self->zu[k], i, 0) + alpha * dzu);
+        mu_aff = mu_aff / pairs;
+        ratio = mu_aff / mu;
+        for(int k = 0, ___pmt_end_24 = N; k < ___pmt_end_24; k += 1) {
+            for(int i = 0, ___pmt_end_25 = nu; i < ___pmt_end_25; i += 1) {
+                c_pmt_pmat_set_el(self->tl[k], i, 0, ratio * ratio * ratio * mu - c_pmt_pmat_get_el(self->dsl[k], i, 0) * c_pmt_pmat_get_el(self->dzl[k], i, 0));
+                c_pmt_pmat_set_el(self->tu[k], i, 0, ratio * ratio * ratio * mu - c_pmt_pmat_get_el(self->dsu[k], i, 0) * c_pmt_pmat_get_el(self->dzu[k], i, 0));
     }
 
+    }
+
+        self->_Z3rhs(self);
+        self->_Z8lq_solve(self);
+        self->_Z10directions(self);
+        alpha = self->_Z8max_stepfloat(self, fmax(0.995, 1.0 - mu));
+        for(int k = 0, ___pmt_end_26 = N; k < ___pmt_end_26; k += 1) {
+            c_pmt_gead(alpha, self->ddu[k], self->du[k]);
+            c_pmt_gead(alpha, self->dsl[k], self->sl[k]);
+            c_pmt_gead(alpha, self->dsu[k], self->su[k]);
+            c_pmt_gead(alpha, self->dzl[k], self->zl[k]);
+            c_pmt_gead(alpha, self->dzu[k], self->zu[k]);
     }
 
     }
@@ -639,22 +927,22 @@ double _Z5applySQP_impl(SQP *self) {
     double step = 0.0;
     c_pmt_pmat_copy(self->x0, self->dx[0]);
     c_pmt_gead(-1.0, self->xs[0], self->dx[0]);
-    for(int k = 0, ___pmt_end_17 = N; k < ___pmt_end_17; k += 1) {
+    for(int k = 0, ___pmt_end_27 = N; k < ___pmt_end_27; k += 1) {
         c_pmt_pmat_copy(self->b[k], self->dx[k + 1]);
         c_pmt_gemm_nn(self->A[k], self->dx[k], self->dx[k + 1], self->dx[k + 1]);
         c_pmt_gemm_nn(self->B[k], self->du[k], self->dx[k + 1], self->dx[k + 1]);
     }
 
-    for(int k = 0, ___pmt_end_18 = N; k < ___pmt_end_18; k += 1) {
-        for(int i = 0, ___pmt_end_19 = nu; i < ___pmt_end_19; i += 1) {
+    for(int k = 0, ___pmt_end_28 = N; k < ___pmt_end_28; k += 1) {
+        for(int i = 0, ___pmt_end_29 = nu; i < ___pmt_end_29; i += 1) {
             step = fmax(step, fabs(c_pmt_pmat_get_el(self->du[k], i, 0)));
     }
 
         c_pmt_gead(1.0, self->du[k], self->us[k]);
     }
 
-    for(int k = 0, ___pmt_end_20 = (N + 1); k < ___pmt_end_20; k += 1) {
-        for(int i = 0, ___pmt_end_21 = nx; i < ___pmt_end_21; i += 1) {
+    for(int k = 0, ___pmt_end_30 = (N + 1); k < ___pmt_end_30; k += 1) {
+        for(int i = 0, ___pmt_end_31 = nx; i < ___pmt_end_31; i += 1) {
             step = fmax(step, fabs(c_pmt_pmat_get_el(self->dx[k], i, 0)));
     }
 
@@ -704,7 +992,7 @@ double _Z7iterateSQP_impl(SQP *self) {
     double step = 0.0;
     double u0 = 0.0;
     c_pmt_pmat_set_el(sqp->x0, 1, 0, 0.4);
-    for(int it = 0, ___pmt_end_22 = n_sqp; it < ___pmt_end_22; it += 1) {
+    for(int it = 0, ___pmt_end_32 = n_sqp; it < ___pmt_end_32; it += 1) {
         step = sqp->_Z7iterate(sqp);
         if(((step < tol))) {
             break;
@@ -715,7 +1003,7 @@ double _Z7iterateSQP_impl(SQP *self) {
 
     printf("interior-point iterations in the last QP: %i\n\n", sqp->ipm_iterations);
 
-    for(int k = 0, ___pmt_end_23 = N; k < ___pmt_end_23; k += 1) {
+    for(int k = 0, ___pmt_end_33 = N; k < ___pmt_end_33; k += 1) {
         u0 = c_pmt_pmat_get_el(sqp->us[k], 0, 0);
         printf("u = %.10f\n\n", u0);
 
@@ -726,7 +1014,7 @@ double _Z7iterateSQP_impl(SQP *self) {
     struct pmat * Aplant = c_pmt_create_pmat(nx, nx);
     struct pmat * Bplant = c_pmt_create_pmat(nx, nu);
     c_pmt_pmat_copy(sqp->x0, xplant);
-    for(int t = 0, ___pmt_end_24 = n_mpc; t < ___pmt_end_24; t += 1) {
+    for(int t = 0, ___pmt_end_34 = n_mpc; t < ___pmt_end_34; t += 1) {
         c_pmt_pmat_copy(xplant, sqp->x0);
         step = sqp->_Z7iterate(sqp);
         c_pmt_casadi_rk4(xplant, sqp->us[0], xnext, Aplant, Bplant);

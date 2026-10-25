@@ -2,7 +2,7 @@ PMT_FLAGS = -DMEASURE_TIMINGS
 CC = gcc
 # CC = g++
 # CC = clang
-CFLAGS = -std=c99
+CFLAGS = -std=c99 -O2
 CFLAGS += -fPIC
 CFLAGS += -Wall -Werror=return-type -Werror=implicit-function-declaration
 CFLAGS += $(PMT_FLAGS)

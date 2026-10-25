@@ -32,7 +32,7 @@ size_of_double = 8
 
 makefile_template = '''
 CC = gcc
-CFLAGS += -fPIC -std=c99
+CFLAGS += -fPIC -std=c99 -O2
 HEAP64_SIZE = {{ HEAP64_SIZE }}
 HEAP8_SIZE = {{ HEAP8_SIZE }}
 

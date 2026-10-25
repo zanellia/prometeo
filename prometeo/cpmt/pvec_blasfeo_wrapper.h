@@ -27,8 +27,14 @@ void c_pmt_assign_and_advance_blasfeo_dvec(int m, struct blasfeo_dvec **bvec);
 
 // auxiliary
 void c_pmt_pvec_fill(struct pvec *a, double fill_value);
-void c_pmt_pvec_set_el(struct pvec *a, int i, double value);
-double c_pmt_pvec_get_el(struct pvec *a, int i);
+// element access, inlined (as blasfeo_dvecin1 and blasfeo_dvecex1)
+static inline void c_pmt_pvec_set_el(struct pvec *a, int i, double value) {
+    BLASFEO_DVECEL(a->bvec, i) = value;
+}
+
+static inline double c_pmt_pvec_get_el(struct pvec *a, int i) {
+    return BLASFEO_DVECEL(a->bvec, i);
+}
 void c_pmt_pvec_copy(struct pvec *a, struct pvec *b);
 void c_pmt_pvec_print(struct pvec *a);
 

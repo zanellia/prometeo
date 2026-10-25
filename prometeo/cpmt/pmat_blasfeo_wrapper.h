@@ -45,8 +45,18 @@ void c_pmt_gemv_n(struct pmat *A, struct pvec *b, struct pvec *c, struct pvec *d
 
 // auxiliary
 void c_pmt_pmat_fill(struct pmat *A, double fill_value);
-void c_pmt_pmat_set_el(struct pmat *A, int i, int j, double value);
-double c_pmt_pmat_get_el(struct pmat *A, int i, int j);
+// element access, inlined (as blasfeo_dgein1 and blasfeo_dgeex1)
+static inline void c_pmt_pmat_set_el(struct pmat *A, int i, int j, double value) {
+    if (i == j) {
+        // invalidate the stored inverse diagonal
+        A->bmat->use_dA = 0;
+    }
+    BLASFEO_DMATEL(A->bmat, i, j) = value;
+}
+
+static inline double c_pmt_pmat_get_el(struct pmat *A, int i, int j) {
+    return BLASFEO_DMATEL(A->bmat, i, j);
+}
 void c_pmt_pmat_copy(struct pmat *A, struct pmat *B);
 struct pmat * _c_pmt_pmat_copy(struct pmat *A, struct pmat *B);
 void c_pmt_pmat_tran(struct pmat *A, struct pmat *B);

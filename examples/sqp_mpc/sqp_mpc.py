@@ -2,7 +2,8 @@ from prometeo import *
 
 # Gauss-Newton SQP for a cart-pole optimal control problem with input bounds,
 # used for closed-loop MPC (real-time iterations). The QPs are solved by a
-# primal-dual interior-point method, whose Newton steps are Riccati recursions.
+# primal-dual interior-point method (Mehrotra's predictor-corrector), whose
+# Newton steps are Riccati recursions.
 #
 #   min  sum_k 1/2 (x_k' Q x_k + u_k' R u_k) + 1/2 x_N' Q x_N
 #   s.t. x_0 = x0,  x_{k+1} = F(x_k, u_k),  u_min <= u_k <= u_max
@@ -23,6 +24,7 @@ B_sizes : dimv = [[nx, nu]] * N
 b_sizes : dimv = [[nx, 1]] * N
 K_sizes : dimv = [[nu, nx]] * N
 R_sizes : dimv = [[nu, nu]] * N
+P_sizes : dimv = [[nx, nx]] * (N + 1)
 
 # model: cart mass, pole mass, pole length, gravity; integration step
 M : float = 1.0
@@ -39,10 +41,9 @@ n_sqp : int = 30
 tol : float = 1e-10
 n_mpc : int = 30
 
-# interior-point method: iterations, tolerance, centering parameter
+# interior-point method: iterations, tolerance
 n_ipm : int = 50
 ipm_tol : float = 1e-12
-sigma : float = 0.1
 
 
 # pure >
@@ -98,6 +99,19 @@ class SQP:
         self.kk : List = plist(pmat, u_sizes)
         self.dxn : List = plist(pmat, x_sizes)
         self.dun : List = plist(pmat, u_sizes)
+        # factorization, reused by the predictor and corrector solves
+        self.P : List = plist(pmat, P_sizes)
+        self.L : List = plist(pmat, R_sizes)
+        self.Hux : List = plist(pmat, K_sizes)
+        # targets of the complementarity products sl * zl, su * zu
+        self.tl : List = plist(pmat, u_sizes)
+        self.tu : List = plist(pmat, u_sizes)
+        # search directions
+        self.ddu : List = plist(pmat, u_sizes)
+        self.dsl : List = plist(pmat, u_sizes)
+        self.dsu : List = plist(pmat, u_sizes)
+        self.dzl : List = plist(pmat, u_sizes)
+        self.dzu : List = plist(pmat, u_sizes)
         self.x0 : pmat = pmat(nx, 1)
         self.Q : pmat = pmat(nx, nx)
         self.R : pmat = pmat(nu, nu)
@@ -115,52 +129,53 @@ class SQP:
             pmt_gead(-1.0, self.xs[k + 1], self.b[k])
         return
 
-    def lq(self) -> None:
-        # min sum_k 1/2 dx' Q dx + (Q x_k)' dx + 1/2 du' Rt_k du + rt_k' du
-        # s.t. dx_0 = x0 - x_0, dx_{k+1} = A_k dx_k + B_k du_k + b_k
-        P : pmat = pmat(nx, nx)
-        p : pmat = pmat(nx, 1)
-        Pn : pmat = pmat(nx, nx)
+    def lq_factor(self) -> None:
+        # Riccati factorization of the LQ problem
+        #   min sum_k 1/2 dx' Q dx + (Q x_k)' dx + 1/2 du' Rt_k du + rt_k' du
+        #   s.t. dx_0 = x0 - x_0, dx_{k+1} = A_k dx_k + B_k du_k + b_k
+        # P_k, L_k = chol(Rt_k + B_k' P_{k+1} B_k), Hux_k = B_k' P_{k+1} A_k,
+        # K_k = -(L_k L_k')^-1 Hux_k
         PA : pmat = pmat(nx, nx)
         PB : pmat = pmat(nx, nu)
-        Pb : pmat = pmat(nx, 1)
         Huu : pmat = pmat(nu, nu)
-        L : pmat = pmat(nu, nu)
-        Hux : pmat = pmat(nu, nx)
-        hu : pmat = pmat(nu, 1)
-        pmat_copy(self.Q, P)
-        pmt_gemm(self.Q, self.xs[N], p)
+        pmat_copy(self.Q, self.P[N])
         for k in range(N - 1, -1, -1):
-            # Pb = p + P b_k
-            pmat_copy(p, Pb)
-            pmt_gemm_nn(P, self.b[k], Pb, Pb)
-            # Huu = Rt + B' P B, Hux = B' P A, hu = rt + B' Pb
-            pmt_gemm(P, self.B[k], PB)
+            pmt_gemm(self.P[k + 1], self.B[k], PB)
             pmat_copy(self.Rt[k], Huu)
             pmt_gemm_tn(self.B[k], PB, Huu, Huu)
-            pmt_gemm(P, self.A[k], PA)
-            pmat_fill(Hux, 0.0)
-            pmt_gemm_tn(self.B[k], PA, Hux, Hux)
-            pmat_copy(self.rt[k], hu)
-            pmt_gemm_tn(self.B[k], Pb, hu, hu)
-            # K = -Huu^-1 Hux, kk = -Huu^-1 hu
-            pmt_potrf(Huu, L)
-            pmat_copy(Hux, self.K[k])
-            pmt_potrsm(L, self.K[k])
-            pmat_copy(hu, self.kk[k])
-            pmt_potrsm(L, self.kk[k])
+            pmt_gemm(self.P[k + 1], self.A[k], PA)
+            pmat_fill(self.Hux[k], 0.0)
+            pmt_gemm_tn(self.B[k], PA, self.Hux[k], self.Hux[k])
+            pmt_potrf(Huu, self.L[k])
+            pmat_copy(self.Hux[k], self.K[k])
+            pmt_potrsm(self.L[k], self.K[k])
             for i in range(nu):
                 for j in range(nx):
                     self.K[k][i, j] = -self.K[k][i, j]
+            pmat_copy(self.Q, self.P[k])
+            pmt_gemm_tn(self.A[k], PA, self.P[k], self.P[k])
+            pmt_gemm_tn(self.Hux[k], self.K[k], self.P[k], self.P[k])
+        return
+
+    def lq_solve(self) -> None:
+        # solution dxn, dun of the factorized LQ problem with gradients rt
+        p : pmat = pmat(nx, 1)
+        Pb : pmat = pmat(nx, 1)
+        hu : pmat = pmat(nu, 1)
+        pmt_gemm(self.Q, self.xs[N], p)
+        for k in range(N - 1, -1, -1):
+            # Pb = p + P b_k, kk = -(L L')^-1 (rt + B' Pb), p = Q x_k + A' Pb + Hux' kk
+            pmat_copy(p, Pb)
+            pmt_gemm_nn(self.P[k + 1], self.b[k], Pb, Pb)
+            pmat_copy(self.rt[k], hu)
+            pmt_gemm_tn(self.B[k], Pb, hu, hu)
+            pmat_copy(hu, self.kk[k])
+            pmt_potrsm(self.L[k], self.kk[k])
+            for i in range(nu):
                 self.kk[k][i, 0] = -self.kk[k][i, 0]
-            # p = Q x_k + A' Pb + Hux' kk, P = Q + A' P A + Hux' K
             pmt_gemm(self.Q, self.xs[k], p)
             pmt_gemm_tn(self.A[k], Pb, p, p)
-            pmt_gemm_tn(Hux, self.kk[k], p, p)
-            pmat_copy(self.Q, Pn)
-            pmt_gemm_tn(self.A[k], PA, Pn, Pn)
-            pmt_gemm_tn(Hux, self.K[k], Pn, Pn)
-            pmat_copy(Pn, P)
+            pmt_gemm_tn(self.Hux[k], self.kk[k], p, p)
         # forward: dun_k = K_k dxn_k + kk_k
         pmat_copy(self.x0, self.dxn[0])
         pmt_gead(-1.0, self.xs[0], self.dxn[0])
@@ -172,10 +187,58 @@ class SQP:
             pmt_gemm_nn(self.B[k], self.dun[k], self.dxn[k + 1], self.dxn[k + 1])
         return
 
+    def rhs(self) -> None:
+        # gradients rt of the Newton step for the complementarity targets
+        # sl * zl = tl, su * zu = tu
+        for k in range(N):
+            pmt_gemm(self.R, self.us[k], self.rt[k])
+            for i in range(nu):
+                du : float = self.du[k][i, 0]
+                sl : float = self.sl[k][i, 0]
+                su : float = self.su[k][i, 0]
+                zl : float = self.zl[k][i, 0]
+                zu : float = self.zu[k][i, 0]
+                rl : float = du - self.lb[k][i, 0] - sl
+                ru : float = self.ub[k][i, 0] - du - su
+                self.rt[k][i, 0] += -(zl / sl + zu / su) * du - self.tl[k][i, 0] / sl \
+                    + zl * rl / sl + self.tu[k][i, 0] / su - zu * ru / su
+        return
+
+    def directions(self) -> None:
+        # search directions from the solution of the Newton step
+        for k in range(N):
+            for i in range(nu):
+                ddu : float = self.dun[k][i, 0] - self.du[k][i, 0]
+                dsl : float = ddu + self.du[k][i, 0] - self.lb[k][i, 0] - self.sl[k][i, 0]
+                dsu : float = self.ub[k][i, 0] - self.du[k][i, 0] - self.su[k][i, 0] - ddu
+                self.ddu[k][i, 0] = ddu
+                self.dsl[k][i, 0] = dsl
+                self.dsu[k][i, 0] = dsu
+                self.dzl[k][i, 0] = (self.tl[k][i, 0] - self.zl[k][i, 0] * (self.sl[k][i, 0] + dsl)) / self.sl[k][i, 0]
+                self.dzu[k][i, 0] = (self.tu[k][i, 0] - self.zu[k][i, 0] * (self.su[k][i, 0] + dsu)) / self.su[k][i, 0]
+        return
+
+    def max_step(self, frac: float) -> float:
+        # largest step in [0, 1] keeping slacks and multipliers positive
+        alpha : float = 1.0
+        for k in range(N):
+            for i in range(nu):
+                if self.dsl[k][i, 0] < 0.0:
+                    alpha = min(alpha, -frac * self.sl[k][i, 0] / self.dsl[k][i, 0])
+                if self.dsu[k][i, 0] < 0.0:
+                    alpha = min(alpha, -frac * self.su[k][i, 0] / self.dsu[k][i, 0])
+                if self.dzl[k][i, 0] < 0.0:
+                    alpha = min(alpha, -frac * self.zl[k][i, 0] / self.dzl[k][i, 0])
+                if self.dzu[k][i, 0] < 0.0:
+                    alpha = min(alpha, -frac * self.zu[k][i, 0] / self.dzu[k][i, 0])
+        return alpha
+
     def ipm(self) -> None:
         # QP with bounds lb <= du <= ub: slacks sl = du - lb, su = ub - du,
-        # multipliers zl, zu, with sl * zl = su * zu = sigma * mu
+        # multipliers zl, zu; Mehrotra's predictor-corrector method
         mu : float = 0.0
+        mu_aff : float = 0.0
+        ratio : float = 0.0
         res : float = 0.0
         pairs : float = 0.0
         alpha : float = 1.0
@@ -184,8 +247,9 @@ class SQP:
                 self.lb[k][i, 0] = u_min - self.us[k][i, 0]
                 self.ub[k][i, 0] = u_max - self.us[k][i, 0]
                 self.du[k][i, 0] = 0.0
-                self.sl[k][i, 0] = 1.0
-                self.su[k][i, 0] = 1.0
+                # slacks consistent with du = 0 (at least 1)
+                self.sl[k][i, 0] = max(-self.lb[k][i, 0], 1.0)
+                self.su[k][i, 0] = max(self.ub[k][i, 0], 1.0)
                 self.zl[k][i, 0] = 1.0
                 self.zu[k][i, 0] = 1.0
         for it in range(n_ipm):
@@ -203,52 +267,44 @@ class SQP:
             mu = mu / pairs
             if mu < ipm_tol and res < ipm_tol:
                 break
-            # Newton step: LQ problem with modified Hessians and gradients
+            # factorize the Newton system: input Hessians R + zl / sl + zu / su
             for k in range(N):
                 pmat_copy(self.R, self.Rt[k])
-                pmt_gemm(self.R, self.us[k], self.rt[k])
                 for i in range(nu):
-                    du : float = self.du[k][i, 0]
-                    sl : float = self.sl[k][i, 0]
-                    su : float = self.su[k][i, 0]
-                    zl : float = self.zl[k][i, 0]
-                    zu : float = self.zu[k][i, 0]
-                    rl : float = du - self.lb[k][i, 0] - sl
-                    ru : float = self.ub[k][i, 0] - du - su
-                    D : float = zl / sl + zu / su
-                    self.Rt[k][i, i] += D
-                    self.rt[k][i, 0] += -D * du - sigma * mu / sl + zl * rl / sl \
-                        + sigma * mu / su - zu * ru / su
-            self.lq()
-            # step length: fraction to the boundary
-            alpha = 1.0
+                    self.Rt[k][i, i] += self.zl[k][i, 0] / self.sl[k][i, 0] \
+                        + self.zu[k][i, 0] / self.su[k][i, 0]
+            self.lq_factor()
+            # predictor (affine scaling) step: targets 0
+            for k in range(N):
+                pmat_fill(self.tl[k], 0.0)
+                pmat_fill(self.tu[k], 0.0)
+            self.rhs()
+            self.lq_solve()
+            self.directions()
+            alpha = self.max_step(1.0)
+            mu_aff = 0.0
             for k in range(N):
                 for i in range(nu):
-                    ddu : float = self.dun[k][i, 0] - self.du[k][i, 0]
-                    dsl : float = ddu + self.du[k][i, 0] - self.lb[k][i, 0] - self.sl[k][i, 0]
-                    dsu : float = self.ub[k][i, 0] - self.du[k][i, 0] - self.su[k][i, 0] - ddu
-                    dzl : float = (sigma * mu - self.zl[k][i, 0] * (self.sl[k][i, 0] + dsl)) / self.sl[k][i, 0]
-                    dzu : float = (sigma * mu - self.zu[k][i, 0] * (self.su[k][i, 0] + dsu)) / self.su[k][i, 0]
-                    if dsl < 0.0:
-                        alpha = min(alpha, -0.995 * self.sl[k][i, 0] / dsl)
-                    if dsu < 0.0:
-                        alpha = min(alpha, -0.995 * self.su[k][i, 0] / dsu)
-                    if dzl < 0.0:
-                        alpha = min(alpha, -0.995 * self.zl[k][i, 0] / dzl)
-                    if dzu < 0.0:
-                        alpha = min(alpha, -0.995 * self.zu[k][i, 0] / dzu)
+                    mu_aff += (self.sl[k][i, 0] + alpha * self.dsl[k][i, 0]) * (self.zl[k][i, 0] + alpha * self.dzl[k][i, 0]) \
+                        + (self.su[k][i, 0] + alpha * self.dsu[k][i, 0]) * (self.zu[k][i, 0] + alpha * self.dzu[k][i, 0])
+            mu_aff = mu_aff / pairs
+            # corrector: centering sigma mu with sigma = (mu_aff / mu)^3, and
+            # the second-order term of the predictor
+            ratio = mu_aff / mu
             for k in range(N):
                 for i in range(nu):
-                    ddu : float = self.dun[k][i, 0] - self.du[k][i, 0]
-                    dsl : float = ddu + self.du[k][i, 0] - self.lb[k][i, 0] - self.sl[k][i, 0]
-                    dsu : float = self.ub[k][i, 0] - self.du[k][i, 0] - self.su[k][i, 0] - ddu
-                    dzl : float = (sigma * mu - self.zl[k][i, 0] * (self.sl[k][i, 0] + dsl)) / self.sl[k][i, 0]
-                    dzu : float = (sigma * mu - self.zu[k][i, 0] * (self.su[k][i, 0] + dsu)) / self.su[k][i, 0]
-                    self.du[k][i, 0] += alpha * ddu
-                    self.sl[k][i, 0] += alpha * dsl
-                    self.su[k][i, 0] += alpha * dsu
-                    self.zl[k][i, 0] += alpha * dzl
-                    self.zu[k][i, 0] += alpha * dzu
+                    self.tl[k][i, 0] = ratio * ratio * ratio * mu - self.dsl[k][i, 0] * self.dzl[k][i, 0]
+                    self.tu[k][i, 0] = ratio * ratio * ratio * mu - self.dsu[k][i, 0] * self.dzu[k][i, 0]
+            self.rhs()
+            self.lq_solve()
+            self.directions()
+            alpha = self.max_step(max(0.995, 1.0 - mu))
+            for k in range(N):
+                pmt_gead(alpha, self.ddu[k], self.du[k])
+                pmt_gead(alpha, self.dsl[k], self.sl[k])
+                pmt_gead(alpha, self.dsu[k], self.su[k])
+                pmt_gead(alpha, self.dzl[k], self.zl[k])
+                pmt_gead(alpha, self.dzu[k], self.zu[k])
         return
 
     def apply(self) -> float:
