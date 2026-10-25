@@ -1,7 +1,17 @@
 from ctypes import *
 import os
+import sys
 
 bw = CDLL(os.path.dirname(__file__) + '/../lib/blasfeo/libblasfeo.so')
+
+# BLASFEO prints through C stdio, which is buffered separately from Python's
+# sys.stdout: flush both so that output stays in program order when redirected
+libc = CDLL(None)
+
+def c_print(fun, *args):
+    sys.stdout.flush()
+    fun(*args)
+    libc.fflush(None)
 
 class blasfeo_dmat(Structure):
     _fields_ = [    ("m", c_int),

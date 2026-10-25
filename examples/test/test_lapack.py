@@ -11,7 +11,7 @@ def main() -> int:
 
     D : pmat = pmat(n,n)
 
-    ipiv : List = plist(int, n)
+    ipiv : List = plist('int', n)
 
     pmt_getrf(C, D, ipiv)
     pmat_print(D)

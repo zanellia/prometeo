@@ -15,7 +15,6 @@ This module converts a Python AST into C source code.
 # TODO(andrea): add utility to asses AST structure
 
 import ast
-import astunparse as astu
 import sys
 
 from .op_util import get_op_symbol, get_op_precedence, Precedence
@@ -107,7 +106,15 @@ pmt_temp_types = {\
 
 native_types = ['int', 'float']
 
-legacy_classinfo = ["ast.Num", "ast.Str"]
+def unparse(node):
+    # the result is embedded in larger C expressions: parenthesize
+    # non-atomic expressions (e.g. 'n + 1') to preserve precedence
+    code = ast.unparse(node)
+    if isinstance(node, (ast.Name, ast.Constant, ast.Attribute, ast.Subscript, ast.Call)):
+        return code
+    return '(' + code + ')'
+
+legacy_classinfo = ["ast.Num", "ast.Str", "ast.NameConstant"]
 
 def my_isinstance(obj, classinfo):
     if classinfo in legacy_classinfo:
@@ -127,6 +134,9 @@ def my_isinstance(obj, classinfo):
                     return False
             else:
                 return False
+        if classinfo == "ast.NameConstant":
+            return isinstance(obj, ast.Constant) and \
+                (obj.value is None or isinstance(obj.value, bool))
     else:
         return isinstance(obj, classinfo)
 
@@ -143,11 +153,7 @@ def check_node_structure(node, struct):
         return res
 
 def get_slice_value(node):
-    if sys.version_info >= (3, 9):
-        slice_val = node
-    else:
-        slice_val = node.value
-    return slice_val
+    return node
 
 class PmtArg:
     def __init__(self, name):
@@ -184,9 +190,9 @@ def parse_pmt_gemm_args(generator, call, node):
     # loop over keywords
     for kw in call.keywords:
         if kw.arg == 'alpha':
-            alpha = kw.value.n
+            alpha = kw.value.value
         if kw.arg == 'beta':
-            beta = kw.value.n
+            beta = kw.value.value
 
     if len(call.args) > 3:
         arg3 = call.args[3].name
@@ -361,7 +367,7 @@ def Num_or_Name(node):
     and -node.n if node is of type UnaryOp and node.op is of type USub
     """
     if my_isinstance(node, "ast.Num"):
-        return node.n
+        return node.value
     elif my_isinstance(node, ast.Name):
         return node.id
     elif my_isinstance(node, ast.UnaryOp):
@@ -388,14 +394,14 @@ def check_expression(node, binops, unops, usr_types, ast_types, record):
                 return check_expression(node.left, binops, unops, usr_types, ast_types, record) \
                     and check_expression(node.right, binops, unops, usr_types, ast_types, record)
             else:
-                raise cgenException('unsopported BinOp {}\n'.format(astu.unparse(node)), node.lineno)
+                raise cgenException('unsopported BinOp {}\n'.format(unparse(node)), node.lineno)
         elif my_isinstance(node, ast.UnaryOp):
             if my_isinstance(node.op, unops):
                 return check_expression(node.operand, binops, unops, usr_types, ast_types, record)
             else:
-                raise cgenException('unsopported UnaryOp {}\n'.format(astu.unparse(node)), node.lineno)
+                raise cgenException('unsopported UnaryOp {}\n'.format(unparse(node)), node.lineno)
         else:
-            raise cgenException('could not resolve expression {}\n'.format(astu.unparse(node)), node.lineno)
+            raise cgenException('could not resolve expression {}\n'.format(unparse(node)), node.lineno)
 
 # def process_annotation(ann_node):
 #     if my_isinstance(ann_node, ast.Name):
@@ -727,7 +733,7 @@ class SourceGenerator(ExplicitNodeVisitor):
 
         elif my_isinstance(node, "ast.Num"):
 
-            type_val = type(node.n).__name__
+            type_val = type(node.value).__name__
 
             return type_val,  None
 
@@ -737,7 +743,7 @@ class SourceGenerator(ExplicitNodeVisitor):
 
             return type_val,  None
 
-        elif my_isinstance(node, ast.NameConstant):
+        elif my_isinstance(node, "ast.NameConstant"):
             if node.value == None:
                 type_val = None
                 return type_val,  None
@@ -958,7 +964,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 begin = '(' if need_parens else ''
                 end = ')' if need_parens else ''
                 annotation = item.annotation
-                # annotation = ast.parse(item.annotation.s).body[0]
+                # annotation = ast.parse(item.annotation.value).body[0]
                 # if 'value' in annotation.value.__dict__:
                 type_py = annotation.id
                 if type_py == 'List':
@@ -1212,17 +1218,17 @@ class SourceGenerator(ExplicitNodeVisitor):
                                         'the pmat(<n>, <m>) constructor\n.', item.lineno)
 
                                 if not check_expression(item.value.args[0], tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]),
-                                    tuple([ast.USub]),('dims'), tuple([ast.Num, ast.Constant]), self.dim_record):
+                                    tuple([ast.USub]),('dims'), tuple([ast.Constant]), self.dim_record):
                                     raise cgenException('Invalid dimension expression in \
                                         pmat constructor ({})'.format(item.value.args[0]), self.lineno)
 
                                 if not check_expression(item.value.args[1], tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]),
-                                    tuple([ast.USub]),('dims'), tuple([ast.Num, ast.Constant]), self.dim_record):
+                                    tuple([ast.USub]),('dims'), tuple([ast.Constant]), self.dim_record):
                                     raise cgenException('Invalid dimension expression in \
                                         pmat constructor ({})'.format(item.value.args[1]), self.lineno)
 
-                                dim1 = astu.unparse(item.value.args[0]).replace('\n','')
-                                dim2 = astu.unparse(item.value.args[1]).replace('\n','')
+                                dim1 = unparse(item.value.args[0]).replace('\n','')
+                                dim2 = unparse(item.value.args[1]).replace('\n','')
 
                                 #TODO(andrea): need to wrap dim names into tokens to avoid name clashes!!!
                                 self.var_dim_record[self.scope][item.target.attr] = [dim1, dim2]
@@ -1536,9 +1542,9 @@ class SourceGenerator(ExplicitNodeVisitor):
             post_mangl = ''
             for arg in args:
                 if my_isinstance(arg, "ast.Num"):
-                    if my_isinstance(arg.n, int):
+                    if my_isinstance(arg.value, int):
                         arg_value = 'int'
-                    elif my_isinstance(arg.n, float):
+                    elif my_isinstance(arg.value, float):
                         arg_value = 'float'
                     else:
                         raise cgenException('Invalid numeric argument.\n', arg.lineno)
@@ -1554,7 +1560,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         #     arg_mangl = ''
         #     for arg, default in zip(args, padding + defaults):
         #         annotation = arg.annotation
-        #         # annotation = ast.parse(arg.annotation.s).body[0]
+        #         # annotation = ast.parse(arg.annotation.value).body[0]
         #         # if 'value' in annotation.value.__dict__:
         #         if 'value' in annotation.__dict__:
         #             # arg_mangl = arg_mangl + annotation.value.value.id
@@ -1578,9 +1584,9 @@ class SourceGenerator(ExplicitNodeVisitor):
     #         arg_mangl = ''
     #         for arg in args:
     #             if my_isinstance(arg, ast.Num):
-    #                 if my_isinstance(arg.n, int):
+    #                 if my_isinstance(arg.value, int):
     #                     arg_value = 'int'
-    #                 elif my_isinstance(arg.n, float):
+    #                 elif my_isinstance(arg.value, float):
     #                     arg_value = 'double'
     #                 else:
     #                     raise cgenException('Invalid numeric argument.\n', arg.lineno)
@@ -1654,52 +1660,40 @@ class SourceGenerator(ExplicitNodeVisitor):
 
                         # check for ExtSlices
                         isExtSlice = False
-                        if sys.version_info >= (3, 9): 
-                            if isinstance(node.targets[0].slice.elts[0], ast.Slice):
-                                isExtSlice = True
-                        else:
-                            if my_isinstance(node.targets[0].slice, ast.ExtSlice):
-                                isExtSlice = True
+                        if isinstance(node.targets[0].slice.elts[0], ast.Slice):
+                            isExtSlice = True
 
                         if isExtSlice:
-                            if sys.version_info >= (3, 9):
-                                first_arg = node.targets[0].slice.elts[0]
-                                second_arg = node.targets[0].slice.elts[1]
-                            else:
-                                first_arg = node.targets[0].slice.dims[0]
-                                second_arg = node.targets[0].slice.dims[1]
+                            first_arg = node.targets[0].slice.elts[0]
+                            second_arg = node.targets[0].slice.elts[1]
 
-                            first_index_l  = astu.unparse( \
+                            first_index_l  = unparse( \
                                 first_arg.lower).strip('\n')
 
-                            first_index_u  = astu.unparse( \
+                            first_index_u  = unparse( \
                                 first_arg.upper).strip('\n')
 
-                            second_index_l = astu.unparse( \
+                            second_index_l = unparse( \
                                 second_arg.lower).strip('\n')
 
-                            second_index_u = astu.unparse( \
+                            second_index_u = unparse( \
                                 second_arg.upper).strip('\n')
 
                             # check if subscripted expression is used in the value
                             if hasattr(node.value, 'slice'):
-                                if sys.version_info >= (3, 9):
-                                    first_arg_value = node.value.slice.elts[0]
-                                    second_arg_value = node.value.slice.elts[1]
-                                else:
-                                    first_arg_value = node.value.slice.dims[0]
-                                    second_arg_value = node.value.slice.dims[1]
+                                first_arg_value = node.value.slice.elts[0]
+                                second_arg_value = node.value.slice.elts[1]
 
-                                first_index_value_l  = astu.unparse( \
+                                first_index_value_l  = unparse( \
                                     first_arg_value.lower).strip('\n')
 
-                                first_index_value_u  = astu.unparse( \
+                                first_index_value_u  = unparse( \
                                     first_arg_value.upper).strip('\n')
 
-                                second_index_value_l = astu.unparse( \
+                                second_index_value_l = unparse( \
                                     second_arg_value.lower).strip('\n')
 
-                                second_index_value_u = astu.unparse( \
+                                second_index_value_u = unparse( \
                                     second_arg_value.upper).strip('\n')
 
                                 ai = first_index_value_l
@@ -1724,8 +1718,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                                     'must be of type Tuple.', node.lineno)
 
                             # unparse slice expression
-                            first_index = astu.unparse(slice_target.elts[0]).strip('\n')
-                            second_index = astu.unparse(slice_target.elts[1]).strip('\n')
+                            first_index = unparse(slice_target.elts[0]).strip('\n')
+                            second_index = unparse(slice_target.elts[1]).strip('\n')
 
                             # check if subscripted expression is used in the value
                             if my_isinstance(node.value, ast.Subscript):
@@ -1734,8 +1728,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                                 if value in self.typed_record[scope]:
                                     if self.typed_record[scope][value] == 'pmat':
                                         slice_value = get_slice_value(node.value.slice)
-                                        first_index_value = astu.unparse(slice_value.elts[0]).strip('\n')
-                                        second_index_value = astu.unparse(slice_value.elts[1]).strip('\n')
+                                        first_index_value = unparse(slice_value.elts[0]).strip('\n')
+                                        second_index_value = unparse(slice_value.elts[1]).strip('\n')
 
                                         value_expr = 'c_pmt_pmat_get_el(' + value \
                                             + ', {}, {})'.format(first_index_value, \
@@ -1750,8 +1744,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                                         # if value is a pvec
                                         slice_value = get_slice_value(node.value.slice)
                                         sub_type = type(slice_value)
-                                        if sub_type in (ast.Num, ast.Constant):
-                                            index_value = slice_value.n
+                                        if sub_type in (ast.Constant,):
+                                            index_value = slice_value.value
                                         elif sub_type == ast.Name:
                                             index_value = slice_value.id
                                         else:
@@ -1769,16 +1763,16 @@ class SourceGenerator(ExplicitNodeVisitor):
                                     raise cgenException('Undefined variable {}.'.format(value), node.lineno)
                             else:
                                 if not check_expression(node.value, tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]),
-                                        tuple([ast.USub]), ('dims'), tuple([ast.Num, ast.Constant, ast.Name]), self.dim_record):
-                                    raise cgenException('Invalid value {}'.format(astu.unparse(node.value)), node.lineno)
-                                value = astu.unparse(node.value)
+                                        tuple([ast.USub]), ('dims'), tuple([ast.Constant, ast.Name]), self.dim_record):
+                                    raise cgenException('Invalid value {}'.format(unparse(node.value)), node.lineno)
+                                value = unparse(node.value)
                                 self.statement([], 'c_pmt_pmat_set_el(', target, ', {}'.format(first_index), ', {}'.format(second_index), ', {}'.format(value), ');')
                         return
 
                     # check for pvec
                     elif self.typed_record[self.scope][target] in ('pvec'):
                         slice_target = get_slice_value(node.targets[0].slice)
-                        if type(slice_target) not in (ast.Num, ast.Constant, ast.Name):
+                        if type(slice_target) not in (ast.Constant, ast.Name):
                             # ap.pprint(node)
                             raise cgenException('Subscript to a pvec must \
                                 object must be of type Num or Name.', node.lineno)
@@ -1788,8 +1782,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                             if self.typed_record[self.scope][target] in ('pvec'):
                                 target = node.targets[0]
                                 sub_type = type(slice_target)
-                                if sub_type in (ast.Num, ast.Constant):
-                                    index = slice_target.n
+                                if sub_type in (ast.Constant,):
+                                    index = slice_target.value
                                 elif sub_type == ast.Name:
                                     index = slice_target.id
                                 else:
@@ -1813,8 +1807,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                                             if self.typed_record[self.scope][value] == 'pvec':
                                                 slice_value = get_slice_value(node.value.slice)
                                                 sub_type = type(slice_value)
-                                                if sub_type in (ast.Num, ast.Constant):
-                                                    index_value = slice_value.n
+                                                if sub_type in (ast.Constant,):
+                                                    index_value = slice_value.value
                                                 elif sub_type == ast.Name:
                                                     index_value = slice_value.id
                                                 else:
@@ -1855,8 +1849,8 @@ class SourceGenerator(ExplicitNodeVisitor):
                         if self.typed_record[self.scope][value] == 'pvec':
                             slice_value = get_slice_value(node.value.slice)
                             sub_type = type(slice_value)
-                            if sub_type in (ast.Num, ast.Constant):
-                                index_value = slice_value.n
+                            if sub_type in (ast.Constant,):
+                                index_value = slice_value.value
                             elif sub_type == ast.Name:
                                 index_value = slice_value.id
                             else:
@@ -1939,7 +1933,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 struct_name = node.targets[0].value.id
                 code = recurse_attributes(node.targets[0])
                 if struct_name in self.typed_record[self.scope]:
-                    attr_value = node.value.n
+                    attr_value = node.value.value
                     attr_name = node.targets[0].attr
                     self.statement([], struct_name, '->', attr_name, ' = ', str(attr_value), ';')
                 else:
@@ -2029,10 +2023,10 @@ class SourceGenerator(ExplicitNodeVisitor):
             return
 
         elif ann == 'pfun':
-            # code = astu.unparse(node)
+            # code = unparse(node)
             # exec('from prometeo import * \n' + code)
             if my_isinstance(node.value, ast.Call):
-                self.scope = self.scope + '@' + node.value.args[0].s
+                self.scope = self.scope + '@' + node.value.args[0].value
                 casadi_fun = ca.Function.load('__pmt_cache__/' + self.scope + '.casadi')
                 # self.function_record[outer_scope][fun_name_m] = {"arg_types": arg_list,  "ret_type": return_type_py}
                 self.casadi_funs.append(self.scope)
@@ -2040,7 +2034,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 self.var_dim_record[self.scope] = dict()
                 self.heap8_record[self.scope] = '0'
                 self.heap64_record[self.scope] = '0'
-                self.scope = descope(self.scope, '@' + node.value.args[0].s)
+                self.scope = descope(self.scope, '@' + node.value.args[0].value)
             else:
                 raise cgenException('pfun annotation must be used to define a CasADi function' 
                         'calling the pfun constructor', node.lineno)
@@ -2111,17 +2105,17 @@ class SourceGenerator(ExplicitNodeVisitor):
                     ' the pmat(<n>, <m>) constructor.', node.lineno)
 
             if not check_expression(node.value.args[0], tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]),
-                tuple([ast.USub]),('dims'), tuple([ast.Num, ast.Constant]), self.dim_record):
-                raise cgenException('Invalid dimension expression in pmat constructor ({})'.format(astu.unparse(node.value.args[0])), node.lineno)
+                tuple([ast.USub]),('dims'), tuple([ast.Constant]), self.dim_record):
+                raise cgenException('Invalid dimension expression in pmat constructor ({})'.format(unparse(node.value.args[0])), node.lineno)
 
             if not check_expression(node.value.args[1], tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]),
-                tuple([ast.USub]),('dims'), tuple([ast.Num, ast.Constant]), self.dim_record):
-                raise cgenException('Invalid dimension expression in pmat constructor ({})'.format(astu.unparse(node.value.args[1])), node.lineno)
+                tuple([ast.USub]),('dims'), tuple([ast.Constant]), self.dim_record):
+                raise cgenException('Invalid dimension expression in pmat constructor ({})'.format(unparse(node.value.args[1])), node.lineno)
 
-            dim1 = astu.unparse(node.value.args[0]).replace('\n','')
-            dim2 = astu.unparse(node.value.args[1]).replace('\n','')
+            dim1 = unparse(node.value.args[0]).replace('\n','')
+            dim2 = unparse(node.value.args[1]).replace('\n','')
 
-            # value = astu.unparse(node.value)
+            # value = unparse(node.value)
             self.var_dim_record[self.scope][target] = [dim1, dim2]
             node.annotation.id = pmt_temp_types[ann]
             # assume that AnnAssigns on attributes are only used to declare instance attributes
@@ -2152,10 +2146,10 @@ class SourceGenerator(ExplicitNodeVisitor):
                 raise cgenException('pvec objects need to be declared calling the pvec(<n>, <m>) constructor.', node.lineno)
 
             if not check_expression(node.value.args[0], tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]),
-                tuple([ast.USub]),('dims'), tuple([ast.Num, ast.Constant]), self.dim_record):
+                tuple([ast.USub]),('dims'), tuple([ast.Constant]), self.dim_record):
                 raise cgenException('Invalid dimension expression in pvec constructor ({})'.format(node.value.args[0]), self.lineno)
 
-            dim1 = astu.unparse(node.value.args[0]).replace('\n','')
+            dim1 = unparse(node.value.args[0]).replace('\n','')
             self.var_dim_record[self.scope][node.target.id] = [dim1]
             node.annotation.id = pmt_temp_types[ann]
 
@@ -2182,13 +2176,13 @@ class SourceGenerator(ExplicitNodeVisitor):
         # or dims
         elif ann == 'dims':
             if not check_expression(node.value, tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]), \
-                    tuple([ast.USub]),('dims'), tuple([ast.Num, ast.Constant]), self.dim_record):
+                    tuple([ast.USub]),('dims'), tuple([ast.Constant]), self.dim_record):
                 raise cgenException('Invalid expression for dimension', self.lineno)
 
-            dim_value = astu.unparse(node.value).replace('\n','')
+            dim_value = unparse(node.value).replace('\n','')
             self.write('#define %s %s\n' %(node.target.id, dim_value), dest='hdr')
             self.dim_record[node.target.id] = dim_value
-            # self.write('const int %s = %s;\n' %(node.target.id, node.value.n), dest='hdr')
+            # self.write('const int %s = %s;\n' %(node.target.id, node.value.value), dest='hdr')
 
         # or dimv
         elif ann == 'dimv':
@@ -2198,10 +2192,10 @@ class SourceGenerator(ExplicitNodeVisitor):
                 self.dim_record[node.target.id].append([])
                 for j in range(len(node.value.elts[i].elts)):
                     if not check_expression(node.value.elts[i].elts[j], tuple([ast.Mult, ast.Sub, ast.Pow, ast.Add]), \
-                            tuple([ast.USub]),('dims'), tuple([ast.Num, ast.Constant]), self.dim_record):
+                            tuple([ast.USub]),('dims'), tuple([ast.Constant]), self.dim_record):
                         raise cgenException('Invalid expression for dimension', self.lineno)
 
-                    dim_value = astu.unparse(node.value.elts[i].elts[j]).replace('\n','')
+                    dim_value = unparse(node.value.elts[i].elts[j]).replace('\n','')
                     self.dim_record[node.target.id][i].append(dim_value)
                     self.write('#define %s_%s_%s %s\n' %(node.target.id, i, j, dim_value), dest='hdr')
 
@@ -2333,7 +2327,7 @@ class SourceGenerator(ExplicitNodeVisitor):
             raise cgenException('Missing return annotation on method {}'.format(\
                 fun_name), node.lineno)
 
-        if my_isinstance(returns, ast.NameConstant):
+        if my_isinstance(returns, "ast.NameConstant"):
             return_type_py = str(returns.value)
         elif my_isinstance(returns, ast.Name):
             return_type_py = returns.id
@@ -2467,15 +2461,15 @@ class SourceGenerator(ExplicitNodeVisitor):
         prefix = 'is_async ' if is_async else ''
         if len(node.iter.args) == 1:
             # range(<value>)
-            range_value = astu.unparse(node.iter.args[0]).strip('\n')
+            range_value = unparse(node.iter.args[0]).strip('\n')
             self.statement(node, 'for(int ',
                     node.target, ' = 0; ', node.target,
                     ' < {}'.format(range_value),
                     '; ',node.target, '++) {')
         elif len(node.iter.args) == 2:
             # range(<value>, <value>)
-            range_value_1 = astu.unparse(node.iter.args[0]).strip('\n')
-            range_value_2 = astu.unparse(node.iter.args[1]).strip('\n')
+            range_value_1 = unparse(node.iter.args[0]).strip('\n')
+            range_value_2 = unparse(node.iter.args[1]).strip('\n')
             increment = 1
             self.statement(node, 'for(int ',
                     node.target, ' = {}; '.format(range_value_1), node.target,
@@ -2725,7 +2719,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 if hasattr(node.args[0], 'op'):
                     if my_isinstance(node.args[0].op, ast.Mod):
                         # print string with arguments
-                        write('printf("%s' %repr(node.args[0].left.s)[1:-1], '\\n", %s);\n' %node.args[0].right.id, dest = 'src')
+                        write('printf("%s' %repr(node.args[0].left.value)[1:-1], '\\n", %s);\n' %node.args[0].right.id, dest = 'src')
                         return
                     else:
                         raise cgenException('Invalid operator in \
@@ -2733,7 +2727,7 @@ class SourceGenerator(ExplicitNodeVisitor):
 
                 else:
                     # print string with no arguments
-                    write('printf("%s\\n");\n' %repr(node.args[0].s)[1:-1], dest = 'src')
+                    write('printf("%s\\n");\n' %repr(node.args[0].value)[1:-1], dest = 'src')
                     return
             elif node.func.id == 'pparse':
 
@@ -2753,7 +2747,7 @@ class SourceGenerator(ExplicitNodeVisitor):
 
                 os.chdir('..')
 
-                expr = node.args[0].s
+                expr = node.args[0].value
                 # pass string to laparser
                 try:
                     parser = LAParser( \
@@ -2901,7 +2895,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                     else:
                         raise cgenException('Could not resolve argument "{}"'.format(arg_name), node.lineno)
                 elif my_isinstance(arg, "ast.Num"):
-                    arg_type = type(arg.n).__name__
+                    arg_type = type(arg.value).__name__
                 else:
                     arg_type, s = self.get_type_of_node(arg, self.scope)
                     # raise cgenException('Feature not implemented: type check on arg expression.', node.lineno)
@@ -2970,7 +2964,7 @@ class SourceGenerator(ExplicitNodeVisitor):
             def recurse(node):
                 for value in node.values:
                     if my_isinstance(value, "ast.Str"):
-                        self.write(value.s)
+                        self.write(value.value)
                     elif my_isinstance(value, ast.FormattedValue):
                         with self.delimit('{}'):
                             self.visit(value.value)
@@ -2991,7 +2985,7 @@ class SourceGenerator(ExplicitNodeVisitor):
             uni_lit = False  # No formatted byte strings
 
         else:
-            mystr = node.s
+            mystr = node.value
             uni_lit = self.using_unicode_literals
 
         mystr = self.pretty_string(mystr, embedded, current_line, uni_lit)
@@ -3008,7 +3002,7 @@ class SourceGenerator(ExplicitNodeVisitor):
     def visit_Bytes(self, node):
         self.current_line = node.lineno
         self.current_col = node.col_offset
-        self.write(repr(node.s))
+        self.write(repr(node.value))
 
     def visit_Num(self, node,
                   # constants
@@ -3016,7 +3010,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.current_line = node.lineno
         self.current_col = node.col_offset
         with self.delimit(node) as delimiters:
-            s = repr(node.n)
+            s = repr(node.value)
 
             # Deal with infinities -- if detected, we can
             # generate them with 1e1000.

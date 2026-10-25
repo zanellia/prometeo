@@ -4,7 +4,7 @@ from ..cgen.node_util import ExplicitNodeVisitor
 import astpretty as ap
 from ..cgen.op_util import get_op_symbol, get_op_precedence, Precedence
 import json
-from collections import Iterable
+from collections.abc import Iterable
 from copy import deepcopy
 
 pmt_functions = {\
@@ -38,7 +38,7 @@ pmt_functions = {\
 
 native_types = ['int', 'float']
 
-legacy_classinfo = ["ast.Num", "ast.Str"]
+legacy_classinfo = ["ast.Num", "ast.Str", "ast.NameConstant"]
 
 def my_isinstance(obj, classinfo):
     if classinfo in legacy_classinfo:
@@ -58,6 +58,9 @@ def my_isinstance(obj, classinfo):
                     return False
             else:
                 return False
+        if classinfo == "ast.NameConstant":
+            return isinstance(obj, ast.Constant) and \
+                (obj.value is None or isinstance(obj.value, bool))
     else:
         return isinstance(obj, classinfo)
 
@@ -176,7 +179,7 @@ class ast_visitor(ExplicitNodeVisitor):
 
         elif my_isinstance(node, "ast.Num"):
 
-            type_val = type(node.n).__name__
+            type_val = type(node.value).__name__
 
             return type_val,  None
 
@@ -186,7 +189,7 @@ class ast_visitor(ExplicitNodeVisitor):
 
             return type_val,  None
 
-        elif my_isinstance(node, ast.NameConstant):
+        elif my_isinstance(node, "ast.NameConstant"):
             if node.value == None:
                 type_val = None
                 return type_val,  None
@@ -346,10 +349,10 @@ class ast_visitor(ExplicitNodeVisitor):
             """
             post_mangl = ''
             for arg in args:
-                if isinstance(arg, ast.Num):
-                    if isinstance(arg.n, int):
+                if my_isinstance(arg, "ast.Num"):
+                    if isinstance(arg.value, int):
                         arg_value = 'int'
-                    elif isinstance(arg.n, float):
+                    elif isinstance(arg.value, float):
                         arg_value = 'float'
                     else:
                         raise cgenException('Invalid numeric argument.\n', arg.lineno)

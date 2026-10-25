@@ -1,7 +1,7 @@
 <img src="https://github.com/zanellia/prometeo/blob/master/logo/logo.png" align="left"
      alt="prometeo logo by Andrea Zanelli" width="80" height="120">
 
-![Travis Status](https://travis-ci.org/zanellia/prometeo.svg?branch=master) [![PyPI version fury.io](https://badge.fury.io/py/prometeo-dsl.svg)](https://pypi.python.org/pypi/ansicolortags/) [![Documentation Status](https://readthedocs.org/projects/prometeo/badge/?version=latest)](https://prometeo.readthedocs.io/en/latest/?badge=latest)
+[![CI](https://github.com/zanellia/prometeo/actions/workflows/ci.yml/badge.svg)](https://github.com/zanellia/prometeo/actions/workflows/ci.yml) [![PyPI version fury.io](https://badge.fury.io/py/prometeo-dsl.svg)](https://pypi.python.org/pypi/ansicolortags/) [![Documentation Status](https://readthedocs.org/projects/prometeo/badge/?version=latest)](https://prometeo.readthedocs.io/en/latest/?badge=latest)
 
 
 This is prometeo, an experimental modeling tool for embedded high-performance computing. prometeo provides a 
@@ -60,8 +60,8 @@ If you want to install prometeo building the sources on your local machine you c
 
 - Run `git submodule update --init` to clone the submodules.
 - Run `make install_shared` from `<prometeo_root>/prometeo/cpmt` to compile and install the shared library associated with the C backend. Notice that the default installation path is `<prometeo_root>/prometeo/cpmt/install`.
-- You need Python 3.6. or later.
-- Optional: to keep things clean you can setup a virtual environment with `virtualenv --python=<path_to_python3.6> <path_to_new_virtualenv>`.
+- You need Python 3.10 or later.
+- Optional: to keep things clean you can setup a virtual environment with `python3 -m venv <path_to_new_virtualenv>`.
 - Run `pip install -e .` from `<prometeo_root>` to install the Python package.
 
 Finally, you can run the examples in `<root>/examples` with `pmt <example_name>.py --cgen=<True/False>`, where the `--cgen` flag determines whether the code is executed by the Python interpreter or C code is generated compiled and run.
@@ -90,7 +90,7 @@ def main() -> int:
     pmat_print(C)
     return 0
 ```
-can be run by the standard Python interpreter (version >3.6 required) and it 
+can be run by the standard Python interpreter (version >=3.10 required) and it 
 will perform the described linear algebra operations using the command `pmt simple_example.py --cgen=False`. 
 At the same time, the code can be parsed by prometeo and its abstract syntax tree (AST) analyzed in order
 to generate the following high-performance C code:

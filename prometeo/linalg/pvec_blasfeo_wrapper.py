@@ -47,4 +47,4 @@ def c_pmt_vecpe(m, ipiv, a):
 
 # auxiliary functions
 def c_pmt_print_blasfeo_dvec(v):
-    bw.blasfeo_print_dvec(v.blasfeo_dvec.m, byref(v.blasfeo_dvec), 0)
+    c_print(bw.blasfeo_print_dvec, v.blasfeo_dvec.m, byref(v.blasfeo_dvec), 0)

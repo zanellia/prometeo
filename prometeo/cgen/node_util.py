@@ -142,6 +142,25 @@ class ExplicitNodeVisitor(ast.NodeVisitor):
         visitor = getattr(self, method, abort)
         return visitor(node)
 
+    def visit_Constant(self, node):
+        """Dispatch constants to the visit_Num, visit_Str, ... handlers
+        (done by ast.NodeVisitor itself up to Python 3.13)."""
+        value = node.value
+        if value is Ellipsis:
+            method = 'visit_Ellipsis'
+        elif value is None or isinstance(value, bool):
+            method = 'visit_NameConstant'
+        elif isinstance(value, str):
+            method = 'visit_Str'
+        elif isinstance(value, bytes):
+            method = 'visit_Bytes'
+        else:
+            method = 'visit_Num'
+        visitor = getattr(self, method, None)
+        if visitor is None:
+            return self.generic_visit(node)
+        return visitor(node)
+
 
 def allow_ast_comparison():
     """This ugly little monkey-patcher adds in a helper class
