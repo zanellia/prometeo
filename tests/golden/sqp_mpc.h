@@ -251,6 +251,46 @@ void c_pmt_casadi_rk4(struct pmat *in_0, struct pmat *in_1, struct pmat *out_0, 
 #define K_sizes_18_1 nx
 #define K_sizes_19_0 nu
 #define K_sizes_19_1 nx
+#define R_sizes_0_0 nu
+#define R_sizes_0_1 nu
+#define R_sizes_1_0 nu
+#define R_sizes_1_1 nu
+#define R_sizes_2_0 nu
+#define R_sizes_2_1 nu
+#define R_sizes_3_0 nu
+#define R_sizes_3_1 nu
+#define R_sizes_4_0 nu
+#define R_sizes_4_1 nu
+#define R_sizes_5_0 nu
+#define R_sizes_5_1 nu
+#define R_sizes_6_0 nu
+#define R_sizes_6_1 nu
+#define R_sizes_7_0 nu
+#define R_sizes_7_1 nu
+#define R_sizes_8_0 nu
+#define R_sizes_8_1 nu
+#define R_sizes_9_0 nu
+#define R_sizes_9_1 nu
+#define R_sizes_10_0 nu
+#define R_sizes_10_1 nu
+#define R_sizes_11_0 nu
+#define R_sizes_11_1 nu
+#define R_sizes_12_0 nu
+#define R_sizes_12_1 nu
+#define R_sizes_13_0 nu
+#define R_sizes_13_1 nu
+#define R_sizes_14_0 nu
+#define R_sizes_14_1 nu
+#define R_sizes_15_0 nu
+#define R_sizes_15_1 nu
+#define R_sizes_16_0 nu
+#define R_sizes_16_1 nu
+#define R_sizes_17_0 nu
+#define R_sizes_17_1 nu
+#define R_sizes_18_0 nu
+#define R_sizes_18_1 nu
+#define R_sizes_19_0 nu
+#define R_sizes_19_1 nu
 
 typedef struct SQP SQP;
 
@@ -260,22 +300,37 @@ struct pmat * us[20];
 struct pmat * A[20];
 struct pmat * B[20];
 struct pmat * b[20];
+struct pmat * dx[21];
+struct pmat * du[20];
+struct pmat * lb[20];
+struct pmat * ub[20];
+struct pmat * sl[20];
+struct pmat * su[20];
+struct pmat * zl[20];
+struct pmat * zu[20];
+struct pmat * Rt[20];
+struct pmat * rt[20];
 struct pmat * K[20];
 struct pmat * kk[20];
+struct pmat * dxn[21];
+struct pmat * dun[20];
 struct pmat * x0;
 struct pmat * Q;
 struct pmat * R;
+int ipm_iterations;
 void (*_Z8__init__)(SQP *self);
 void (*_Z9linearize)(SQP *self);
-void (*_Z7riccati)(SQP *self);
-double (*_Z7forward)(SQP *self);
+void (*_Z2lq)(SQP *self);
+void (*_Z3ipm)(SQP *self);
+double (*_Z5apply)(SQP *self);
 double (*_Z7iterate)(SQP *self);
 };
 
 void (_Z8__init__SQP_impl)(SQP *self);
 void (_Z9linearizeSQP_impl)(SQP *self);
-void (_Z7riccatiSQP_impl)(SQP *self);
-double (_Z7forwardSQP_impl)(SQP *self);
+void (_Z2lqSQP_impl)(SQP *self);
+void (_Z3ipmSQP_impl)(SQP *self);
+double (_Z5applySQP_impl)(SQP *self);
 double (_Z7iterateSQP_impl)(SQP *self);
 
 

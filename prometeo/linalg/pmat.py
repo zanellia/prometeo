@@ -15,6 +15,8 @@ class pmat(pmat_):
         self.blasfeo_dmat = c_pmt_create_blasfeo_dmat(m, n)
         self._m = m
         self._n = n
+        # reference passed to BLASFEO, created once
+        self._ref = byref(self.blasfeo_dmat)
 
     @property
     def m(self):
@@ -25,6 +27,14 @@ class pmat(pmat_):
         return self._n
 
     def __getitem__(self, index):
+        # fast path: element A[i, j]
+        if type(index) is tuple and len(index) == 2:
+            i, j = index
+            if type(i) is int and type(j) is int:
+                if 0 <= i < self._m and 0 <= j < self._n:
+                    return bw.blasfeo_dgeex1(self._ref, i, j)
+                raise IndexError('index ({}, {}) out of range for a {}x{} pmat'.format(
+                    i, j, self._m, self._n))
         if isinstance(index, tuple):
             if len(index) != 2:
                 raise Exception ('pmat subscript should be a 2-dimensional tuples, \
@@ -59,6 +69,15 @@ class pmat(pmat_):
                     you have: {}\n. Exiting'.format(index))
 
     def __setitem__(self, index, value):
+        # fast path: element A[i, j]
+        if type(index) is tuple and len(index) == 2:
+            i, j = index
+            if type(i) is int and type(j) is int:
+                if 0 <= i < self._m and 0 <= j < self._n:
+                    bw.blasfeo_dgein1(value, self._ref, i, j)
+                    return
+                raise IndexError('index ({}, {}) out of range for a {}x{} pmat'.format(
+                    i, j, self._m, self._n))
         if isinstance(index, tuple):
             if len(index) != 2:
                 raise Exception ('pmat subscript should be a 2-dimensional tuples, \
@@ -176,27 +195,21 @@ class pmat(pmat_):
         return res
 
 def pmat_fill(A: pmat, value: float):
-    for i in range(A.m):
-        for j in range(A.n):
-            A[i,j] = value
+    bw.blasfeo_dgese(A.m, A.n, value, A._ref, 0, 0)
     return
 
 def pmat_copy(A: pmat, B: pmat):
     if A.m != B.m or A.n != B.n:
         raise Exception('__copy__: mismatching dimensions:'
             ' ({}, {}) -> ({}, {})'.format(A.m, A.n, B.m, B.n))
-    for i in range(A.m):
-        for j in range(A.n):
-            B[i,j] = A[i,j]
+    bw.blasfeo_dgecp(A.m, A.n, A._ref, 0, 0, B._ref, 0, 0)
     return
 
 def pmat_tran(A: pmat, B: pmat):
     if A.m != B.n or A.n != B.m:
         raise Exception('__tran__: mismatching dimensions:'
             ' ({}, {}) -> ({}, {})'.format(A.m, A.n, B.m, B.n))
-    for i in range(A.m):
-        for j in range(A.n):
-            B[j,i] = A[i,j]
+    bw.blasfeo_dgetr(A.m, A.n, A._ref, 0, 0, B._ref, 0, 0)
 
 def pmat_vcat(A: pmat, B: pmat, res: pmat):
     if A.n != B.n or A.n != res.n or A.m + B.m != res.m:

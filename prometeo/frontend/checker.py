@@ -71,6 +71,8 @@ class Scope:
         self.fun = fun
         self.cls = cls
         self.blocks = [{}]
+        # all the variables declared in the function, in any block
+        self.declared = {}
         self.loop_vars = []
         self.depth = 0  # nesting depth of loops and conditionals
         self.loops = 0  # nesting depth of loops
@@ -421,6 +423,12 @@ class Checker:
                 self.error(stmt, "'{}' shadows a variable declared in an enclosing block".format(name))
                 return
             t = self.annotation_type(stmt.annotation, "the annotation of '{}'".format(name))
+            if t is not None and scope.declared.get(name, t) != t:
+                self.error(stmt, "'{}' was declared as {} in another block of this function: "
+                    "declare it with the same type, or use another name".format(name, scope.declared[name]))
+                return
+            if t is not None:
+                scope.declared[name] = t
         else:
             self.unsupported(stmt, 'this declaration')
             return

@@ -1901,7 +1901,10 @@ class SourceGenerator(ExplicitNodeVisitor):
                 scope = self.scope
         else:
             target = node.target.id
-            if target in self.typed_record[self.scope]:
+            # variables can be declared again, with the same type, in other
+            # blocks (the frontend checks scoping)
+            if target in self.typed_record[self.scope] and \
+                    self.typed_record[self.scope][target] != ann:
                 raise cgenException('variable {} already defined.'.format(node.target.id), node.lineno)
         # check if a CasADi function is being declared (and skip)
         if ann == 'ca':

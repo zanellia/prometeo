@@ -17,6 +17,7 @@ nx, nu, N, h = 4, 1, 20, 0.05
 Q = np.diag([10.0, 10.0, 0.1, 0.1])
 R = np.diag([0.1])
 x0 = np.array([0.0, 0.4, 0.0, 0.0])
+u_min, u_max = -5.0, 5.0
 
 
 def ipopt_solution():
@@ -40,9 +41,12 @@ def ipopt_solution():
         constraints.append(F(X[:, k], U[:, k]) - X[:, k + 1])
     cost += 0.5 * ca.mtimes([X[:, N].T, Q, X[:, N]])
     nlp = {'x': ca.vertcat(ca.vec(X), ca.vec(U)), 'f': cost, 'g': ca.vertcat(*constraints)}
-    solver = ca.nlpsol('solver', 'ipopt', nlp,
-        {'ipopt.print_level': 0, 'print_time': 0, 'ipopt.tol': 1e-12})
-    w = np.array(solver(x0=0, lbg=0, ubg=0)['x']).flatten()
+    # no relaxation of the bounds, to compare with the exact solution
+    solver = ca.nlpsol('solver', 'ipopt', nlp, {'ipopt.print_level': 0, 'print_time': 0,
+        'ipopt.tol': 1e-12, 'ipopt.bound_relax_factor': 0.0})
+    lbx = [-np.inf] * (nx * (N + 1)) + [u_min] * (nu * N)
+    ubx = [np.inf] * (nx * (N + 1)) + [u_max] * (nu * N)
+    w = np.array(solver(x0=0, lbg=0, ubg=0, lbx=lbx, ubx=ubx)['x']).flatten()
     return w[nx * (N + 1):]
 
 
@@ -55,5 +59,8 @@ def test_sqp_matches_ipopt(tmp_path):
     u = np.array([float(line.split('=')[1]) for line in output.splitlines()
         if line.startswith('u = ')])
     assert len(u) == N, output
+    u_ipopt = ipopt_solution()
+    # the bounds are active at the solution
+    assert np.isclose(u_ipopt.min(), u_min)
     # the solution is printed with 10 decimals
-    assert np.abs(u - ipopt_solution()).max() < 1e-9
+    assert np.abs(u - u_ipopt).max() < 1e-9
