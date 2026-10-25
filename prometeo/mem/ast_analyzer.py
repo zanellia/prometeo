@@ -24,6 +24,8 @@ pmt_functions = {\
     'global@_Z8pmt_geadfloatpmatpmat' : [], \
     'global@_Z9pmt_potrfpmatpmat' : [], \
     'global@_Z10pmt_potrsmpmatpmat' : [], \
+    'global@_Z13pmt_trmm_rlnnpmatpmatpmat' : [], \
+    'global@_Z11pmt_syrk_lnpmatpmatpmatpmat' : [], \
     'global@_Z9pmat_tranpmatpmat' : [], \
     'global@_Z9pmat_copypmatpmat' : [], \
     'global@_Z9pmat_fillpmatfloat' : [], \

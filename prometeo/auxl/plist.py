@@ -1,5 +1,9 @@
-from ..linalg import pmat
+from ..linalg import pmat, pvec
+
 def plist(list_type, sizes):
+    # the element type can be given as a type (pmat) or as a string ('pmat')
+    if isinstance(list_type, type):
+        list_type = list_type.__name__
     if list_type == 'pmat':
         ret_list = [list_type]*len(sizes)
         for i in range(len(sizes)):

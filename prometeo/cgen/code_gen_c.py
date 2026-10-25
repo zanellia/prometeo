@@ -49,6 +49,8 @@ pmt_temp_functions = {\
         '_Z8pmt_geadfloatpmatpmat': 'c_pmt_gead', \
         '_Z9pmt_potrfpmatpmat': 'c_pmt_potrf', \
         '_Z10pmt_potrsmpmatpmat': 'c_pmt_potrsm', \
+        '_Z13pmt_trmm_rlnnpmatpmatpmat': 'c_pmt_trmm_rlnn', \
+        '_Z11pmt_syrk_lnpmatpmatpmatpmat': 'c_pmt_syrk_ln', \
         '_Z9pmat_tranpmatpmat': 'c_pmt_pmat_tran', \
         '_Z9pmat_copypmatpmat': 'c_pmt_pmat_copy', \
         '_Z9pmat_fillpmatfloat': 'c_pmt_pmat_fill', \
@@ -58,8 +60,6 @@ pmt_temp_functions = {\
         '_Z9pvec_copypvecpvec': 'c_pmt_pvec_copy', \
         '_Z5print' : 'printf'}
 
-        # 'pmt_trmm_rlnn': 'c_pmt_trmm_rlnn', \
-        # 'pmt_syrk_ln': 'c_pmt_syrk_ln', \
         # 'pmt_getrf': 'c_pmt_getrf', \
         # 'pmt_getrsm': 'c_pmt_getrsm', \
         # 'pmt_getrsv': 'c_pmt_getrsv', \
@@ -600,6 +600,14 @@ class SourceGenerator(ExplicitNodeVisitor):
                     'arg_types' : ["pmat", "pmat"],
                     'ret_type': "None"
                 },
+                '_Z13pmt_trmm_rlnnpmatpmatpmat' : { 
+                    'arg_types' : ["pmat", "pmat", "pmat"],
+                    'ret_type': "None"
+                },
+                '_Z11pmt_syrk_lnpmatpmatpmatpmat' : { 
+                    'arg_types' : ["pmat", "pmat", "pmat", "pmat"],
+                    'ret_type': "None"
+                },
                 '_Z9pmat_tranpmatpmat' : { 
                     'arg_types' : ["pmat", "pmat"],
                     'ret_type': "None"
@@ -765,9 +773,14 @@ class SourceGenerator(ExplicitNodeVisitor):
         elif my_isinstance(node, ast.Subscript):
             if my_isinstance(node.value, ast.Name):
                 if node.value.id not in self.typed_record[scope]:
-                    raise cgenException('Undefined variable {}'.format(node.id), node.lineno)
-                elif self.typed_record[scope][node.value.id] == 'pmat' or \
-                        self.typed_record[scope][node.value.id] == 'pvec':
+                    raise cgenException('Undefined variable {}'.format(node.value.id), node.lineno)
+                elif self.typed_record[scope][node.value.id] == 'pmat':
+                    # slicing (e.g. M[0:n, 0:n]) gives a pmat, indexing a float
+                    indices = node.slice.elts if my_isinstance(node.slice, ast.Tuple) else [node.slice]
+                    if any(my_isinstance(index, ast.Slice) for index in indices):
+                        return 'pmat', None
+                    return 'float', None
+                elif self.typed_record[scope][node.value.id] == 'pvec':
                     return 'float', None
                 elif 'List' in self.typed_record[scope][node.value.id]:
                     raise Exception("Not implemented")
@@ -2614,8 +2627,14 @@ class SourceGenerator(ExplicitNodeVisitor):
     def visit_Return(self, node):
         self.current_line = node.lineno
         self.current_col = node.col_offset
-        set_precedence(node, node.value)
-        type_val, s = self.get_type_of_node(node.value, self.scope)
+        # bare `return` or `return None`
+        returns_none = node.value is None or \
+            (my_isinstance(node.value, "ast.NameConstant") and node.value.value is None)
+        if returns_none:
+            type_val = 'None'
+        else:
+            set_precedence(node, node.value)
+            type_val, s = self.get_type_of_node(node.value, self.scope)
         class_scope = '@'.join(self.scope.split('@')[:-1])
         method_name = self.scope.split('@')[-1]
         if self.fun_in_function_record(self.scope):
@@ -2630,6 +2649,10 @@ class SourceGenerator(ExplicitNodeVisitor):
         else:
             raise cgenException('Could not find definition of method {}'.format(self.scope), node.lineno)
 
+        # methods annotated with `-> None` have their return type recorded as None
+        if ret_ann is None:
+            ret_ann = 'None'
+
         if ret_ann != type_val:
             raise cgenException('Type mismatch in return statement: {} instead of {}'.format(type_val, ret_ann), \
                 node.lineno)
@@ -2642,8 +2665,11 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.write('\n\t___c_pmt_8_heap = callee_pmt_8_heap;\n', dest = 'src')
         self.write('\t___c_pmt_64_heap = callee_pmt_64_heap;\n', dest = 'src')
         if self.in_main is False:
-            self.statement(node, 'return ')
-            self.conditional_write('', node.value, ';', dest = 'src')
+            if returns_none:
+                self.statement(node, 'return;')
+            else:
+                self.statement(node, 'return ')
+                self.conditional_write('', node.value, ';', dest = 'src')
 
     def visit_Break(self, node):
         self.current_line = node.lineno

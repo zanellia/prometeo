@@ -51,6 +51,16 @@ all: casadi sources
 clean:
 	rm -f *.o {{ filename }}
 '''
+def normalize_plist_types(tree):
+    """Rewrite plist(pmat, ...) as plist('pmat', ...): the code generator and
+    the heap analysis expect the element type of a plist as a string."""
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) \
+                and node.func.id == 'plist' and node.args \
+                and isinstance(node.args[0], ast.Name):
+            node.args[0] = ast.copy_location(ast.Constant(node.args[0].id), node.args[0])
+    return tree
+
 def str2bool(v):
     if isinstance(v, bool):
        return v
@@ -224,7 +234,7 @@ def pmt_main():
         filename_ = filename.split('.')[0]
         sed_cmd = "sed '/# pure >/,/# pure </d' " + filename_ + '.py'
         code = ''.join(os.popen(sed_cmd).read())
-        tree = ast.parse(code)
+        tree = normalize_plist_types(ast.parse(code))
         # ap.pprint(tree)
         tree_copy = deepcopy(tree)
 

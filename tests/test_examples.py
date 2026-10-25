@@ -29,6 +29,12 @@ EXAMPLES = [
     ('test', 'test', True),
     ('test', 'test_assignments', True),
     ('riccati_example', 'riccati', True),
+    # README benchmark: the interpreted run (10000 repetitions) takes too long
+    ('riccati_example', 'riccati_mass_spring', False),
+    ('riccati_example', 'riccati_mass_spring_2', True),
+    ('riccati_example', 'riccati_debug', True),
+    # prints nothing
+    ('riccati_example', 'riccati_array', False),
     # the pure-Python block (numpy) only runs in the interpreter
     ('pure_python_inline', 'pure_python_inline', False),
     # the interpreted run takes too long

@@ -78,6 +78,23 @@ def c_pmt_dgemm_tn(A, B, C, D):
     bw.blasfeo_dgemm_tn(bA.n, bB.n, bA.m, 1.0, byref(bA), 0, 0, byref(bB), 0, 0, 1, byref(bC), 0, 0, byref(bD), 0, 0)
     return
 
+def c_pmt_dtrmm_rlnn(A, B, D):
+    bA = A.blasfeo_dmat
+    bB = B.blasfeo_dmat
+    bD = D.blasfeo_dmat
+
+    bw.blasfeo_dtrmm_rlnn(bB.m, bB.n, 1.0, byref(bA), 0, 0, byref(bB), 0, 0, byref(bD), 0, 0)
+    return
+
+def c_pmt_dsyrk_ln(A, B, C, D):
+    bA = A.blasfeo_dmat
+    bB = B.blasfeo_dmat
+    bC = C.blasfeo_dmat
+    bD = D.blasfeo_dmat
+
+    bw.blasfeo_dsyrk_ln(bA.m, bA.n, 1.0, byref(bA), 0, 0, byref(bB), 0, 0, 1.0, byref(bC), 0, 0, byref(bD), 0, 0)
+    return
+
 # def c_pmt_dgemm_tt(A, B, C, D):
 #     bA = A.blasfeo_dmat
 #     bB = B.blasfeo_dmat

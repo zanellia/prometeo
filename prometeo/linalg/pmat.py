@@ -356,6 +356,24 @@ def pmt_gemm_tt(*argv):
     c_pmt_dgemm_tt(A, B, C, D)
     return
 
+# D <= B * A, with A lower triangular
+def pmt_trmm_rlnn(A: pmat, B: pmat, D: pmat):
+    if A.m != A.n or B.n != A.m or B.m != D.m or B.n != D.n:
+        raise Exception('pmt_trmm_rlnn: mismatching dimensions:'
+            ' ({}, {}) <- ({}, {}) x ({}, {})'.format(\
+            D.m, D.n, B.m, B.n, A.m, A.n))
+    c_pmt_dtrmm_rlnn(A, B, D)
+    return
+
+# D <= C + A * B^T (lower triangular part only)
+def pmt_syrk_ln(A: pmat, B: pmat, C: pmat, D: pmat):
+    if A.n != B.n or A.m != B.m or A.m != C.m or C.m != C.n or C.m != D.m or C.n != D.n:
+        raise Exception('pmt_syrk_ln: mismatching dimensions:'
+            ' ({}, {}) <- ({}, {}) + ({}, {}) x ({}, {})^T'.format(\
+            D.m, D.n, C.m, C.n, A.m, A.n, B.m, B.n))
+    c_pmt_dsyrk_ln(A, B, C, D)
+    return
+
 # B <= B + alpha*A
 def pmt_gead(alpha: float, A: pmat, B: pmat):
     if A.m != B.m or A.n != B.n:
