@@ -1,0 +1,9 @@
+__pycache__/
+*.egg-info/
+.pytest_cache/
+__pmt_cache__/
+# build outputs of prometeo/cpmt (make install_shared)
+prometeo/lib/
+prometeo/include/
+prometeo/cpmt/*.o
+prometeo/cpmt/*.so

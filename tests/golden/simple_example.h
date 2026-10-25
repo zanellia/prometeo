@@ -1,0 +1,21 @@
+#include "prometeo.h"
+#include "timing.h"
+#include "pmt_aux.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define nv 10
+
+
+
+int _Z3fooint(int a);
+
+
+
+int main();
+#ifdef __cplusplus
+}
+#endif
+
+
