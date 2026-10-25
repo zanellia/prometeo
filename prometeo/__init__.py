@@ -8,6 +8,6 @@ from . import mem
 from . import laparser
 from . import nonlinear
 from .linalg import *
-from .nonlinear import pfun
+from .nonlinear import pfun, casadi_function
 from .auxl import *
 from .lib import blasfeo, prometeo

@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+void c_pmt_casadi_rk4(struct pmat *in_0, struct pmat *in_1, struct pmat *out_0, struct pmat *out_1, struct pmat *out_2);
 #define nx 4
 #define nu 1
 #define N 20
@@ -250,20 +251,6 @@ extern "C" {
 #define K_sizes_18_1 nx
 #define K_sizes_19_0 nu
 #define K_sizes_19_1 nx
-
-
-
-void _Z8dynamicspmatpmatpmat(struct pmat * x, struct pmat * u, struct pmat * xdot);
-
-
-
-void _Z9jacobianspmatpmatpmatpmat(struct pmat * x, struct pmat * u, struct pmat * Jx, struct pmat * Ju);
-
-
-
-void _Z3rk4pmatpmatpmatpmatpmat(struct pmat * x, struct pmat * u, struct pmat * xnext, struct pmat * A, struct pmat * B);
-
-
 
 typedef struct SQP SQP;
 

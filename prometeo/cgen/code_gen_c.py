@@ -243,7 +243,8 @@ class cgenException(Exception):
 
 def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False,
               pretty_string=pretty_string, pretty_source=pretty_source,
-              main=False, size_of_pointer=8, size_of_int=4, size_of_double=8):
+              main=False, size_of_pointer=8, size_of_int=4, size_of_double=8,
+              casadi_functions=None):
 
     """This function can convert a node tree back into python sourcecode.
     This is useful for debugging purposes, especially if you're dealing with
@@ -282,6 +283,7 @@ def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False
     generator.result.header.append('#include "timing.h"\n')
     generator.result.header.append('#include "pmt_aux.h"\n')
     generator.result.header.append('#ifdef __cplusplus\nextern "C" {\n#endif\n\n')
+    generator.register_casadi_functions(casadi_functions or {})
 
 
     try:
@@ -543,6 +545,8 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.casadi_funs = []
         # call that makes up the expression statement being generated
         self.statement_call = None
+        # mangled names of CasADi functions -> C wrappers
+        self.casadi_c_names = {}
         # number of for loops generated so far (to name their bounds)
         self.loop_count = 0
         self.var_dim_record = {'global': dict()}
@@ -2715,6 +2719,8 @@ class SourceGenerator(ExplicitNodeVisitor):
 
             if  fun_name_m in pmt_temp_functions:
                 call_code = pmt_temp_functions[fun_name_m] + '('
+            elif fun_name_m in self.casadi_c_names:
+                call_code = self.casadi_c_names[fun_name_m] + '('
             else:
                 call_code = fun_name_m + '('
 
@@ -3184,6 +3190,18 @@ class SourceGenerator(ExplicitNodeVisitor):
         # XXX: python 2.6 only
         with self.delimit('``'):
             self.visit(node.value)
+
+    def register_casadi_functions(self, functions):
+        """Make the CasADi functions defined in pure blocks callable as
+        name(<input pmats>, <output pmats>), mapped to their C wrappers."""
+        from ..nonlinear.casadi_codegen import c_wrapper_name, c_prototype, mangled_name
+        for name, f in functions.items():
+            n_args = f.n_in + f.n_out
+            fun_name_m = mangled_name(name, f)
+            self.function_record['global'][fun_name_m] = {
+                'arg_types': ['pmat'] * n_args, 'ret_type': 'None'}
+            self.casadi_c_names[fun_name_m] = c_wrapper_name(name)
+            self.result.header.append(c_prototype(name, f) + ';\n')
 
     def visit_Module(self, node):
         self.record_function_signatures(node.body)

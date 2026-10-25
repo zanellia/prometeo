@@ -16,113 +16,7 @@ double g = 9.81;
 double h = 0.05;
 int n_sqp = 30;
 double tol = 1e-10;
-int n_mpc = 30;void _Z8dynamicspmatpmatpmat(struct pmat * x, struct pmat * u, struct pmat * xdot) {
-	void *callee_pmt_8_heap = ___c_pmt_8_heap;
-	void *callee_pmt_64_heap = ___c_pmt_64_heap;
-
-    double th = c_pmt_pmat_get_el(x, 1, 0);
-    double om = c_pmt_pmat_get_el(x, 3, 0);
-    double F = c_pmt_pmat_get_el(u, 0, 0);
-    double s = sin(th);
-    double c = cos(th);
-    double d = M + m - m * c * c;
-    c_pmt_pmat_set_el(xdot, 0, 0, c_pmt_pmat_get_el(x, 2, 0));
-    c_pmt_pmat_set_el(xdot, 1, 0, om);
-    c_pmt_pmat_set_el(xdot, 2, 0, (-m * l * s * om * om + m * g * c * s + F) / d);
-    c_pmt_pmat_set_el(xdot, 3, 0, (-m * l * c * s * om * om + F * c + (M + m) * g * s) / (l * d));
-	___c_pmt_8_heap = callee_pmt_8_heap;
-	___c_pmt_64_heap = callee_pmt_64_heap;
-
-    return;
-}void _Z9jacobianspmatpmatpmatpmat(struct pmat * x, struct pmat * u, struct pmat * Jx, struct pmat * Ju) {
-	void *callee_pmt_8_heap = ___c_pmt_8_heap;
-	void *callee_pmt_64_heap = ___c_pmt_64_heap;
-
-    double th = c_pmt_pmat_get_el(x, 1, 0);
-    double om = c_pmt_pmat_get_el(x, 3, 0);
-    double F = c_pmt_pmat_get_el(u, 0, 0);
-    double s = sin(th);
-    double c = cos(th);
-    double d = M + m - m * c * c;
-    double dd = 2.0 * m * c * s;
-    double n1 = -m * l * s * om * om + m * g * c * s + F;
-    double dn1 = -m * l * c * om * om + m * g * (c * c - s * s);
-    double n2 = -m * l * c * s * om * om + F * c + (M + m) * g * s;
-    double dn2 = -m * l * (c * c - s * s) * om * om - F * s + (M + m) * g * c;
-    c_pmt_pmat_fill(Jx, 0.0);
-    c_pmt_pmat_set_el(Jx, 0, 2, 1.0);
-    c_pmt_pmat_set_el(Jx, 1, 3, 1.0);
-    c_pmt_pmat_set_el(Jx, 2, 1, (dn1 * d - n1 * dd) / (d * d));
-    c_pmt_pmat_set_el(Jx, 2, 3, -2.0 * m * l * s * om / d);
-    c_pmt_pmat_set_el(Jx, 3, 1, (dn2 * d - n2 * dd) / (l * d * d));
-    c_pmt_pmat_set_el(Jx, 3, 3, -2.0 * m * l * c * s * om / (l * d));
-    c_pmt_pmat_fill(Ju, 0.0);
-    c_pmt_pmat_set_el(Ju, 2, 0, 1.0 / d);
-    c_pmt_pmat_set_el(Ju, 3, 0, c / (l * d));
-	___c_pmt_8_heap = callee_pmt_8_heap;
-	___c_pmt_64_heap = callee_pmt_64_heap;
-
-    return;
-}void _Z3rk4pmatpmatpmatpmatpmat(struct pmat * x, struct pmat * u, struct pmat * xnext, struct pmat * A, struct pmat * B) {
-	void *callee_pmt_8_heap = ___c_pmt_8_heap;
-	void *callee_pmt_64_heap = ___c_pmt_64_heap;
-
-    struct pmat * xi = c_pmt_create_pmat(nx, 1);
-    struct pmat * k = c_pmt_create_pmat(nx, 1);
-    struct pmat * Sx = c_pmt_create_pmat(nx, nx);
-    struct pmat * Su = c_pmt_create_pmat(nx, nu);
-    struct pmat * dkx = c_pmt_create_pmat(nx, nx);
-    struct pmat * dku = c_pmt_create_pmat(nx, nu);
-    struct pmat * Jx = c_pmt_create_pmat(nx, nx);
-    struct pmat * Ju = c_pmt_create_pmat(nx, nu);
-    double a = 0.0;
-    double w = 1.0;
-    c_pmt_pmat_copy(x, xnext);
-    c_pmt_pmat_fill(A, 0.0);
-    c_pmt_pmat_fill(B, 0.0);
-    for(int stage = 0, ___pmt_end_1 = 4; stage < ___pmt_end_1; stage += 1) {
-        c_pmt_pmat_copy(x, xi);
-        c_pmt_pmat_fill(Sx, 0.0);
-        for(int i = 0, ___pmt_end_2 = nx; i < ___pmt_end_2; i += 1) {
-            c_pmt_pmat_set_el(Sx, i, i, 1.0);
-    }
-
-        c_pmt_pmat_fill(Su, 0.0);
-        if(((stage == 0))) {
-            a = 0.0;
-            w = 1.0;
-        } else if (((stage < 3))) {
-            a = 0.5;
-            w = 2.0;
-        } else {
-            a = 1.0;
-            w = 1.0;
-}
-        if(((stage > 0))) {
-            c_pmt_gead(a * h, k, xi);
-            c_pmt_gead(a * h, dkx, Sx);
-            c_pmt_gead(a * h, dku, Su);
-}
-        _Z8dynamicspmatpmatpmat(xi, u, k);
-        _Z9jacobianspmatpmatpmatpmat(xi, u, Jx, Ju);
-        c_pmt_gemm_ab(1.0, Jx, Sx, 0.0, dkx, dkx);
-
-        c_pmt_pmat_copy(Ju, dku);
-        c_pmt_gemm_nn(Jx, Su, dku, dku);
-        c_pmt_gead(w * h / 6.0, k, xnext);
-        c_pmt_gead(w * h / 6.0, dkx, A);
-        c_pmt_gead(w * h / 6.0, dku, B);
-    }
-
-    for(int i = 0, ___pmt_end_3 = nx; i < ___pmt_end_3; i += 1) {
-        c_pmt_pmat_set_el(A, i, i, c_pmt_pmat_get_el(A, i, i) + 1.0);
-    }
-
-	___c_pmt_8_heap = callee_pmt_8_heap;
-	___c_pmt_64_heap = callee_pmt_64_heap;
-
-    return;
-}
+int n_mpc = 30;
 void SQP_constructor(struct SQP *object){
     object->_Z8__init__ = &_Z8__init__SQP_impl;
     object->_Z9linearize = &_Z9linearizeSQP_impl;
@@ -298,8 +192,8 @@ void _Z9linearizeSQP_impl(SQP *self) {
 	void *callee_pmt_8_heap = ___c_pmt_8_heap;
 	void *callee_pmt_64_heap = ___c_pmt_64_heap;
 
-    for(int k = 0, ___pmt_end_4 = N; k < ___pmt_end_4; k += 1) {
-        _Z3rk4pmatpmatpmatpmatpmat(self->xs[k], self->us[k], self->b[k], self->A[k], self->B[k]);
+    for(int k = 0, ___pmt_end_1 = N; k < ___pmt_end_1; k += 1) {
+        c_pmt_casadi_rk4(self->xs[k], self->us[k], self->b[k], self->A[k], self->B[k]);
         c_pmt_gead(-1.0, self->xs[k + 1], self->b[k]);
     }
 
@@ -327,7 +221,7 @@ void _Z7riccatiSQP_impl(SQP *self) {
     c_pmt_pmat_copy(self->Q, P);
     c_pmt_gemm_ab(1.0, self->Q, self->xs[N], 0.0, p, p);
 
-    for(int k = (N - 1), ___pmt_end_5 = (-1); k > ___pmt_end_5; k += -1) {
+    for(int k = (N - 1), ___pmt_end_2 = (-1); k > ___pmt_end_2; k += -1) {
         c_pmt_pmat_copy(p, Pb);
         c_pmt_gemm_nn(P, self->b[k], Pb, Pb);
         c_pmt_gemm_ab(1.0, P, self->B[k], 0.0, PB, PB);
@@ -346,7 +240,7 @@ void _Z7riccatiSQP_impl(SQP *self) {
         c_pmt_potrsm(L, self->K[k]);
         c_pmt_pmat_copy(hu, self->kk[k]);
         c_pmt_potrsm(L, self->kk[k]);
-        for(int j = 0, ___pmt_end_6 = nx; j < ___pmt_end_6; j += 1) {
+        for(int j = 0, ___pmt_end_3 = nx; j < ___pmt_end_3; j += 1) {
             c_pmt_pmat_set_el(self->K[k], 0, j, -c_pmt_pmat_get_el(self->K[k], 0, j));
     }
 
@@ -378,12 +272,12 @@ double _Z7forwardSQP_impl(SQP *self) {
     double step = 0.0;
     c_pmt_pmat_copy(self->x0, dx);
     c_pmt_gead(-1.0, self->xs[0], dx);
-    for(int k = 0, ___pmt_end_7 = N; k < ___pmt_end_7; k += 1) {
+    for(int k = 0, ___pmt_end_4 = N; k < ___pmt_end_4; k += 1) {
         c_pmt_pmat_copy(self->kk[k], du);
         c_pmt_gemm_nn(self->K[k], dx, du, du);
         c_pmt_gead(1.0, dx, self->xs[k]);
         c_pmt_gead(1.0, du, self->us[k]);
-        for(int i = 0, ___pmt_end_8 = nx; i < ___pmt_end_8; i += 1) {
+        for(int i = 0, ___pmt_end_5 = nx; i < ___pmt_end_5; i += 1) {
             step = fmax(step, fabs(c_pmt_pmat_get_el(dx, i, 0)));
     }
 
@@ -395,7 +289,7 @@ double _Z7forwardSQP_impl(SQP *self) {
     }
 
     c_pmt_gead(1.0, dx, self->xs[N]);
-    for(int i = 0, ___pmt_end_9 = nx; i < ___pmt_end_9; i += 1) {
+    for(int i = 0, ___pmt_end_6 = nx; i < ___pmt_end_6; i += 1) {
         step = fmax(step, fabs(c_pmt_pmat_get_el(dx, i, 0)));
     }
 
@@ -442,7 +336,7 @@ double _Z7iterateSQP_impl(SQP *self) {
     double step = 0.0;
     double u0 = 0.0;
     c_pmt_pmat_set_el(sqp->x0, 1, 0, 0.4);
-    for(int it = 0, ___pmt_end_10 = n_sqp; it < ___pmt_end_10; it += 1) {
+    for(int it = 0, ___pmt_end_7 = n_sqp; it < ___pmt_end_7; it += 1) {
         step = sqp->_Z7iterate(sqp);
         if(((step < tol))) {
             break;
@@ -451,7 +345,7 @@ double _Z7iterateSQP_impl(SQP *self) {
 
     printf("converged: step %e\n\n", step);
 
-    for(int k = 0, ___pmt_end_11 = N; k < ___pmt_end_11; k += 1) {
+    for(int k = 0, ___pmt_end_8 = N; k < ___pmt_end_8; k += 1) {
         u0 = c_pmt_pmat_get_el(sqp->us[k], 0, 0);
         printf("u = %.10f\n\n", u0);
 
@@ -462,10 +356,10 @@ double _Z7iterateSQP_impl(SQP *self) {
     struct pmat * Aplant = c_pmt_create_pmat(nx, nx);
     struct pmat * Bplant = c_pmt_create_pmat(nx, nu);
     c_pmt_pmat_copy(sqp->x0, xplant);
-    for(int t = 0, ___pmt_end_12 = n_mpc; t < ___pmt_end_12; t += 1) {
+    for(int t = 0, ___pmt_end_9 = n_mpc; t < ___pmt_end_9; t += 1) {
         c_pmt_pmat_copy(xplant, sqp->x0);
         step = sqp->_Z7iterate(sqp);
-        _Z3rk4pmatpmatpmatpmatpmat(xplant, sqp->us[0], xnext, Aplant, Bplant);
+        c_pmt_casadi_rk4(xplant, sqp->us[0], xnext, Aplant, Bplant);
         c_pmt_pmat_copy(xnext, xplant);
     }
 

@@ -17,6 +17,8 @@ from prometeo.mem.ast_analyzer import compute_reach_graph
 
 from copy import deepcopy
 from prometeo.frontend.normalize import normalize
+from prometeo.nonlinear.casadi_codegen import mangled_name
+import prometeo.nonlinear.casadi_codegen
 
 import casadi as ca
 import time
@@ -44,9 +46,9 @@ LIBPATH+=-L$(INSTALL_DIR)/lib/blasfeo -L$(INSTALL_DIR)/lib/prometeo
 {{ CASADI_TARGET }}
 
 sources: $(SRCS)
-\t$(CC) $(LIBPATH) -o {{ filename }} $(CFLAGS)  $(SRCS) $(OBJS) -lcpmt -lblasfeo -lm
+\t$(CC) $(LIBPATH) -o {{ filename }} $(CFLAGS)  $(SRCS) -lcpmt -lblasfeo -lm
 
-all: casadi sources
+all: sources
 
 
 clean:
@@ -66,7 +68,19 @@ def strip_pure_blocks(code):
             in_pure = False
     return '\n'.join(lines) + '\n'
 
-def check_program(filename):
+def load_module(filename):
+    """Execute the module-level code of a program (constants, definitions and
+    pure blocks, but not main) and return its namespace."""
+    namespace = {'__name__': '__pmt_program__'}
+    exec(compile(strip_file_to_string(filename), filename, 'exec'), namespace)
+    return namespace
+
+def casadi_functions_in(namespace):
+    """CasADi functions defined (in pure blocks) by a program."""
+    return {name: obj for name, obj in namespace.items()
+        if isinstance(obj, prometeo.nonlinear.casadi_function)}
+
+def check_program(filename, casadi_functions):
     """Run the static checker; print its diagnostics and return False if the
     program is not valid prometeo code."""
     code = open(filename).read()
@@ -77,7 +91,8 @@ def check_program(filename):
         print('\n\033[;1m > prometeo:\033[0;0m \033[91msyntax error\033[0;0m at {}:{}: {}'.format(
             filename, e.lineno, e.msg))
         return False
-    diagnostics = prometeo.frontend.check(tree)
+    diagnostics = prometeo.frontend.check(tree,
+        {name: (f.n_in, f.n_out) for name, f in casadi_functions.items()})
     for d in diagnostics:
         color = '\033[91m' if d.severity == 'error' else '\033[93m'
         print('\n\033[;1m > prometeo:\033[0;0m {}{}\033[0;0m at {}:{}:{}: {}'.format(
@@ -251,23 +266,30 @@ def pmt_main():
         print('\n\033[;1m > prometeo:\033[0;0m \033[91m file {} not found.\033[0;0m'.format(filename))
         return 1
 
-    if args.check and not check_program(filename):
+    try:
+        ast.parse(open(filename).read(), filename)
+    except SyntaxError as e:
+        print('\n\033[;1m > prometeo:\033[0;0m \033[91msyntax error\033[0;0m at {}:{}: {}'.format(
+            filename, e.lineno, e.msg))
+        return 1
+
+    # module-level code: needed to find the CasADi functions defined in pure blocks
+    namespace = load_module(filename)
+    casadi_functions = casadi_functions_in(namespace)
+
+    if args.check and not check_program(filename, casadi_functions):
         return 1
 
     if cgen is False:
-        post = '''main()'''
-        code_no_hints = strip_file_to_string(filename) + post
-
         tic = time.time()
-        exec(code_no_hints, globals(), globals())
+        namespace['main']()
         toc = time.time() - tic
         print('Execution time = {:0.3f} sec'.format(toc))
     else:
         print('\n\033[;1m > prometeo:\033[0;0m starting transpilation')
         pmt_path = os.path.dirname(prometeo.__file__)
         filename_ = filename.split('.')[0]
-        sed_cmd = "sed '/# pure >/,/# pure </d' " + filename_ + '.py'
-        code = ''.join(os.popen(sed_cmd).read())
+        code = strip_pure_blocks(open(filename).read())
         tree = normalize(ast.parse(code))
         # ap.pprint(tree)
         tree_copy = deepcopy(tree)
@@ -277,7 +299,8 @@ def pmt_main():
                     main=True,
                     size_of_pointer = size_of_pointer, \
                     size_of_int = size_of_int, \
-                    size_of_double = size_of_double)
+                    size_of_double = size_of_double, \
+                    casadi_functions = casadi_functions)
         except prometeo.cgen.code_gen_c.cgenException as e:
             print('\n > Exception -- prometeo code-gen: ', e.message)
             code = ''.join(open(filename))
@@ -349,6 +372,9 @@ def pmt_main():
         for key, value in heap8_data.items():
             heap8_data[key] = str(numexpr.evaluate(str(value)))
 
+        # CasADi functions use static memory only
+        prometeo.mem.ast_analyzer.pmt_functions.update({'global@' + mangled_name(name, f): []
+            for name, f in casadi_functions.items()})
         visitor = ast_visitor()
         visitor.visit(tree_copy)
         call_graph = visitor.callees
@@ -474,26 +500,10 @@ def pmt_main():
         makefile_code = makefile_code.replace('\n','', 1)
         makefile_code = makefile_code.replace('{{ INSTALL_DIR }}', os.path.dirname(__file__) + '/..')
 
-        with open('__pmt_cache__/casadi_funs.json') as f:
-            casadi_funs = json.load(f, object_pairs_hook=OrderedDict)
-
-        casadi_target_code = '\nOBJS = '
-        for item in casadi_funs:
-            fun_name = item.replace('@', '_')
-            casadi_target_code = casadi_target_code + ' ' + 'casadi_wrapper_' + fun_name + '.o ' + fun_name + '.o'
-
-        casadi_target_code = casadi_target_code + '\n\ncasadi: ' 
-
-        for item in casadi_funs:
-            fun_name = item.replace('@', '_')
-            casadi_target_code = casadi_target_code + ' ' + fun_name
-
-        for item in casadi_funs:
-            fun_name = item.replace('@', '_')
-            casadi_target_code = casadi_target_code + '\n\n'
-            casadi_target_code = casadi_target_code + fun_name + ':\n' 
-            casadi_target_code = casadi_target_code + "\t$(CC) -c " + fun_name + '.c ' + 'casadi_wrapper_' + fun_name + '.c\n'
-
+        casadi_target_code = ''
+        if casadi_functions:
+            sources = prometeo.nonlinear.casadi_codegen.generate(casadi_functions, '__pmt_cache__')
+            casadi_target_code = 'SRCS += ' + ' '.join(sources)
         makefile_code = makefile_code.replace('{{ CASADI_TARGET }}', casadi_target_code)
         dest_file = open('__pmt_cache__/Makefile', 'w+')
         dest_file.write(makefile_code)
@@ -505,8 +515,8 @@ def pmt_main():
         proc = subprocess.Popen(["make", "clean"], stdout=subprocess.PIPE)
 
         try:
-            outs, errs = proc.communicate(timeout=20)
-        except TimeOutExpired:
+            outs, errs = proc.communicate(timeout=600)
+        except subprocess.TimeoutExpired:
             proc.kill()
             outs, errs = proc.communicate()
             print('Command \'make\' timed out.')
@@ -517,8 +527,8 @@ def pmt_main():
         proc = subprocess.Popen(["make", "all"], stdout=subprocess.PIPE)
 
         try:
-            outs, errs = proc.communicate(timeout=20)
-        except TimeOutExpired:
+            outs, errs = proc.communicate(timeout=600)
+        except subprocess.TimeoutExpired:
             proc.kill()
             outs, errs = proc.communicate()
             print('Command \'make \' timed out.')
@@ -547,7 +557,7 @@ def pmt_main():
 
         try:
             outs, errs = proc.communicate()
-        except TimeOutExpired:
+        except subprocess.TimeoutExpired:
             proc.kill()
             outs, errs = proc.communicate()
             print('Command {} timed out.'.format(cmd))

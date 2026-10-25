@@ -95,7 +95,9 @@ class Scope:
 
 class Checker:
 
-    def __init__(self):
+    def __init__(self, casadi_functions=None):
+        # CasADi functions defined in pure blocks: name -> (inputs, outputs)
+        self.casadi_functions = casadi_functions or {}
         self.diagnostics = []
         self.globals = {}
         self.functions = {}
@@ -119,7 +121,9 @@ class Checker:
         self.error(node, message)
 
     def check_identifier(self, node, name, declaring_global=False):
-        if name in self.global_names and not declaring_global:
+        if name in self.casadi_functions:
+            self.error(node, "'{}' is a CasADi function and cannot be redefined".format(name))
+        elif name in self.global_names and not declaring_global:
             self.error(node, "'{}' is a module-level constant: its name cannot be reused (in C, "
                 "dims constants are macros)".format(name))
         elif name in C_KEYWORDS:
@@ -788,7 +792,8 @@ class Checker:
         for n in ast.walk(node):
             if not isinstance(n, ast.Call) or not isinstance(n.func, (ast.Name, ast.Attribute)):
                 continue
-            if isinstance(n.func, ast.Attribute) or n.func.id in BUILTINS:
+            if isinstance(n.func, ast.Attribute) or n.func.id in BUILTINS or \
+                    n.func.id in self.casadi_functions:
                 return True
             for overload in self.functions.get(n.func.id, []):
                 if any(t is not None and not is_scalar(t) for t in overload.arg_types):
@@ -986,6 +991,8 @@ class Checker:
                 return None
             if name in MATH_FUNCTIONS:
                 return self.check_math_call(node, name, scope)
+            if name in self.casadi_functions:
+                return self.check_casadi_call(node, name, scope)
             if name in ('pmat', 'pvec', 'plist') or name in self.classes:
                 self.error(node, '{}() can only be used to initialize a declaration'.format(name))
                 return None
@@ -1025,6 +1032,20 @@ class Checker:
             return self.check_overloaded_call(node, cls.methods[func.attr], scope)
         self.unsupported(node, 'this kind of call')
         return None
+
+    def check_casadi_call(self, node, name, scope):
+        n_in, n_out = self.casadi_functions[name]
+        if len(node.args) != n_in + n_out:
+            self.error(node, 'CasADi function {} takes {} inputs and {} outputs (matrices that '
+                'it writes), {} arguments given'.format(name, n_in, n_out, len(node.args)))
+            return None
+        for arg in node.args:
+            t = self.argument_type(arg, scope)
+            if t is not None and t != PMAT:
+                self.error(arg, 'the arguments of CasADi functions must be matrices (pmat), '
+                    'not {}'.format(t))
+                return None
+        return NONE
 
     def check_math_call(self, node, name, scope):
         arity = MATH_FUNCTIONS[name]
@@ -1231,9 +1252,12 @@ def op_symbol(op):
     }.get(type(op), type(op).__name__)
 
 
-def check(tree):
-    """Check a prometeo program; return the list of diagnostics."""
-    checker = Checker()
+def check(tree, casadi_functions=None):
+    """Check a prometeo program; return the list of diagnostics.
+
+    casadi_functions: CasADi functions defined in pure blocks, as a dict
+    name -> (number of inputs, number of outputs)."""
+    checker = Checker(casadi_functions)
     checker.check_module(normalize(deepcopy(tree)))
     unique = {(d.lineno, d.col, d.severity, d.message): d for d in checker.diagnostics}
     return sorted(unique.values(), key=lambda d: (d.lineno, d.col))

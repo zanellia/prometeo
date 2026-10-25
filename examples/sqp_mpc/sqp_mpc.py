@@ -6,7 +6,9 @@ from prometeo import *
 #   min  sum_k 1/2 (x_k' Q x_k + u_k' R u_k) + 1/2 x_N' Q x_N
 #   s.t. x_0 = x0,  x_{k+1} = F(x_k, u_k),  k = 0, ..., N-1
 #
-# where F is one RK4 step of the cart-pole dynamics.
+# where F is one RK4 step of the cart-pole dynamics. F and its Jacobians are
+# CasADi functions, defined in a pure Python block and transpiled with CasADi's
+# code generator.
 
 nx : dims = 4
 nu : dims = 1
@@ -32,92 +34,32 @@ tol : float = 1e-10
 n_mpc : int = 30
 
 
-def dynamics(x: pmat, u: pmat, xdot: pmat) -> None:
-    th : float = x[1, 0]
-    om : float = x[3, 0]
-    F : float = u[0, 0]
-    s : float = sin(th)
-    c : float = cos(th)
-    d : float = M + m - m * c * c
-    xdot[0, 0] = x[2, 0]
-    xdot[1, 0] = om
-    xdot[2, 0] = (-m * l * s * om * om + m * g * c * s + F) / d
-    xdot[3, 0] = (-m * l * c * s * om * om + F * c + (M + m) * g * s) / (l * d)
-    return
+# pure >
+import casadi as ca
 
+def cartpole_rk4():
+    # one RK4 step of the cart-pole dynamics, with its Jacobians computed by CasADi
+    x = ca.SX.sym('x', nx)
+    u = ca.SX.sym('u', nu)
 
-def jacobians(x: pmat, u: pmat, Jx: pmat, Ju: pmat) -> None:
-    th : float = x[1, 0]
-    om : float = x[3, 0]
-    F : float = u[0, 0]
-    s : float = sin(th)
-    c : float = cos(th)
-    d : float = M + m - m * c * c
-    dd : float = 2.0 * m * c * s
-    n1 : float = -m * l * s * om * om + m * g * c * s + F
-    dn1 : float = -m * l * c * om * om + m * g * (c * c - s * s)
-    n2 : float = -m * l * c * s * om * om + F * c + (M + m) * g * s
-    dn2 : float = -m * l * (c * c - s * s) * om * om - F * s + (M + m) * g * c
-    pmat_fill(Jx, 0.0)
-    Jx[0, 2] = 1.0
-    Jx[1, 3] = 1.0
-    Jx[2, 1] = (dn1 * d - n1 * dd) / (d * d)
-    Jx[2, 3] = -2.0 * m * l * s * om / d
-    Jx[3, 1] = (dn2 * d - n2 * dd) / (l * d * d)
-    Jx[3, 3] = -2.0 * m * l * c * s * om / (l * d)
-    pmat_fill(Ju, 0.0)
-    Ju[2, 0] = 1.0 / d
-    Ju[3, 0] = c / (l * d)
-    return
+    def f(x, u):
+        th, om = x[1], x[3]
+        s, c = ca.sin(th), ca.cos(th)
+        d = M + m - m * c * c
+        return ca.vertcat(x[2], om,
+            (-m * l * s * om * om + m * g * c * s + u[0]) / d,
+            (-m * l * c * s * om * om + u[0] * c + (M + m) * g * s) / (l * d))
 
+    k1 = f(x, u)
+    k2 = f(x + h / 2 * k1, u)
+    k3 = f(x + h / 2 * k2, u)
+    k4 = f(x + h * k3, u)
+    xnext = x + h / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
+    return ca.Function('rk4', [x, u], [xnext, ca.jacobian(xnext, x), ca.jacobian(xnext, u)])
 
-def rk4(x: pmat, u: pmat, xnext: pmat, A: pmat, B: pmat) -> None:
-    # one RK4 step xnext = F(x, u) and its sensitivities A = dF/dx, B = dF/du
-    xi : pmat = pmat(nx, 1)
-    k : pmat = pmat(nx, 1)
-    Sx : pmat = pmat(nx, nx)
-    Su : pmat = pmat(nx, nu)
-    dkx : pmat = pmat(nx, nx)
-    dku : pmat = pmat(nx, nu)
-    Jx : pmat = pmat(nx, nx)
-    Ju : pmat = pmat(nx, nu)
-    a : float = 0.0
-    w : float = 1.0
-    pmat_copy(x, xnext)
-    pmat_fill(A, 0.0)
-    pmat_fill(B, 0.0)
-    for stage in range(4):
-        # stage point xi = x + a h k and its sensitivities
-        pmat_copy(x, xi)
-        pmat_fill(Sx, 0.0)
-        for i in range(nx):
-            Sx[i, i] = 1.0
-        pmat_fill(Su, 0.0)
-        if stage == 0:
-            a = 0.0
-            w = 1.0
-        elif stage < 3:
-            a = 0.5
-            w = 2.0
-        else:
-            a = 1.0
-            w = 1.0
-        if stage > 0:
-            pmt_gead(a * h, k, xi)
-            pmt_gead(a * h, dkx, Sx)
-            pmt_gead(a * h, dku, Su)
-        dynamics(xi, u, k)
-        jacobians(xi, u, Jx, Ju)
-        # dk/dx = Jx Sx, dk/du = Jx Su + Ju
-        pmt_gemm(Jx, Sx, dkx)
-        pmat_copy(Ju, dku)
-        pmt_gemm_nn(Jx, Su, dku, dku)
-        pmt_gead(w * h / 6.0, k, xnext)
-        pmt_gead(w * h / 6.0, dkx, A)
-        pmt_gead(w * h / 6.0, dku, B)
-    for i in range(nx):
-        A[i, i] += 1.0
-    return
+# rk4(x, u, xnext, A, B): xnext = F(x, u), A = dF/dx, B = dF/du
+rk4 = casadi_function(cartpole_rk4())
+# pure <
 
 
 class SQP:
