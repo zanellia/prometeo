@@ -26,6 +26,7 @@ pmt_functions = {\
     'global@_Z10pmt_potrsmpmatpmat' : [], \
     'global@_Z13pmt_trmm_rlnnpmatpmatpmat' : [], \
     'global@_Z11pmt_syrk_lnpmatpmatpmatpmat' : [], \
+    'global@_Z9pmt_getrfpmatpmatList' : [], \
     'global@_Z9pmat_tranpmatpmat' : [], \
     'global@_Z9pmat_copypmatpmat' : [], \
     'global@_Z9pmat_fillpmatfloat' : [], \
@@ -134,6 +135,9 @@ class ast_visitor(ExplicitNodeVisitor):
 
         with open('__pmt_cache__/meta_info.json', 'r') as f:
             self.meta_info = json.load(f)
+
+        with open('__pmt_cache__/function_record.json', 'r') as f:
+            self.function_record = json.load(f)
 
         visit = self.visit
 
@@ -249,10 +253,13 @@ class ast_visitor(ExplicitNodeVisitor):
 
         elif my_isinstance(node, ast.Call):
             if my_isinstance(node.func, ast.Name):
-                if node.func.id not in self.function_record['global']:
-                    raise cgenException('Undefined method {}'.format(node.func.id), node.lineno)
-                type_val = self.function_record['global'][node.func.id]['ret_type']
-                return type_val,  self.function_record['global'][node.func.id]['arg_types']
+                fun_name = node.func.id
+                fun_name_m = '_Z' + str(len(fun_name)) + fun_name + \
+                    self.build_arg_mangling(node.args, is_call = True)
+                if fun_name_m not in self.function_record['global']:
+                    raise cgenException('Undefined method {}'.format(fun_name_m), node.lineno)
+                type_val = self.function_record['global'][fun_name_m]['ret_type']
+                return type_val,  self.function_record['global'][fun_name_m]['arg_types']
 
             type_val = self.get_type_of_node_rec(node.func.value, scope)
 
@@ -321,7 +328,7 @@ class ast_visitor(ExplicitNodeVisitor):
                 if isinstance(arg.annotation, ast.Name):
                     arg_type_py = arg.annotation.id
                     post_mangl = post_mangl + arg_type_py
-                elif arg.arg is not 'self':
+                elif arg.arg != 'self':
                     raise cgenException('Invalid function argument without type annotation', arg.lineno)
 
             return post_mangl
@@ -362,6 +369,9 @@ class ast_visitor(ExplicitNodeVisitor):
                 else:
                     # arg_value = arg.id
                     type_val, s = self.get_type_of_node(arg, self.caller_scope)
+                    # Lists are mangled as 'List' (see cgen.code_gen_c.mangling_type)
+                    if type_val.startswith('List['):
+                        type_val = 'List'
                     post_mangl = post_mangl + type_val
             return post_mangl
 

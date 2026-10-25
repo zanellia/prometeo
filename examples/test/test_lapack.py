@@ -8,6 +8,9 @@ def main() -> int:
     C : pmat = pmat(n,n)
     for i in range(5):
         C[i,i] = 2.0
+    for i in range(4):
+        C[i+1,i] = 0.5
+        C[i,i+1] = 0.5
 
     D : pmat = pmat(n,n)
 

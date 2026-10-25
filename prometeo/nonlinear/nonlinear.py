@@ -111,7 +111,6 @@ class pfun:
 
         # generate C code
         self._ca_fun.generate(scoped_fun_name + '.c')
-        import pdb; pdb.set_trace()
 
         # render templated wrapper
         env = Environment(loader=FileSystemLoader(os.path.dirname(os.path.abspath(__file__))))

@@ -51,6 +51,7 @@ pmt_temp_functions = {\
         '_Z10pmt_potrsmpmatpmat': 'c_pmt_potrsm', \
         '_Z13pmt_trmm_rlnnpmatpmatpmat': 'c_pmt_trmm_rlnn', \
         '_Z11pmt_syrk_lnpmatpmatpmatpmat': 'c_pmt_syrk_ln', \
+        '_Z9pmt_getrfpmatpmatList': 'c_pmt_getrf', \
         '_Z9pmat_tranpmatpmat': 'c_pmt_pmat_tran', \
         '_Z9pmat_copypmatpmat': 'c_pmt_pmat_copy', \
         '_Z9pmat_fillpmatfloat': 'c_pmt_pmat_fill', \
@@ -60,7 +61,6 @@ pmt_temp_functions = {\
         '_Z9pvec_copypvecpvec': 'c_pmt_pvec_copy', \
         '_Z5print' : 'printf'}
 
-        # 'pmt_getrf': 'c_pmt_getrf', \
         # 'pmt_getrsm': 'c_pmt_getrsm', \
         # 'pmt_getrsv': 'c_pmt_getrsv', \
         # 'pmt_potrsv': 'c_pmt_potrsv', \
@@ -113,6 +113,13 @@ def unparse(node):
     if isinstance(node, (ast.Name, ast.Constant, ast.Attribute, ast.Subscript, ast.Call)):
         return code
     return '(' + code + ')'
+
+def mangling_type(type_val):
+    # Lists are mangled as 'List', regardless of element type and size
+    # (e.g. 'List[int, n]'), as in function definitions
+    if type_val.startswith('List['):
+        return 'List'
+    return type_val
 
 legacy_classinfo = ["ast.Num", "ast.Str", "ast.NameConstant"]
 
@@ -530,6 +537,8 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.scope = 'global'
         self.call_scope = 'global'
         self.casadi_funs = []
+        # nesting depth of calls whose arguments are being generated
+        self.call_depth = 0
         self.var_dim_record = {'global': dict()}
         self.dim_record = dict()
         self.constructor_record = []
@@ -606,6 +615,10 @@ class SourceGenerator(ExplicitNodeVisitor):
                 },
                 '_Z11pmt_syrk_lnpmatpmatpmatpmat' : { 
                     'arg_types' : ["pmat", "pmat", "pmat", "pmat"],
+                    'ret_type': "None"
+                },
+                '_Z9pmt_getrfpmatpmatList' : { 
+                    'arg_types' : ["pmat", "pmat", "List"],
                     'ret_type': "None"
                 },
                 '_Z9pmat_tranpmatpmat' : { 
@@ -818,14 +831,14 @@ class SourceGenerator(ExplicitNodeVisitor):
                 pre_mangl = '_Z' + str(len(fun_name))
                 post_mangl = self.build_arg_mangling(node.args, is_call = True)
                 fun_name_m = pre_mangl + fun_name + post_mangl
-                # TODO(andrea): add check for casadi functions
                 if fun_name_m in self.function_record['global']:
                     type_val = self.function_record['global'][fun_name_m]['ret_type']
                     return type_val, self.function_record['global'][fun_name_m]['arg_types']
-                elif fun_name not in self.casadi_functions:
-                    return 'pmat'   
+                elif any(f.split('@')[-1] == fun_name for f in self.casadi_funs):
+                    raise cgenException('Calling CasADi functions (pfun) from '
+                        'transpiled code is not supported yet', node.lineno)
                 else:
-                    raise cgenException('Undefined method {}'.format(fun_name_m), node.lineno)
+                    raise cgenException('Undefined function {}'.format(fun_name), node.lineno)
             elif my_isinstance(node.func, ast.Attribute):
                 type_val = self.get_type_of_node_rec(node.func.value, scope)
 
@@ -1565,7 +1578,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                 else:
                     # arg_value = arg.id
                     type_val, s = self.get_type_of_node(arg, self.scope)
-                    post_mangl = post_mangl + type_val
+                    post_mangl = post_mangl + mangling_type(type_val)
             return post_mangl
         # def loop_args_mangl_def(args, defaults):
         #     set_precedence(Precedence.Comma, defaults)
@@ -2040,7 +2053,10 @@ class SourceGenerator(ExplicitNodeVisitor):
             # exec('from prometeo import * \n' + code)
             if my_isinstance(node.value, ast.Call):
                 self.scope = self.scope + '@' + node.value.args[0].value
-                casadi_fun = ca.Function.load('__pmt_cache__/' + self.scope + '.casadi')
+                # the CasADi function is serialized by the pfun constructor
+                if not os.path.exists('__pmt_cache__/' + self.scope + '.casadi'):
+                    raise cgenException('CasADi function {} not found: run the program '
+                        'with --cgen=False first'.format(node.value.args[0].value), node.lineno)
                 # self.function_record[outer_scope][fun_name_m] = {"arg_types": arg_list,  "ret_type": return_type_py}
                 self.casadi_funs.append(self.scope)
                 self.typed_record[self.scope] = dict()
@@ -2737,7 +2753,8 @@ class SourceGenerator(ExplicitNodeVisitor):
         # print(node.func.id)
         if my_isinstance(node.func, ast.Name):
             if node.func.id in self.casadi_funs:
-                import pdb; pdb.set_trace()
+                raise cgenException('Calling CasADi functions (pfun) from '
+                    'transpiled code is not supported yet', node.lineno)
 
         # treat print separately
         if hasattr(node.func, 'id'):
@@ -2908,6 +2925,7 @@ class SourceGenerator(ExplicitNodeVisitor):
                     fun_name, len(arg_types), len(args)), node.lineno)
             
             i = 0
+            self.call_depth += 1
             for arg in args:
                 # check arg type
                 if my_isinstance(arg, ast.Name):
@@ -2926,12 +2944,13 @@ class SourceGenerator(ExplicitNodeVisitor):
                     arg_type, s = self.get_type_of_node(arg, self.scope)
                     # raise cgenException('Feature not implemented: type check on arg expression.', node.lineno)
 
-                if arg_type not in arg_types[i]:
+                if mangling_type(arg_type) not in arg_types[i]:
                     raise cgenException('Argument {} has wrong type: expected {} instead of {}.'.format(i, \
                         arg_types[i], arg_type), node.lineno)
 
                 write(write_comma, arg, dest = 'src')
                 i+=1
+            self.call_depth -= 1
 
             set_precedence(Precedence.Comma, *(x.value for x in keywords))
             for keyword in keywords:
@@ -2942,8 +2961,8 @@ class SourceGenerator(ExplicitNodeVisitor):
             # 3.5 no longer has these
             self.conditional_write(write_comma, '*', starargs, dest = 'src')
             self.conditional_write(write_comma, '**', kwargs, dest = 'src')
-            # write(');\n', dest = 'src')
-            write(');', dest = 'src')
+            # a call used as an argument of another call is not a statement
+            write(')' if self.call_depth > 0 else ');', dest = 'src')
 
     def visit_Name(self, node):
         self.current_line = node.lineno
@@ -3250,7 +3269,33 @@ class SourceGenerator(ExplicitNodeVisitor):
             self.visit(node.value)
 
     def visit_Module(self, node):
+        self.record_function_signatures(node.body)
         self.write(*node.body, dest = 'src')
+
+    def record_function_signatures(self, body):
+        # register all top-level functions before generating code, so that
+        # calls can precede the callee's definition
+        for item in body:
+            if not my_isinstance(item, ast.FunctionDef) or item.name == 'main':
+                continue
+            returns = self.get_returns(item)
+            if my_isinstance(returns, "ast.NameConstant"):
+                ret_type = str(returns.value)
+            elif my_isinstance(returns, ast.Name):
+                ret_type = returns.id
+            else:
+                # reported when the definition itself is visited
+                continue
+            arg_types = []
+            for arg in item.args.args:
+                if my_isinstance(arg.annotation, ast.Name):
+                    arg_types.append(arg.annotation.id)
+                elif my_isinstance(arg.annotation, ast.Subscript):
+                    arg_types.append(arg.annotation.value.id)
+            fun_name_m = '_Z' + str(len(item.name)) + item.name + \
+                self.build_arg_mangling(item.args)
+            self.function_record.setdefault(self.scope, dict())[fun_name_m] = \
+                {"arg_types": arg_types, "ret_type": ret_type}
 
     visit_Interactive = visit_Module
 
