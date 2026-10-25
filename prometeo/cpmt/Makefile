@@ -4,6 +4,7 @@ CC = gcc
 # CC = clang
 CFLAGS = -std=c99
 CFLAGS += -fPIC
+CFLAGS += -Wall -Werror=return-type -Werror=implicit-function-declaration
 CFLAGS += $(PMT_FLAGS)
 PREFIX = ./..
 SRCS += pmat_blasfeo_wrapper.c

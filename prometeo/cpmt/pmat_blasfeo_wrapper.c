@@ -232,15 +232,16 @@ void c_pmt_potrsm(struct pmat *fact, struct pmat *rhs) {
     struct blasfeo_dmat *brhs  = rhs->bmat;
     // struct blasfeo_dmat *bout  = out->bmat;
 
-    // triangular solves 
+    int mfact = fact->bmat->m;
+
+    // triangular solves: L * Y = rhs, then L^T * X = Y
     blasfeo_dtrsm_llnn(mrhs, nrhs, 1.0, bfact, 0, 0, brhs, 0, 0, brhs, 0, 0);
 
-    // struct pmat * fact_tran = c_pmt_create_pmat(nrhs, nrhs);
-    // struct blasfeo_dmat *bfact_tran = fact_tran->bmat;
-    blasfeo_dtrtr_l(nrhs, bfact, 0, 0, bfact, 0, 0);
-    // blasfeo_dgese(1, 1, 0.0, bfact, 1, 0);
+    // dtrsm_lltn is not implemented in the bundled BLASFEO: mirror the lower
+    // factor into the upper triangle of fact (mfact x mfact, not nrhs) and use
+    // the upper solve instead. Note: this overwrites the upper triangle of fact.
+    blasfeo_dtrtr_l(mfact, bfact, 0, 0, bfact, 0, 0);
     blasfeo_dtrsm_lunn(mrhs, nrhs, 1.0, bfact, 0, 0, brhs, 0, 0, brhs, 0, 0);
-    // blasfeo_dtrsm_lltn(mrhs, nrhs, 1.0, bfact_tran, 0, 0, brhs, 0, 0, brhs, 0, 0);
 
 }
 
@@ -319,7 +320,7 @@ void c_pmt_gecp(int m, int n, struct pmat *A, int ai, int aj, struct pmat *B, in
 
 double c_pmt_pmat_get_el(struct pmat *A, int i, int j) {
 
-    blasfeo_dgeex1(A->bmat, i, j);
+    return blasfeo_dgeex1(A->bmat, i, j);
 }
 
 void c_pmt_pmat_copy(struct pmat *A, struct pmat *B) {
