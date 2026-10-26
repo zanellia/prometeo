@@ -48,6 +48,20 @@ struct pmat * _c_pmt_gead(double alpha, struct pmat *A, struct pmat *B);
 
 void c_pmt_gemv_n(struct pmat *A, struct pvec *b, struct pvec *c, struct pvec *d);
 
+// blocks of matrices (matrix expressions with A[a:b, c:d]): a matrix
+// argument is (M, first row, first column, rows, columns), with -1 rows or
+// columns for all of them
+void c_pmt_pmat_copy_view(struct pmat *A, int ai, int aj, int ar, int ac, struct pmat *B, int bi, int bj, int br, int bc);
+void c_pmt_pmat_tran_view(struct pmat *A, int ai, int aj, int ar, int ac, struct pmat *B, int bi, int bj, int br, int bc);
+void c_pmt_pmat_fill_view(double value, struct pmat *A, int ai, int aj, int ar, int ac);
+void c_pmt_pmat_scale_view(double alpha, struct pmat *A, int ai, int aj, int ar, int ac);
+void c_pmt_gead_view(double alpha, struct pmat *A, int ai, int aj, int ar, int ac, struct pmat *B, int bi, int bj, int br, int bc);
+void c_pmt_gemm_view_nn(double alpha, struct pmat *A, int ai, int aj, int ar, int ac, struct pmat *B, int bi, int bj, int br, int bc, double beta, struct pmat *C, int ci, int cj, int cr, int cc, struct pmat *D, int di, int dj, int dr, int dc);
+void c_pmt_gemm_view_nt(double alpha, struct pmat *A, int ai, int aj, int ar, int ac, struct pmat *B, int bi, int bj, int br, int bc, double beta, struct pmat *C, int ci, int cj, int cr, int cc, struct pmat *D, int di, int dj, int dr, int dc);
+void c_pmt_gemm_view_tn(double alpha, struct pmat *A, int ai, int aj, int ar, int ac, struct pmat *B, int bi, int bj, int br, int bc, double beta, struct pmat *C, int ci, int cj, int cr, int cc, struct pmat *D, int di, int dj, int dr, int dc);
+void c_pmt_gemm_view_tt(double alpha, struct pmat *A, int ai, int aj, int ar, int ac, struct pmat *B, int bi, int bj, int br, int bc, double beta, struct pmat *C, int ci, int cj, int cr, int cc, struct pmat *D, int di, int dj, int dr, int dc);
+
+
 // auxiliary
 void c_pmt_pmat_fill(struct pmat *A, double fill_value);
 // A <= alpha * A

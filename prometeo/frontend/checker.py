@@ -16,7 +16,8 @@ from .types import Type, INT, FLOAT, DIMS, DIMV, STR, NONE, PMAT, PVEC, \
     list_of, is_list, is_int_like, is_scalar, LIST_ELEMENT_TYPES
 from .normalize import normalize, eval_dims
 from .matexpr import Dim, UNKNOWN, Leaf, Scale, Add, MatMul, Transpose, Call, Coef, Plan, \
-    Temporaries, LoweringError, MATRIX_FUNCTIONS, TEMP_PREFIX, lower_statement, position
+    Temporaries, LoweringError, MATRIX_FUNCTIONS, TEMP_PREFIX, lower_statement, position, \
+    is_block, affine_index
 from .builtins import BUILTINS, UNSUPPORTED_BUILTINS, OUTPUT_ALIASING, BUILTIN_KEYWORDS
 
 C_KEYWORDS = {
@@ -610,6 +611,10 @@ class Checker:
         if t == PMAT and self.is_matrix_expression(value, scope):
             self.check_matrix_expression(stmt, target, value, scope)
             return
+        if t == PMAT and is_block(value):
+            self.error(value, "'B = A[a:b, c:d]' would make B a view of A in NumPy: copy the block "
+                "with 'B[:, :] = A[a:b, c:d]'")
+            return
         if isinstance(value, ast.BinOp) and t == PVEC:
             self.unsupported(value, 'expressions on vectors (pvec)', 'use n x 1 matrices (pmat)')
             return
@@ -645,7 +650,10 @@ class Checker:
         return self.classes.get(t.name) if t is not None else None
 
     def matrix_shape(self, node, scope):
-        """Shape of a matrix variable, attribute or List element."""
+        """Shape of a matrix variable, attribute, List element or block."""
+        if is_block(node):
+            base = self.matrix_shape(node.value, scope)
+            return tuple(self.slice_size(s, d) for s, d in zip(node.slice.elts, base))
         if isinstance(node, ast.Name):
             return scope.shapes.get(node.id, (UNKNOWN, UNKNOWN))
         if isinstance(node, ast.Attribute):
@@ -664,10 +672,52 @@ class Checker:
                     return sizes[0]
         return (UNKNOWN, UNKNOWN)
 
+    def slice_size(self, s, dim):
+        """Size of the slice s (a:b, a:, :b or :) of a dimension dim."""
+        lower = eval_dims(s.lower, self.dims_values) if s.lower is not None else 0
+        upper = eval_dims(s.upper, self.dims_values) if s.upper is not None else dim.value
+        if lower is not None and upper is not None:
+            return Dim(upper - lower)
+        if s.lower is None or s.upper is None:
+            return UNKNOWN
+        lo, up = affine_index(s.lower), affine_index(s.upper)
+        if lo is not None and up is not None and lo[0] == up[0]:
+            return Dim(up[1] - lo[1])
+        return UNKNOWN
+
+    def block_leaf(self, node, scope):
+        """Leaf for a block A[a:b, c:d] (or A[:, c:d], ...) in a matrix
+        expression."""
+        indices = matrix_indices(node)
+        if indices is None or not all(isinstance(i, ast.Slice) for i in indices):
+            self.unsupported(node, 'elements or rows/columns A[i, :] in matrix expressions',
+                'use blocks A[i:i+1, :], or a scalar factor A[i, j] * B')
+            return None
+        if self.subscript_base(node.value, scope) != PMAT:
+            return None
+        if not self.check_slices(indices, scope, allow_all=True):
+            return None
+        base = self.matrix_shape(node.value, scope)
+        shape = tuple(self.slice_size(s, d) for s, d in zip(indices, base))
+        for s, d, size, what in zip(indices, base, shape, ('rows', 'columns')):
+            lower = eval_dims(s.lower, self.dims_values) if s.lower is not None else 0
+            upper = eval_dims(s.upper, self.dims_values) if s.upper is not None else d.value
+            if (size.value is not None and size.value <= 0) or (lower is not None and lower < 0) or \
+                    (upper is not None and d.value is not None and upper > d.value):
+                self.error(node, 'the block {} {} is out of range for a matrix with {} {}'.format(
+                    what, ast.unparse(s), d, what))
+                return None
+        if all(i.lower is None and i.upper is None for i in indices):
+            # A[:, :] is A
+            return Leaf(node.value, shape)
+        return Leaf(node, shape)
+
     def is_matrix(self, node, scope):
         """Whether node is a matrix-valued expression (no diagnostics)."""
         if isinstance(node, ast.Attribute) and node.attr == 'T' and self.is_matrix(node.value, scope):
             return True
+        if is_block(node):
+            return self.quiet(lambda: self.subscript_base(node.value, scope)) == PMAT
         if isinstance(node, (ast.Name, ast.Attribute, ast.Subscript)):
             return self.quiet(lambda: self.argument_type(node, scope)) == PMAT
         if isinstance(node, ast.BinOp):
@@ -697,7 +747,7 @@ class Checker:
             e.shape[0], ast.unparse(target), shape[0]))
         self.check_dim(value, shape[1], e.shape[1], 'the result has {} columns, but {} has {}'.format(
             e.shape[1], ast.unparse(target), shape[1]))
-        plan = Plan(stmt, target, shape, e, position(scope.fun.node))
+        plan = Plan(stmt, target, shape, e, position(scope.fun.node), self.dims_values)
         try:
             lower_statement(plan, Temporaries(TEMP_PREFIX))
         except LoweringError as err:
@@ -719,9 +769,7 @@ class Checker:
         if isinstance(node, (ast.Name, ast.Attribute, ast.Subscript)):
             if isinstance(node, ast.Subscript) and self.quiet(
                     lambda: self.subscript_base(node.value, scope)) == PMAT:
-                self.unsupported(node, 'blocks or elements of matrices in matrix expressions',
-                    'copy the block to a matrix first')
-                return None
+                return self.block_leaf(node, scope)
             t = self.argument_type(node, scope)
             if t is None:
                 return None
@@ -845,6 +893,15 @@ class Checker:
                 self.error(target, 'a pmat must be indexed with two indices, A[i, j] or A[a:b, c:d]')
                 return
             if all(isinstance(i, ast.Slice) for i in indices):
+                # blocks assigned expressions, or with slices other than a:b,
+                # are matrix expressions (copies for a plain matrix or block)
+                full = any(i.lower is None or i.upper is None for i in indices + (
+                    matrix_indices(value) or [] if is_block(value) else []))
+                if self.is_matrix_expression(value, scope) or full:
+                    leaf = self.block_leaf(target, scope)
+                    if leaf is not None:
+                        self.check_matrix_expression(stmt, leaf.node, value, scope)
+                    return
                 self.check_slices(indices, scope)
                 if isinstance(value, ast.Name):
                     if self.name_type(value, scope) != PMAT:
@@ -896,13 +953,18 @@ class Checker:
         if vt is not None and vt != FLOAT:
             self.error(value, 'matrix and vector elements are float, not {}'.format(vt))
 
-    def check_slices(self, slices, scope):
+    def check_slices(self, slices, scope, allow_all=False):
+        ok = True
         for s in slices:
-            if s.lower is None or s.upper is None or s.step is not None:
-                self.error(s, "slices must have the form 'a:b'")
+            if s.step is not None or not allow_all and (s.lower is None or s.upper is None):
+                self.error(s, "slices must have the form 'a:b'" + (", 'a:', ':b' or ':'"
+                    if allow_all else ''))
+                ok = False
                 continue
-            self.index_expr(s.lower, scope)
-            self.index_expr(s.upper, scope)
+            for bound in (s.lower, s.upper):
+                if bound is not None:
+                    self.index_expr(bound, scope)
+        return ok
 
     # expressions
 

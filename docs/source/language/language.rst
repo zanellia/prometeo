@@ -135,6 +135,8 @@ Matrices can be combined with NumPy's syntax:
     X = -cho_solve(L, B) / 2.0
     L = cholesky(M + B.T @ B)
     self.P[k] = self.Q + self.A[k].T @ self.P[k + 1] @ self.A[k]
+    K[0:n, n:] = B                  # blocks, as operands and as targets
+    C[k:k + 2, :] = A[k:k + 2, 0:m] @ D
 
 ======================== ==========================================================
 ``A @ B``                matrix product
@@ -149,9 +151,19 @@ Matrices can be combined with NumPy's syntax:
 ======================== ==========================================================
 
 The operands are matrices (``pmat`` variables, attributes and elements of
-Lists of matrices) and subexpressions. The sizes of all subexpressions are
-checked when the sizes of the operands are known (they are declared with
-``dims`` constants), else at run time.
+Lists of matrices), blocks of matrices (``A[a:b, c:d]``, also ``a:``, ``:b``
+and ``:``) and subexpressions. The sizes of all subexpressions are checked
+when the sizes of the operands are known (they are declared with ``dims``
+constants, and blocks have bounds ``a:b`` made of literals and ``dims``
+constants, or ``k + c1:k + c2``), else at run time; blocks out of range are
+rejected in the same way.
+
+A block can also be the target of an assignment, ``K[0:n, n:] = <expression>``.
+Blocks are passed to BLASFEO with their offsets, without copies, except to
+``cholesky`` and ``cho_solve``, which work on whole matrices (the block is
+copied to a temporary). ``B[:, :] = A[0:2, 0:2]`` copies a block into a
+matrix; ``B = A[0:2, 0:2]`` is rejected, since in NumPy it would make ``B`` a
+view of ``A``.
 
 An assignment ``C = <expression>`` writes the result into the memory of
 ``C``, like ``C[:] = <expression>`` in NumPy, and is translated into calls of
@@ -168,8 +180,8 @@ BLASFEO routines (the same in Python and in C):
   run time (an operand is a function argument), the expression is rejected:
   assign the subexpression to a declared matrix first;
 - if ``C`` is read by the expression other than as a term ``C + ...``
-  (``C = A @ C``), the result is computed into a temporary and then copied
-  into ``C``;
+  (``C = A @ C``, or a block of ``C`` that may overlap the target), the result
+  is computed into a temporary and then copied into ``C``;
 - nothing else is done behind the scenes: a subexpression that appears twice
   is computed twice. To reuse it, assign it to a matrix, e.g. ``PA = P @ A``.
 
@@ -180,8 +192,9 @@ Restrictions:
 - Adding a number to a matrix (``A + 1.0``) is not supported: use
   ``pmat_fill``.
 - ``B = A`` is not a matrix expression: it is rejected (see Assignments).
-- Blocks (``A[0:2, 0:2]``), vectors (``pvec``) and calls of other functions
-  cannot be used in matrix expressions *(not supported yet)*.
+- Rows and columns ``A[i, :]`` (use ``A[i:i + 1, :]``), slices with a step,
+  vectors (``pvec``) and calls of other functions cannot be used in matrix
+  expressions *(not supported yet)*.
 - ``cholesky`` and ``cho_solve`` can only be used in matrix expressions.
 
 Expressions

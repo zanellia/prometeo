@@ -27,3 +27,18 @@ for t in ('nn', 'nt', 'tn', 'tt'):
     extra_functions['_Z{}{}floatpmatpmatfloatpmatpmat'.format(len(name), name)] = \
         ('c_pmt_gemm_ab_' + t, ['float', 'pmat', 'pmat', 'float', 'pmat', 'pmat'], 'None')
 extra_functions['_Z10pmat_scalefloatpmat'] = ('c_pmt_pmat_scale', ['float', 'pmat'], 'None')
+
+# matrix expressions with blocks: a matrix argument is (M, row, col, rows, cols)
+_view = ['pmat', 'int', 'int', 'int', 'int']
+_view_functions = {
+    'pmat_copy_view': ('c_pmt_pmat_copy_view', _view + _view),
+    'pmat_tran_view': ('c_pmt_pmat_tran_view', _view + _view),
+    'pmat_fill_view': ('c_pmt_pmat_fill_view', ['float'] + _view),
+    'pmat_scale_view': ('c_pmt_pmat_scale_view', ['float'] + _view),
+    'pmt_gead_view': ('c_pmt_gead_view', ['float'] + _view + _view),
+}
+for t in ('nn', 'nt', 'tn', 'tt'):
+    _view_functions['pmt_gemm_view_' + t] = ('c_pmt_gemm_view_' + t,
+        ['float'] + _view + _view + ['float'] + _view + _view)
+for name, (c_name, arg_types) in _view_functions.items():
+    extra_functions['_Z{}{}{}'.format(len(name), name, ''.join(arg_types))] = (c_name, arg_types, 'None')

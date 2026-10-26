@@ -504,3 +504,90 @@ def cho_solve(L: pmat, B: pmat):
     pmat_copy(L, fact)
     pmt_potrsm(fact, X)
     return X
+
+
+# Blocks of matrices, used by matrix expressions with blocks A[a:b, c:d]: a
+# block is passed as A, a, c, b - a, d - c, a whole matrix as A, 0, 0, -1, -1.
+def _view(name, M, i, j, r, c):
+    if r < 0:
+        r = M.m - i
+    if c < 0:
+        c = M.n - j
+    if i < 0 or j < 0 or r <= 0 or c <= 0 or i + r > M.m or j + c > M.n:
+        raise IndexError('{}: block [{}:{}, {}:{}] out of range for a {}x{} pmat'.format(
+            name, i, i + r, j, j + c, M.m, M.n))
+    return i, j, r, c
+
+def _same_size(name, *sizes):
+    if len(set(sizes[0::2])) != 1 or len(set(sizes[1::2])) != 1:
+        raise Exception('{}: mismatching dimensions: {}'.format(name, ', '.join(
+            '({}, {})'.format(m, n) for m, n in zip(sizes[0::2], sizes[1::2]))))
+
+def pmat_copy_view(A: pmat, ai: int, aj: int, ar: int, ac: int,
+        B: pmat, bi: int, bj: int, br: int, bc: int):
+    ai, aj, ar, ac = _view('pmat_copy', A, ai, aj, ar, ac)
+    bi, bj, br, bc = _view('pmat_copy', B, bi, bj, br, bc)
+    _same_size('pmat_copy', ar, ac, br, bc)
+    bw.blasfeo_dgecp(ar, ac, A._ref, ai, aj, B._ref, bi, bj)
+
+def pmat_tran_view(A: pmat, ai: int, aj: int, ar: int, ac: int,
+        B: pmat, bi: int, bj: int, br: int, bc: int):
+    ai, aj, ar, ac = _view('pmat_tran', A, ai, aj, ar, ac)
+    bi, bj, br, bc = _view('pmat_tran', B, bi, bj, br, bc)
+    _same_size('pmat_tran', ac, ar, br, bc)
+    bw.blasfeo_dgetr(ar, ac, A._ref, ai, aj, B._ref, bi, bj)
+
+def pmat_fill_view(value: float, A: pmat, ai: int, aj: int, ar: int, ac: int):
+    ai, aj, ar, ac = _view('pmat_fill', A, ai, aj, ar, ac)
+    bw.blasfeo_dgese(ar, ac, value, A._ref, ai, aj)
+
+def pmat_scale_view(alpha: float, A: pmat, ai: int, aj: int, ar: int, ac: int):
+    ai, aj, ar, ac = _view('pmat_scale', A, ai, aj, ar, ac)
+    bw.blasfeo_dgesc(ar, ac, alpha, A._ref, ai, aj)
+
+def pmt_gead_view(alpha: float, A: pmat, ai: int, aj: int, ar: int, ac: int,
+        B: pmat, bi: int, bj: int, br: int, bc: int):
+    ai, aj, ar, ac = _view('pmt_gead', A, ai, aj, ar, ac)
+    bi, bj, br, bc = _view('pmt_gead', B, bi, bj, br, bc)
+    _same_size('pmt_gead', ar, ac, br, bc)
+    bw.blasfeo_dgead(ar, ac, alpha, A._ref, ai, aj, B._ref, bi, bj)
+
+def _gemm_view(t, alpha, A, ai, aj, ar, ac, B, bi, bj, br, bc, beta, C, ci, cj, cr, cc,
+        D, di, dj, dr, dc):
+    name = 'pmt_gemm_' + t
+    ai, aj, ar, ac = _view(name, A, ai, aj, ar, ac)
+    bi, bj, br, bc = _view(name, B, bi, bj, br, bc)
+    ci, cj, cr, cc = _view(name, C, ci, cj, cr, cc)
+    di, dj, dr, dc = _view(name, D, di, dj, dr, dc)
+    m, k = (ac, ar) if t[0] == 't' else (ar, ac)
+    kb, n = (bc, br) if t[1] == 't' else (br, bc)
+    _same_size(name, m, n, cr, cc, dr, dc)
+    if k != kb:
+        raise Exception('{}: mismatching dimensions: ({}, {}){} x ({}, {}){}'.format(
+            name, ar, ac, '^T' if t[0] == 't' else '', br, bc, '^T' if t[1] == 't' else ''))
+    getattr(bw, 'blasfeo_dgemm_' + t)(m, n, k, alpha, A._ref, ai, aj, B._ref, bi, bj,
+        beta, C._ref, ci, cj, D._ref, di, dj)
+
+def pmt_gemm_view_nn(alpha: float, A: pmat, ai: int, aj: int, ar: int, ac: int,
+        B: pmat, bi: int, bj: int, br: int, bc: int, beta: float,
+        C: pmat, ci: int, cj: int, cr: int, cc: int, D: pmat, di: int, dj: int, dr: int, dc: int):
+    _gemm_view('nn', alpha, A, ai, aj, ar, ac, B, bi, bj, br, bc, beta, C, ci, cj, cr, cc,
+        D, di, dj, dr, dc)
+
+def pmt_gemm_view_nt(alpha: float, A: pmat, ai: int, aj: int, ar: int, ac: int,
+        B: pmat, bi: int, bj: int, br: int, bc: int, beta: float,
+        C: pmat, ci: int, cj: int, cr: int, cc: int, D: pmat, di: int, dj: int, dr: int, dc: int):
+    _gemm_view('nt', alpha, A, ai, aj, ar, ac, B, bi, bj, br, bc, beta, C, ci, cj, cr, cc,
+        D, di, dj, dr, dc)
+
+def pmt_gemm_view_tn(alpha: float, A: pmat, ai: int, aj: int, ar: int, ac: int,
+        B: pmat, bi: int, bj: int, br: int, bc: int, beta: float,
+        C: pmat, ci: int, cj: int, cr: int, cc: int, D: pmat, di: int, dj: int, dr: int, dc: int):
+    _gemm_view('tn', alpha, A, ai, aj, ar, ac, B, bi, bj, br, bc, beta, C, ci, cj, cr, cc,
+        D, di, dj, dr, dc)
+
+def pmt_gemm_view_tt(alpha: float, A: pmat, ai: int, aj: int, ar: int, ac: int,
+        B: pmat, bi: int, bj: int, br: int, bc: int, beta: float,
+        C: pmat, ci: int, cj: int, cr: int, cc: int, D: pmat, di: int, dj: int, dr: int, dc: int):
+    _gemm_view('tt', alpha, A, ai, aj, ar, ac, B, bi, bj, br, bc, beta, C, ci, cj, cr, cc,
+        D, di, dj, dr, dc)

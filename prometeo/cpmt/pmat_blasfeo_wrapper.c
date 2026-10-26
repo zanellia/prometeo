@@ -3,6 +3,8 @@
 #include "pmt_heap.h"
 #include "pmt_aux.h"
 #include <assert.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <blasfeo_common.h>
 
 void make_int_multiple_of(int num, int *size) { *size = (*size + num - 1) / num * num; }
@@ -464,3 +466,84 @@ void c_pmt_pmat_print(struct pmat *A) {
     blasfeo_print_dmat(m, n, A->bmat, 0, 0);
 }
 
+// resolve the block (i, j, r, c) of M, abort if it is out of range
+static void c_pmt_view(const char *fun, struct pmat *M, int *i, int *j, int *r, int *c) {
+    if (*r < 0) *r = M->bmat->m - *i;
+    if (*c < 0) *c = M->bmat->n - *j;
+    if (*i < 0 || *j < 0 || *r <= 0 || *c <= 0 || *i + *r > M->bmat->m || *j + *c > M->bmat->n) {
+        fprintf(stderr, "prometeo: %s: block [%d:%d, %d:%d] out of range for a %dx%d pmat\n",
+            fun, *i, *i + *r, *j, *j + *c, M->bmat->m, M->bmat->n);
+        exit(1);
+    }
+}
+
+void c_pmt_pmat_copy_view(struct pmat *A, int ai, int aj, int ar, int ac, struct pmat *B, int bi, int bj, int br, int bc) {
+    c_pmt_view("pmat_copy", A, &ai, &aj, &ar, &ac);
+    c_pmt_view("pmat_copy", B, &bi, &bj, &br, &bc);
+    if (ar != br || ac != bc) c_pmt_dims_error("pmat_copy");
+    blasfeo_dgecp(ar, ac, A->bmat, ai, aj, B->bmat, bi, bj);
+}
+
+void c_pmt_pmat_tran_view(struct pmat *A, int ai, int aj, int ar, int ac, struct pmat *B, int bi, int bj, int br, int bc) {
+    c_pmt_view("pmat_tran", A, &ai, &aj, &ar, &ac);
+    c_pmt_view("pmat_tran", B, &bi, &bj, &br, &bc);
+    if (ar != bc || ac != br) c_pmt_dims_error("pmat_tran");
+    blasfeo_dgetr(ar, ac, A->bmat, ai, aj, B->bmat, bi, bj);
+}
+
+void c_pmt_pmat_fill_view(double value, struct pmat *A, int ai, int aj, int ar, int ac) {
+    c_pmt_view("pmat_fill", A, &ai, &aj, &ar, &ac);
+    blasfeo_dgese(ar, ac, value, A->bmat, ai, aj);
+}
+
+void c_pmt_pmat_scale_view(double alpha, struct pmat *A, int ai, int aj, int ar, int ac) {
+    c_pmt_view("pmat_scale", A, &ai, &aj, &ar, &ac);
+    blasfeo_dgesc(ar, ac, alpha, A->bmat, ai, aj);
+}
+
+void c_pmt_gead_view(double alpha, struct pmat *A, int ai, int aj, int ar, int ac, struct pmat *B, int bi, int bj, int br, int bc) {
+    c_pmt_view("pmt_gead", A, &ai, &aj, &ar, &ac);
+    c_pmt_view("pmt_gead", B, &bi, &bj, &br, &bc);
+    if (ar != br || ac != bc) c_pmt_dims_error("pmt_gead");
+    blasfeo_dgead(ar, ac, alpha, A->bmat, ai, aj, B->bmat, bi, bj);
+}
+
+void c_pmt_gemm_view_nn(double alpha, struct pmat *A, int ai, int aj, int ar, int ac, struct pmat *B, int bi, int bj, int br, int bc, double beta, struct pmat *C, int ci, int cj, int cr, int cc, struct pmat *D, int di, int dj, int dr, int dc) {
+    c_pmt_view("pmt_gemm_nn", A, &ai, &aj, &ar, &ac);
+    c_pmt_view("pmt_gemm_nn", B, &bi, &bj, &br, &bc);
+    c_pmt_view("pmt_gemm_nn", C, &ci, &cj, &cr, &cc);
+    c_pmt_view("pmt_gemm_nn", D, &di, &dj, &dr, &dc);
+    if (ac != br || cr != ar || cc != bc || dr != ar || dc != bc)
+        c_pmt_dims_error("pmt_gemm_nn");
+    blasfeo_dgemm_nn(ar, bc, ac, alpha, A->bmat, ai, aj, B->bmat, bi, bj, beta, C->bmat, ci, cj, D->bmat, di, dj);
+}
+
+void c_pmt_gemm_view_nt(double alpha, struct pmat *A, int ai, int aj, int ar, int ac, struct pmat *B, int bi, int bj, int br, int bc, double beta, struct pmat *C, int ci, int cj, int cr, int cc, struct pmat *D, int di, int dj, int dr, int dc) {
+    c_pmt_view("pmt_gemm_nt", A, &ai, &aj, &ar, &ac);
+    c_pmt_view("pmt_gemm_nt", B, &bi, &bj, &br, &bc);
+    c_pmt_view("pmt_gemm_nt", C, &ci, &cj, &cr, &cc);
+    c_pmt_view("pmt_gemm_nt", D, &di, &dj, &dr, &dc);
+    if (ac != bc || cr != ar || cc != br || dr != ar || dc != br)
+        c_pmt_dims_error("pmt_gemm_nt");
+    blasfeo_dgemm_nt(ar, br, ac, alpha, A->bmat, ai, aj, B->bmat, bi, bj, beta, C->bmat, ci, cj, D->bmat, di, dj);
+}
+
+void c_pmt_gemm_view_tn(double alpha, struct pmat *A, int ai, int aj, int ar, int ac, struct pmat *B, int bi, int bj, int br, int bc, double beta, struct pmat *C, int ci, int cj, int cr, int cc, struct pmat *D, int di, int dj, int dr, int dc) {
+    c_pmt_view("pmt_gemm_tn", A, &ai, &aj, &ar, &ac);
+    c_pmt_view("pmt_gemm_tn", B, &bi, &bj, &br, &bc);
+    c_pmt_view("pmt_gemm_tn", C, &ci, &cj, &cr, &cc);
+    c_pmt_view("pmt_gemm_tn", D, &di, &dj, &dr, &dc);
+    if (ar != br || cr != ac || cc != bc || dr != ac || dc != bc)
+        c_pmt_dims_error("pmt_gemm_tn");
+    blasfeo_dgemm_tn(ac, bc, ar, alpha, A->bmat, ai, aj, B->bmat, bi, bj, beta, C->bmat, ci, cj, D->bmat, di, dj);
+}
+
+void c_pmt_gemm_view_tt(double alpha, struct pmat *A, int ai, int aj, int ar, int ac, struct pmat *B, int bi, int bj, int br, int bc, double beta, struct pmat *C, int ci, int cj, int cr, int cc, struct pmat *D, int di, int dj, int dr, int dc) {
+    c_pmt_view("pmt_gemm_tt", A, &ai, &aj, &ar, &ac);
+    c_pmt_view("pmt_gemm_tt", B, &bi, &bj, &br, &bc);
+    c_pmt_view("pmt_gemm_tt", C, &ci, &cj, &cr, &cc);
+    c_pmt_view("pmt_gemm_tt", D, &di, &dj, &dr, &dc);
+    if (ar != bc || cr != ac || cc != br || dr != ac || dc != br)
+        c_pmt_dims_error("pmt_gemm_tt");
+    blasfeo_dgemm_tt(ac, br, ar, alpha, A->bmat, ai, aj, B->bmat, bi, bj, beta, C->bmat, ci, cj, D->bmat, di, dj);
+}

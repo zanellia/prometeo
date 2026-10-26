@@ -28,6 +28,8 @@ Python and C run the same lowered code, so they give identical results.
 import ast
 from copy import deepcopy
 
+from .normalize import eval_dims
+
 
 class LoweringError(Exception):
     def __init__(self, node, message):
@@ -66,7 +68,8 @@ class MExpr:
 
 
 class Leaf(MExpr):
-    """A matrix: a variable, an attribute or an element of a List."""
+    """A matrix (a variable, an attribute or an element of a List) or a block
+    of one, A[a:b, c:d] (node is then the Subscript)."""
 
     def __init__(self, node, shape, trans=False):
         self.node = node
@@ -198,10 +201,34 @@ def same_matrix(a, b):
     return ast.dump(load(a)) == ast.dump(load(b))
 
 
+def is_block(node):
+    """Whether node is a block A[a:b, c:d] of a matrix."""
+    return isinstance(node, ast.Subscript) and isinstance(node.slice, ast.Tuple) and \
+        any(isinstance(i, ast.Slice) for i in node.slice.elts)
+
+
+def split_block(node):
+    """(matrix, row slice, column slice) of a block, (node, None, None) for
+    a whole matrix."""
+    if is_block(node):
+        return node.value, node.slice.elts[0], node.slice.elts[1]
+    return node, None, None
+
+
 def may_alias(a, b):
-    """Whether the matrices a and b (variables, attributes, List elements)
-    can be the same matrix. Elements of the same List are distinct if their
-    indices are k + c1 and k + c2 (or constants) with c1 != c2."""
+    """Whether the matrices or blocks a and b (variables, attributes, List
+    elements) can overlap. Elements of the same List are distinct if their
+    indices are k + c1 and k + c2 (or constants) with c1 != c2; blocks of
+    the same matrix are distinct if their rows or columns are disjoint
+    ranges of constants (or of k + constant)."""
+    a, ra, ca = split_block(a)
+    b, rb, cb = split_block(b)
+    if not same_base(a, b):
+        return False
+    return ranges_may_overlap(ra, rb) and ranges_may_overlap(ca, cb)
+
+
+def same_base(a, b):
     if same_matrix(a, b):
         return True
     if isinstance(a, ast.Subscript) and isinstance(b, ast.Subscript) and \
@@ -211,6 +238,17 @@ def may_alias(a, b):
             return True
         return ia[0] == ib[0] and ia[1] == ib[1]
     return False
+
+
+def ranges_may_overlap(a, b):
+    """Whether two slices (None: the whole range) can overlap."""
+    if a is None or b is None or None in (a.lower, a.upper, b.lower, b.upper):
+        return True
+    bounds = [affine_index(x) for x in (a.lower, a.upper, b.lower, b.upper)]
+    if None in bounds or len({v for v, c in bounds}) > 1:
+        return True
+    al, au, bl, bu = [c for v, c in bounds]
+    return al < bu and bl < au
 
 
 def affine_index(node):
@@ -279,8 +317,11 @@ class Temporaries:
 class Lowering:
     """Lower one assignment target = expr."""
 
-    def __init__(self, temps):
+    def __init__(self, temps, dims=None):
         self.temps = temps
+        # values of the dims constants: indices made of dims constants are
+        # passed as literals (in C, dims constants are macros)
+        self.dims = dims or {}
         self.out = []
 
     def emit(self, stmt):
@@ -341,9 +382,9 @@ class Lowering:
         if len(inplace) > 1 or any(may_alias(l.node, target) for l in reads):
             tmp = self.temps.matrix(target_shape, target)
             self.evaluate(tmp, expr)
-            self.emit(call('pmat_copy', tmp, load(target)))
+            self.copy(tmp, target)
         else:
-            self.evaluate(load(target), expr, ts)
+            self.evaluate(target, expr, ts)
 
     def evaluate(self, dest, expr, ts=None):
         """dest = expr, where dest is not read by expr (except as a term
@@ -363,26 +404,93 @@ class Lowering:
             else:
                 self.accumulate(dest, coef, term)
 
+    # operations on matrices or blocks: a block A[a:b, c:d] is passed as
+    # A, a, c, b - a, d - c to the _view variants of the routines (a whole
+    # matrix as A, 0, 0, -1, -1)
+
+    def index(self, node):
+        value = eval_dims(node, self.dims)
+        return ast.Constant(value) if value is not None else load(node)
+
+    def view(self, node):
+        # (M, first row, first column, rows, columns); -1: to the end
+        base, rows, cols = split_block(node)
+        if rows is None:
+            return [load(node), ast.Constant(0), ast.Constant(0), ast.Constant(-1), ast.Constant(-1)]
+        args = [load(base)]
+        for s in (rows, cols):
+            args.append(self.index(s.lower) if s.lower is not None else ast.Constant(0))
+        for s in (rows, cols):
+            lo, up = (affine_index(x) if x is not None else None for x in (s.lower, s.upper))
+            if s.upper is None:
+                # to the end
+                args.append(ast.Constant(-1))
+            elif s.lower is None:
+                args.append(self.index(s.upper))
+            elif lo is not None and up is not None and lo[0] == up[0]:
+                # k + c2 - (k + c1)
+                args.append(ast.Constant(up[1] - lo[1]))
+            else:
+                args.append(self.index(ast.BinOp(left=s.upper, op=ast.Sub(), right=s.lower)))
+        return args
+
+    def matrix_call(self, name, before, mats):
+        """name(*before, *mats), or its _view variant if one of the matrices
+        is a block."""
+        if any(is_block(m) for m in mats):
+            self.emit(call(name + '_view', *(list(before) + [a for m in mats for a in self.view(m)])))
+        else:
+            self.emit(call(name, *(list(before) + [load(m) for m in mats])))
+
+    def copy(self, src, dest):
+        self.matrix_call('pmat_copy', [], [src, dest])
+
+    def tran(self, src, dest):
+        self.matrix_call('pmat_tran', [], [src, dest])
+
+    def fill(self, dest, value):
+        if is_block(dest):
+            self.emit(call('pmat_fill_view', ast.Constant(value), *self.view(dest)))
+        else:
+            self.emit(call('pmat_fill', load(dest), ast.Constant(value)))
+
+    def gead(self, alpha, src, dest):
+        self.matrix_call('pmt_gead', [alpha], [src, dest])
+
+    def gemm(self, trans, alpha, a, b, dest):
+        """dest += alpha * op(a) op(b)."""
+        name = 'pmt_gemm_' + ('view_' if is_block(a) or is_block(b) or is_block(dest) else 'ab_') + trans
+        if name.startswith('pmt_gemm_view'):
+            args = [alpha] + self.view(a) + self.view(b) + [ast.Constant(1.0)] + self.view(dest) + \
+                self.view(dest)
+        else:
+            args = [alpha, load(a), load(b), ast.Constant(1.0), load(dest), load(dest)]
+        self.emit(call(name, *args))
+
     def scale(self, dest, coef):
         if not coef.is_one():
-            self.emit(call('pmat_scale', self.coef_value(coef), dest))
+            alpha = self.coef_value(coef)
+            if is_block(dest):
+                self.emit(call('pmat_scale_view', alpha, *self.view(dest)))
+            else:
+                self.emit(call('pmat_scale', alpha, load(dest)))
 
     def initialize(self, dest, coef, term):
         if isinstance(term, Leaf):
             if not term.trans and same_matrix(term.node, dest):
                 pass
             elif term.trans:
-                self.emit(call('pmat_tran', load(term.node), dest))
+                self.tran(term.node, dest)
             else:
-                self.emit(call('pmat_copy', load(term.node), dest))
+                self.copy(term.node, dest)
             self.scale(dest, coef)
         elif isinstance(term, MatMul):
-            self.emit(call('pmat_fill', dest, ast.Constant(0.0)))
+            self.fill(dest, 0.0)
             self.product(dest, coef, term)
         elif isinstance(term, Transpose):
             tmp = self.temps.matrix(term.expr.shape, term.expr.node)
             self.function(tmp, term.expr)
-            self.emit(call('pmat_tran', tmp, dest))
+            self.tran(tmp, dest)
             self.scale(dest, coef)
         else:
             self.function(dest, term)
@@ -393,16 +501,16 @@ class Lowering:
             self.product(dest, coef, term)
             return
         if isinstance(term, Leaf) and not term.trans:
-            src = load(term.node)
+            src = term.node
         else:
             src = self.temps.matrix(term.shape, getattr(term, 'node', dest))
             self.initialize(src, ONE, term)
-        self.emit(call('pmt_gead', self.coef_value(coef), src, dest))
+        self.gead(self.coef_value(coef), src, dest)
 
     def operand(self, e):
         """A (possibly transposed) matrix holding the value of e."""
         if isinstance(e, Leaf):
-            return load(e.node), e.trans
+            return e.node, e.trans
         if isinstance(e, Transpose):
             tmp = self.temps.matrix(e.expr.shape, e.expr.node)
             self.function(tmp, e.expr)
@@ -415,26 +523,31 @@ class Lowering:
         """dest += coef * left @ right."""
         a, ta = self.operand(term.left)
         b, tb = self.operand(term.right)
-        name = 'pmt_gemm_ab_' + ('t' if ta else 'n') + ('t' if tb else 'n')
-        self.emit(call(name, self.coef_value(coef), a, b, ast.Constant(1.0), dest, dest))
+        self.gemm(('t' if ta else 'n') + ('t' if tb else 'n'), self.coef_value(coef), a, b, dest)
 
     def function(self, dest, e):
+        if is_block(dest):
+            # the factorizations work on whole matrices
+            tmp = self.temps.matrix(e.shape, e.node)
+            self.function(tmp, e)
+            self.copy(tmp, dest)
+            return
         if e.name == 'cholesky':
             a, ta = self.operand(e.args[0])
-            if ta:
+            if ta or is_block(a):
                 tmp = self.temps.matrix(e.shape, e.node)
-                self.emit(call('pmat_tran', a, tmp))
+                self.initialize(tmp, ONE, Leaf(a, e.shape, ta))
                 a = tmp
             # cholesky gives a lower triangular matrix, as in NumPy
-            self.emit(call('pmat_fill', dest, ast.Constant(0.0)))
-            self.emit(call('pmt_potrf', a, dest))
+            self.fill(dest, 0.0)
+            self.emit(call('pmt_potrf', load(a), load(dest)))
         elif e.name == 'cho_solve':
             # pmt_potrsm overwrites the upper triangle of the factor: solve
             # with a copy, so that L is unchanged (as in SciPy)
             fact = self.temps.matrix(e.args[0].shape, e.node)
             self.evaluate(fact, e.args[0])
             self.evaluate(dest, e.args[1])
-            self.emit(call('pmt_potrsm', fact, dest))
+            self.emit(call('pmt_potrsm', fact, load(dest)))
         else:
             raise TypeError(e.name)
 
@@ -443,16 +556,17 @@ class Plan:
     """An assignment target = expr to lower; fun is the position of the
     enclosing function."""
 
-    def __init__(self, stmt, target, target_shape, expr, fun):
+    def __init__(self, stmt, target, target_shape, expr, fun, dims=None):
         self.stmt = stmt
         self.target = target
         self.target_shape = target_shape
         self.expr = expr
         self.fun = fun
+        self.dims = dims
 
 
 def lower_statement(plan, temps):
-    lowering = Lowering(temps)
+    lowering = Lowering(temps, plan.dims)
     lowering.assign(plan.target, plan.target_shape, plan.expr)
     temps.release()
     for stmt in lowering.out:
