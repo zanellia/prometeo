@@ -662,11 +662,14 @@ class Plan:
 class Lowerings:
     """What the checker found to lower: assignments of matrix and vector
     expressions (position -> Plan) and dot products in scalar expressions
-    (dot_key -> Dot)."""
+    (dot_key -> Dot). Also the argument types of the calls of CasADi
+    functions, for the code generator."""
 
     def __init__(self):
         self.plans = {}
         self.dots = {}
+        # CasADi functions: name -> set of argument types of the calls
+        self.casadi_signatures = {}
 
     def __bool__(self):
         return bool(self.plans or self.dots)

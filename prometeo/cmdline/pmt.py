@@ -17,7 +17,7 @@ from prometeo.mem.ast_analyzer import compute_reach_graph
 
 from copy import deepcopy
 from prometeo.frontend.normalize import normalize
-from prometeo.frontend.matexpr import lower, StripAnnotations
+from prometeo.frontend.matexpr import lower, StripAnnotations, Lowerings
 from prometeo.nonlinear.casadi_codegen import mangled_name
 import prometeo.nonlinear.casadi_codegen
 
@@ -94,7 +94,7 @@ def check_program(filename, casadi_functions):
             filename, e.lineno, e.msg))
         return None
     diagnostics, plans = prometeo.frontend.analyze(tree,
-        {name: (f.n_in, f.n_out) for name, f in casadi_functions.items()})
+        {name: (f.n_in, f.n_out, f.in_shapes + f.out_shapes) for name, f in casadi_functions.items()})
     for d in diagnostics:
         color = '\033[91m' if d.severity == 'error' else '\033[93m'
         print('\n\033[;1m > prometeo:\033[0;0m {}{}\033[0;0m at {}:{}:{}: {}'.format(
@@ -288,7 +288,7 @@ def pmt_main():
     namespace = load_module(filename)
     casadi_functions = casadi_functions_in(namespace)
 
-    plans = {}
+    plans = Lowerings()
     if args.check:
         plans = check_program(filename, casadi_functions)
         if plans is None:
@@ -316,7 +316,8 @@ def pmt_main():
                     size_of_pointer = size_of_pointer, \
                     size_of_int = size_of_int, \
                     size_of_double = size_of_double, \
-                    casadi_functions = casadi_functions)
+                    casadi_functions = casadi_functions,
+                    casadi_signatures = plans.casadi_signatures)
         except prometeo.cgen.code_gen_c.cgenException as e:
             print('\n > Exception -- prometeo code-gen: ', e.message)
             code = ''.join(open(filename))
@@ -389,8 +390,10 @@ def pmt_main():
             heap8_data[key] = str(numexpr.evaluate(str(value)))
 
         # CasADi functions use static memory only
-        prometeo.mem.ast_analyzer.pmt_functions.update({'global@' + mangled_name(name, f): []
-            for name, f in casadi_functions.items()})
+        prometeo.mem.ast_analyzer.pmt_functions.update({'global@' + mangled_name(name, f, sig): []
+            for name, f in casadi_functions.items()
+            for sig in prometeo.nonlinear.casadi_codegen.signatures_of(
+                name, f, plans.casadi_signatures)})
         visitor = ast_visitor()
         visitor.visit(tree_copy)
         call_graph = visitor.callees
@@ -518,7 +521,8 @@ def pmt_main():
 
         casadi_target_code = ''
         if casadi_functions:
-            sources = prometeo.nonlinear.casadi_codegen.generate(casadi_functions, '__pmt_cache__')
+            sources = prometeo.nonlinear.casadi_codegen.generate(casadi_functions, '__pmt_cache__',
+                plans.casadi_signatures)
             casadi_target_code = 'SRCS += ' + ' '.join(sources)
         makefile_code = makefile_code.replace('{{ CASADI_TARGET }}', casadi_target_code)
         dest_file = open('__pmt_cache__/Makefile', 'w+')

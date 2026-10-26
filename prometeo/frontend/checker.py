@@ -1462,17 +1462,37 @@ class Checker:
         return None
 
     def check_casadi_call(self, node, name, scope):
-        n_in, n_out = self.casadi_functions[name]
+        info = self.casadi_functions[name]
+        n_in, n_out = info[:2]
+        # shapes of the inputs and outputs, if known
+        shapes = info[2] if len(info) > 2 else [None] * (n_in + n_out)
         if len(node.args) != n_in + n_out:
             self.error(node, 'CasADi function {} takes {} inputs and {} outputs (matrices that '
                 'it writes), {} arguments given'.format(name, n_in, n_out, len(node.args)))
             return None
-        for arg in node.args:
+        signature = []
+        for k, (arg, expected) in enumerate(zip(node.args, shapes)):
+            what = 'input {}'.format(k) if k < n_in else 'output {}'.format(k - n_in)
             t = self.argument_type(arg, scope)
-            if t is not None and t != PMAT:
-                self.error(arg, 'the arguments of CasADi functions must be matrices (pmat), '
-                    'not {}'.format(t))
+            if t is None:
                 return None
+            if t not in (PMAT, PVEC):
+                self.error(arg, 'the arguments of CasADi functions must be matrices (pmat) or '
+                    'vectors (pvec), not {}'.format(t))
+                return None
+            if expected is not None:
+                if t == PVEC and expected[1] != 1:
+                    self.error(arg, 'CasADi function {}: {} is a {}x{} matrix, not a vector'.format(
+                        name, what, *expected))
+                    return None
+                shape = self.matrix_shape(arg, scope)
+                if any(d.value is not None and d.value != e for d, e in zip(shape, expected)):
+                    self.error(arg, 'CasADi function {}: {} has size {}, expected {}'.format(
+                        name, what, ' x '.join(str(d) for d in shape),
+                        expected[0] if t == PVEC else '{} x {}'.format(*expected)))
+                    return None
+            signature.append(t.name)
+        self.lowerings.casadi_signatures.setdefault(name, set()).add(tuple(signature))
         return NONE
 
     def check_math_call(self, node, name, scope):

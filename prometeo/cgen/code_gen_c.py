@@ -244,7 +244,7 @@ class cgenException(Exception):
 def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False,
               pretty_string=pretty_string, pretty_source=pretty_source,
               main=False, size_of_pointer=8, size_of_int=4, size_of_double=8,
-              casadi_functions=None):
+              casadi_functions=None, casadi_signatures=None):
 
     """This function can convert a node tree back into python sourcecode.
     This is useful for debugging purposes, especially if you're dealing with
@@ -283,7 +283,7 @@ def to_source(node, module_name, indent_with=' ' * 4, add_line_information=False
     generator.result.header.append('#include "timing.h"\n')
     generator.result.header.append('#include "pmt_aux.h"\n')
     generator.result.header.append('#ifdef __cplusplus\nextern "C" {\n#endif\n\n')
-    generator.register_casadi_functions(casadi_functions or {})
+    generator.register_casadi_functions(casadi_functions or {}, casadi_signatures)
 
 
     try:
@@ -3194,17 +3194,20 @@ class SourceGenerator(ExplicitNodeVisitor):
         with self.delimit('``'):
             self.visit(node.value)
 
-    def register_casadi_functions(self, functions):
+    def register_casadi_functions(self, functions, signatures=None):
         """Make the CasADi functions defined in pure blocks callable as
-        name(<input pmats>, <output pmats>), mapped to their C wrappers."""
-        from ..nonlinear.casadi_codegen import c_wrapper_name, c_prototype, mangled_name
+        name(<inputs>, <outputs>) (matrices, or vectors for column vectors;
+        signatures: name -> argument types used by the program), mapped to
+        their C wrappers."""
+        from ..nonlinear.casadi_codegen import c_wrapper_name, c_prototype, mangled_name, \
+            signatures_of
         for name, f in functions.items():
-            n_args = f.n_in + f.n_out
-            fun_name_m = mangled_name(name, f)
-            self.function_record['global'][fun_name_m] = {
-                'arg_types': ['pmat'] * n_args, 'ret_type': 'None'}
-            self.casadi_c_names[fun_name_m] = c_wrapper_name(name)
-            self.result.header.append(c_prototype(name, f) + ';\n')
+            for signature in signatures_of(name, f, signatures):
+                fun_name_m = mangled_name(name, f, signature)
+                self.function_record['global'][fun_name_m] = {
+                    'arg_types': list(signature), 'ret_type': 'None'}
+                self.casadi_c_names[fun_name_m] = c_wrapper_name(name, signature)
+                self.result.header.append(c_prototype(name, f, signature) + ';\n')
 
     def visit_Module(self, node):
         self.record_function_signatures(node.body)

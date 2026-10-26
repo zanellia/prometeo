@@ -9,8 +9,9 @@ A CasADi function is created in a pure Python block and wrapped:
     f = casadi_function(ca.Function('f', [x, u], [y, ca.jacobian(y, x)]))
     # pure <
 
-and called from prometeo code with matrices, inputs first and then the
-outputs, which are written in place:
+and called from prometeo code with matrices (or vectors, for arguments that
+are column vectors), inputs first and then the outputs, which are written in
+place:
 
     f(x, u, y, J)
 
@@ -54,15 +55,20 @@ class casadi_function:
                 'given'.format(self.name, self.n_in, self.n_out, len(args)))
         shapes = self.in_shapes + self.out_shapes
         for k, (A, (m, n)) in enumerate(zip(args, shapes)):
-            if (A.m, A.n) != (m, n):
+            # vectors (pvec) have no n: they are passed as columns
+            size = (A.m, getattr(A, 'n', 1))
+            if size != (m, n):
                 kind = 'input {}'.format(k) if k < self.n_in else 'output {}'.format(k - self.n_in)
                 raise ValueError('CasADi function {}: {} has size {}x{}, expected {}x{}'.format(
-                    self.name, kind, A.m, A.n, m, n))
-        inputs = [np.array([[A[i, j] for j in range(A.n)] for i in range(A.m)])
-            for A in args[:self.n_in]]
+                    self.name, kind, size[0], size[1], m, n))
+        inputs = [np.array([[A[i, j] for j in range(A.n)] for i in range(A.m)]) if hasattr(A, 'n')
+            else np.array([[A[i]] for i in range(A.m)]) for A in args[:self.n_in]]
         results = self.function.call(inputs)
         for A, value in zip(args[self.n_in:], results):
             value = np.array(value)
             for i in range(A.m):
-                for j in range(A.n):
-                    A[i, j] = float(value[i, j])
+                if hasattr(A, 'n'):
+                    for j in range(A.n):
+                        A[i, j] = float(value[i, j])
+                else:
+                    A[i] = float(value[i, 0])
