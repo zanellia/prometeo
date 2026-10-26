@@ -271,20 +271,15 @@ def main() -> int:
     t = h * np.arange(n_mpc + 1)
     x = np.array([np.array([0.0, 0.4, 0.0, 0.0])] + log['x'])
     fig, ax = plt.subplots(3, 1, figsize=(7, 9))
-    ax[0].plot(t, x[:, 0], lw=3, alpha=0.5, label='cart position')
-    ax[0].plot(t, x[:, 1], lw=3, alpha=0.5, label='pole angle')
-    for k in range(n_mpc):
-        # the predictions made at each sampling time, on top
-        for i in range(2):
-            ax[0].plot(t[k] + h * np.arange(N + 1), log['prediction'][k][:, i], color='k',
-                lw=0.5, alpha=0.4, zorder=3)
-    ax[0].plot([], [], color='k', lw=0.5, alpha=0.4, label='predictions')
+    ax[0].plot(t, x[:, 0], label='cart position')
+    ax[0].plot(t, x[:, 1], label='pole angle')
     ax[0].set_xlabel('time [s]')
     ax[0].legend()
     ax[1].step(t[:-1], log['u'], where='post')
     ax[1].set_xlabel('time [s]')
     ax[1].set_ylabel('force')
-    ax[2].semilogy(log['step'], '.-')
+    ax[2].step(np.arange(len(log['step'])), log['step'], where='post')
+    ax[2].set_yscale('log')
     ax[2].set_xlabel('SQP iteration (first solve, then one per sampling time)')
     ax[2].set_ylabel('step size')
     for a in ax:
@@ -294,9 +289,14 @@ def main() -> int:
     print('[python] plots saved to cartpole_workflow.png')
     if interactive and matplotlib.get_backend().lower() != 'agg':
         # a slider to go through the sampling times: the prediction made at
-        # each one (thick lines) and its SQP iteration
+        # each one (dashed, with markers) and its SQP iteration
         fig.subplots_adjust(bottom=0.12)
-        predicted = [ax[0].plot([], [], color=c, lw=4, alpha=0.4)[0] for c in ('C0', 'C1')]
+        predicted = [ax[0].plot([], [], '--o', color=c, lw=1.2, ms=3.5, mfc='white', zorder=3)[0]
+            for c in ('C0', 'C1')]
+        start = [ax[0].plot([], [], 'o', color=c, ms=9, zorder=4)[0] for c in ('C0', 'C1')]
+        ax[0].plot([], [], '--o', color='gray', lw=1.2, ms=3.5, mfc='white',
+            label='prediction at the selected time')
+        ax[0].legend()
         now = [a.axvline(0.0, color='k', lw=0.8) for a in ax[:2]]
         current, = ax[2].plot([], [], 'o', color='C3', markersize=9)
         slider = Slider(fig.add_axes([0.2, 0.02, 0.6, 0.03]), 'sampling time', 0, n_mpc - 1,
@@ -306,6 +306,7 @@ def main() -> int:
             k = int(k)
             for i, line in enumerate(predicted):
                 line.set_data(t[k] + h * np.arange(N + 1), log['prediction'][k][:, i])
+                start[i].set_data([t[k]], [log['prediction'][k][0, i]])
             for line in now:
                 line.set_xdata([t[k], t[k]])
             current.set_data([iterations + k], [log['step'][iterations + k]])

@@ -151,16 +151,15 @@ def with_figure(background, figure):
 
 
 def speedup(background, factor):
-    """The terminal with an overlay: speedup <factor>x."""
+    """The terminal with a line of text: speedup <factor>x."""
     img = background.copy()
-    draw = ImageDraw.Draw(img, 'RGBA')
-    big = ImageFont.truetype(BOLD.path, 34) if hasattr(BOLD, 'path') else BOLD
-    text = 'speedup {:.0f}x'.format(factor)
-    w = draw.textlength(text, font=big)
-    x0, y0 = W - w - 110, H - 160
-    draw.rounded_rectangle((x0, y0, x0 + w + 60, y0 + 76), 14, fill=(49, 50, 68, 235),
-        outline=COLORS['prometeo'], width=2)
-    draw.text((x0 + 30, y0 + 38), text, fill=COLORS['prometeo'], font=big, anchor='lm')
+    draw = ImageDraw.Draw(img)
+    try:
+        sans = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', 22)
+    except OSError:
+        sans = REGULAR
+    draw.text((W - 40, H - 60), 'speedup: {:.0f}x'.format(factor), fill=COLORS['fg'],
+        font=sans, anchor='rs')
     return img
 
 
