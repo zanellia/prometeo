@@ -7,3 +7,4 @@ prometeo/lib/
 prometeo/include/
 prometeo/cpmt/*.o
 prometeo/cpmt/*.so
+.venv/

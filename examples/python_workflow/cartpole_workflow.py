@@ -36,6 +36,7 @@ n_dare : int = 300
 
 # pure >
 import os
+import sys
 import numpy as np
 import casadi as ca
 
@@ -254,17 +255,22 @@ def main() -> int:
     print('closed loop: final angle %f\n' % xplant[1, 0])
 
     # pure >
+    # in a terminal, an interactive figure (if there is a display); when the
+    # output is redirected (e.g. in the tests), the figure is only saved
+    interactive = sys.stdout.isatty()
     try:
         import matplotlib
-        matplotlib.use('Agg')
+        if not interactive:
+            matplotlib.use('Agg')
         import matplotlib.pyplot as plt
+        from matplotlib.widgets import Slider
     except ImportError:
         print('[python] matplotlib is not installed: no plots')
         return 0
     # the closed loop from x0, and the prediction made at each sampling time
     t = h * np.arange(n_mpc + 1)
     x = np.array([np.array([0.0, 0.4, 0.0, 0.0])] + log['x'])
-    fig, ax = plt.subplots(3, 1, figsize=(7, 8), sharex=False)
+    fig, ax = plt.subplots(3, 1, figsize=(7, 9))
     ax[0].plot(t, x[:, 0], label='cart position')
     ax[0].plot(t, x[:, 1], label='pole angle')
     for k in range(0, n_mpc, 8):
@@ -282,5 +288,28 @@ def main() -> int:
     fig.tight_layout()
     fig.savefig('cartpole_workflow.png')
     print('[python] plots saved to cartpole_workflow.png')
+    if interactive and matplotlib.get_backend().lower() != 'agg':
+        # a slider to go through the sampling times: the prediction made at
+        # each one (thick lines) and its SQP iteration
+        fig.subplots_adjust(bottom=0.12)
+        predicted = [ax[0].plot([], [], color=c, lw=4, alpha=0.4)[0] for c in ('C0', 'C1')]
+        now = [a.axvline(0.0, color='k', lw=0.8) for a in ax[:2]]
+        current, = ax[2].plot([], [], 'o', color='C3', markersize=9)
+        slider = Slider(fig.add_axes([0.2, 0.02, 0.6, 0.03]), 'sampling time', 0, n_mpc - 1,
+            valinit=0, valstep=1)
+
+        def show(k):
+            k = int(k)
+            for i, line in enumerate(predicted):
+                line.set_data(t[k] + h * np.arange(N + 1), log['prediction'][k][:, i])
+            for line in now:
+                line.set_xdata([t[k], t[k]])
+            current.set_data([iterations + k], [log['step'][iterations + k]])
+            fig.canvas.draw_idle()
+
+        slider.on_changed(show)
+        show(0)
+        print('[python] close the figure to continue')
+        plt.show()
     # pure <
     return 0

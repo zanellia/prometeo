@@ -31,9 +31,16 @@ NumPy array. In the example, pure blocks:
   [python] difference from IPOPT: 4.2e-12
   ```
 - **log and plot**: the SQP step sizes, the closed-loop trajectory and the
-  prediction made at each sampling time, plotted with matplotlib:
+  prediction made at each sampling time, plotted with matplotlib and saved to
+  `cartpole_workflow.png`:
 
   ![closed loop, inputs and SQP steps](cartpole_workflow.png)
+
+  Run from a terminal with a display (also WSLg on Windows), the figure opens
+  in an interactive window, with a slider that goes through the sampling
+  times and shows the prediction made at each one and its SQP iteration (the
+  program continues when the window is closed). When the output is
+  redirected, as in the tests, the figure is only saved.
 
 - **define the model**: the CasADi functions for the RK4 step and its
   Jacobians are built in a pure block, and called from prometeo code (in C,
