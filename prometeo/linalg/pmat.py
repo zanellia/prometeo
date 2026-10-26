@@ -162,6 +162,14 @@ class pmat(pmat_):
         pmt_gemm_ab_nn(1.0, self, other, 1.0, res, res)
         return res
 
+    def __array__(self, dtype=None, copy=None):
+        # np.array(A): a copy of the matrix as a NumPy array, e.g. to check,
+        # print or plot it in Python-only code (pure blocks)
+        import numpy as np
+        data = (c_double * (self.m * self.n))()
+        bw.blasfeo_unpack_dmat(self.m, self.n, self._ref, 0, 0, data, self.m)
+        return np.array(data, dtype=dtype).reshape(self.n, self.m).T.copy()
+
     @property
     def T(self):
         res = pmat(self.n, self.m)

@@ -103,6 +103,9 @@ bw.blasfeo_dcolex.argtypes = [c_int, POINTER(blasfeo_dmat), c_int, c_int, POINTE
 bw.blasfeo_drowin.argtypes = [c_int, c_double, POINTER(blasfeo_dvec), c_int,
     POINTER(blasfeo_dmat), c_int, c_int]
 bw.blasfeo_dcolin.argtypes = [c_int, POINTER(blasfeo_dvec), c_int, POINTER(blasfeo_dmat), c_int, c_int]
+bw.blasfeo_unpack_dmat.argtypes = [c_int, c_int, POINTER(blasfeo_dmat), c_int, c_int,
+    POINTER(c_double), c_int]
+bw.blasfeo_unpack_dvec.argtypes = [c_int, POINTER(blasfeo_dvec), c_int, POINTER(c_double)]
 bw.blasfeo_dgesc.argtypes = [c_int, c_int, c_double, POINTER(blasfeo_dmat), c_int, c_int]
 bw.blasfeo_dvecse.argtypes = [c_int, c_double, POINTER(blasfeo_dvec), c_int]
 # def blasfeo_dgemm_nt(m: c_int, n: c_int, k: c_int, alpha: c_double, 

@@ -43,6 +43,13 @@ class pvec(pvec_):
         pmt_gemv_view_t(1.0, other, 0, 0, -1, -1, self, 0, -1, 1.0, res, 0, -1, res, 0, -1)
         return res
 
+    def __array__(self, dtype=None, copy=None):
+        # np.array(v): a copy of the vector as a NumPy array (see pmat)
+        import numpy as np
+        data = (c_double * self.m)()
+        bw.blasfeo_unpack_dvec(self.m, self._ref, 0, data)
+        return np.array(data, dtype=dtype)
+
     @property
     def T(self):
         return self

@@ -37,6 +37,8 @@ EXAMPLES = [
     ('sqp_mpc', 'sqp_mpc_hl', True),
     # the same SQP on a hanging chain of masses (21 states)
     ('sqp_mpc', 'chain_mpc', True),
+    # Python-only checks and plots in pure blocks: see test_python_workflow
+    ('python_workflow', 'cartpole_workflow', False),
     # README benchmark: the interpreted run (10000 repetitions) takes too long
     ('riccati_example', 'riccati_mass_spring', False),
     ('riccati_example', 'riccati_mass_spring_2', True),
@@ -98,3 +100,22 @@ def test_example(workdir, name, differential):
         code, py_output = run_pmt(workdir, name + '.py', cgen=False)
         assert code == 0, py_output
         assert_same_numbers(py_output, c_output)
+
+
+def test_python_workflow(tmp_path):
+    # the pure blocks check the results (against SciPy and IPOPT) in Python;
+    # the numbers printed by the program are the same in Python and in C
+    workdir = str(tmp_path / 'python_workflow')
+    shutil.copytree(os.path.join(EXAMPLES_DIR, 'python_workflow'), workdir,
+        ignore=shutil.ignore_patterns('__pmt_cache__', '*.png'))
+    code, py_output = run_pmt(workdir, 'cartpole_workflow.py', cgen=False)
+    assert code == 0, py_output
+    assert '[python] difference from IPOPT' in py_output, py_output
+    assert '[python] terminal cost, difference from scipy' in py_output, py_output
+    code, c_output = run_pmt(workdir, 'cartpole_workflow.py', cgen=True)
+    assert code == 0, c_output
+    assert '[python]' not in c_output, c_output
+    # without the output of the pure blocks and of IPOPT
+    program_output = '\n'.join(line for line in py_output.splitlines()
+        if not line.startswith(('[python]', '*')) and 'Ipopt' not in line and 'coin-or' not in line)
+    assert_same_numbers(program_output, c_output)

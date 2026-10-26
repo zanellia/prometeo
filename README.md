@@ -11,7 +11,9 @@ to high-performance self-contained C code easily deployable on embedded devices.
 
 ### features
 - __Python compatible syntax__ : prometeo is a DSL embedded into the Python language. 
-prometeo programs can be executed from the Python interpreter.
+prometeo programs can be executed from the Python interpreter, where they can be debugged with pdb and
+combined with any Python code (NumPy, SciPy, matplotlib, ...) that is removed when transpiling (see
+[`examples/python_workflow`](examples/python_workflow)).
 - __efficient__ : prometeo programs transpile to high-performance C code.
 - __statically typed__ : prometeo uses Python's native type hints to strictly enforce static typing.
 - __NumPy-like linear algebra__ : matrix and vector expressions such as `P = Q + A.T @ P @ A - K.T @ R @ K`,

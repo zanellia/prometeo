@@ -418,7 +418,15 @@ Pure Python blocks
 
 Lines between ``# pure >`` and ``# pure <`` are only run by the Python
 interpreter, and are ignored by the checker and the transpiler. They can use
-any Python code and library, e.g. to plot or check results with NumPy.
+any Python code and library, e.g. to plot or check results with NumPy:
+``np.array(A)`` converts a matrix or a vector to a NumPy array, and
+``breakpoint()`` stops in the debugger, which shows the program's lines. See
+``examples/python_workflow``.
+
+- Pure blocks can read prometeo variables, but must not modify them: the
+  transpiled program would compute something else.
+- The program must remain valid without them (e.g. a pure block cannot be the
+  only statement of a loop body).
 
 Memory
 ------
