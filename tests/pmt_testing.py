@@ -23,10 +23,17 @@ def run_pmt(workdir, filename, cgen, check=True):
     return proc.returncode, proc.stdout
 
 
+# diagnostics of the C compiler (e.g. clang's warnings, with the lines they
+# refer to): not printed by the program
+COMPILER_LINE = re.compile(r'^\S+\.[ch]:\d+:\d+: (warning|error|note):|^\s*\d* \||'
+    r'^\d+ warnings? (and \d+ errors? )?generated')
+
+
 def extract_numbers(output):
+    """The numbers printed by a program run by pmt (not by the compiler)."""
     numbers = []
     for line in output.splitlines():
-        if IGNORED_LINE.search(line):
+        if IGNORED_LINE.search(line) or COMPILER_LINE.search(line):
             continue
         numbers += [float(x) for x in NUMBER.findall(line)]
     return numbers

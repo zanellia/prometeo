@@ -798,16 +798,16 @@ double _Z8max_stepfloatSQP_impl(SQP *self, double frac) {
     double alpha = 1.0;
     for(int k = 0, ___pmt_end_12 = N; k < ___pmt_end_12; k += 1) {
         for(int i = 0, ___pmt_end_13 = nu; i < ___pmt_end_13; i += 1) {
-            if(((c_pmt_pmat_get_el(self->dsl[k], i, 0) < 0.0))) {
+            if(c_pmt_pmat_get_el(self->dsl[k], i, 0) < 0.0) {
                 alpha = fmin(alpha, -frac * c_pmt_pmat_get_el(self->sl[k], i, 0) / c_pmt_pmat_get_el(self->dsl[k], i, 0));
 }
-            if(((c_pmt_pmat_get_el(self->dsu[k], i, 0) < 0.0))) {
+            if(c_pmt_pmat_get_el(self->dsu[k], i, 0) < 0.0) {
                 alpha = fmin(alpha, -frac * c_pmt_pmat_get_el(self->su[k], i, 0) / c_pmt_pmat_get_el(self->dsu[k], i, 0));
 }
-            if(((c_pmt_pmat_get_el(self->dzl[k], i, 0) < 0.0))) {
+            if(c_pmt_pmat_get_el(self->dzl[k], i, 0) < 0.0) {
                 alpha = fmin(alpha, -frac * c_pmt_pmat_get_el(self->zl[k], i, 0) / c_pmt_pmat_get_el(self->dzl[k], i, 0));
 }
-            if(((c_pmt_pmat_get_el(self->dzu[k], i, 0) < 0.0))) {
+            if(c_pmt_pmat_get_el(self->dzu[k], i, 0) < 0.0) {
                 alpha = fmin(alpha, -frac * c_pmt_pmat_get_el(self->zu[k], i, 0) / c_pmt_pmat_get_el(self->dzu[k], i, 0));
 }
     }
@@ -860,7 +860,7 @@ void _Z3ipmSQP_impl(SQP *self) {
     }
 
         mu = mu / pairs;
-        if(((((mu < ipm_tol))) && (((res < ipm_tol))))) {
+        if((((mu < ipm_tol)) && ((res < ipm_tol)))) {
             break;
 }
         for(int k = 0, ___pmt_end_19 = N; k < ___pmt_end_19; k += 1) {
@@ -994,7 +994,7 @@ double _Z7iterateSQP_impl(SQP *self) {
     c_pmt_pmat_set_el(sqp->x0, 1, 0, 0.4);
     for(int it = 0, ___pmt_end_32 = n_sqp; it < ___pmt_end_32; it += 1) {
         step = sqp->_Z7iterate(sqp);
-        if(((step < tol))) {
+        if(step < tol) {
             break;
 }
     }

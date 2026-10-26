@@ -2352,14 +2352,14 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.current_line = node.lineno
         self.current_col = node.col_offset
         set_precedence(node, node.test)
-        self.statement(node, 'if(', node.test, ') {')
+        self.statement(node, 'if', *self.condition(node.test), ' {')
         self.body(node.body)
         while True:
             else_ = node.orelse
             if len(else_) == 1 and my_isinstance(else_[0], ast.If):
                 node = else_[0]
                 set_precedence(node, node.test)
-                self.write('\n', '} else if (', node.test, ') {', dest='src')
+                self.write('\n', '} else if ', *self.condition(node.test), ' {', dest='src')
                 self.body(node.body)
             else:
                 self.else_body(else_)
@@ -2411,7 +2411,7 @@ class SourceGenerator(ExplicitNodeVisitor):
         self.current_line = node.lineno
         self.current_col = node.col_offset
         set_precedence(node, node.test)
-        self.statement(node, 'while(', node.test, ') {')
+        self.statement(node, 'while', *self.condition(node.test), ' {')
         self.body_or_else(node)
         self.write('\n    }\n', dest = 'src')
 
@@ -3035,12 +3035,25 @@ class SourceGenerator(ExplicitNodeVisitor):
         # a < b < c means (a < b) && (b < c), as in Python (in C, a < b < c
         # would compare the result of a < b with c)
         operands = [node.left] + node.comparators
+        if len(node.ops) == 1:
+            set_precedence(Precedence.Comma, node.left, node.comparators[0])
+            self.write('(', node.left, get_op_symbol(node.ops[0], ' %s '), node.comparators[0], ')',
+                dest = 'src')
+            return
         self.write('(', dest = 'src')
         for idx, op in enumerate(node.ops):
             set_precedence(Precedence.Comma, operands[idx], operands[idx + 1])
             self.write(' && ' if idx else '', '(', operands[idx], get_op_symbol(op, ' %s '),
                 operands[idx + 1], ')', dest = 'src')
         self.write(')', dest = 'src')
+
+    def condition(self, test):
+        """The condition of an if or while, in its parentheses: a single
+        comparison without more (clang warns about if ((a == b)))."""
+        if my_isinstance(test, ast.Compare) and len(test.ops) == 1:
+            set_precedence(Precedence.Comma, test.left, test.comparators[0])
+            return ['(', test.left, get_op_symbol(test.ops[0], ' %s '), test.comparators[0], ')']
+        return ['(', test, ')']
 
     def visit_UnaryOp(self, node):
         self.current_line = node.lineno

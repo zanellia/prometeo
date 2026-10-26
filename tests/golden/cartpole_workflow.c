@@ -493,7 +493,7 @@ void _Z5shiftSQP_impl(SQP *self) {
     for(int it = 0, ___pmt_end_10 = n_sqp; it < ___pmt_end_10; it += 1) {
         step = sqp->_Z7iterate(sqp);
         iterations = iterations + 1;
-        if(((step < tol))) {
+        if(step < tol) {
             break;
 }
     }
