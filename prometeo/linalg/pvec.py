@@ -9,6 +9,11 @@ class pvec_(ABC):
     pass
 
 class pvec(pvec_):
+    # sizes in annotations of arguments, A: pmat[n, m], are for the checker
+    @classmethod
+    def __class_getitem__(cls, sizes):
+        return cls
+
 
     blasfeo_dvec = None
 

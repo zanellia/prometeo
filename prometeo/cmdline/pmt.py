@@ -17,7 +17,7 @@ from prometeo.mem.ast_analyzer import compute_reach_graph
 
 from copy import deepcopy
 from prometeo.frontend.normalize import normalize
-from prometeo.frontend.matexpr import lower, StripAnnotations, Lowerings
+from prometeo.frontend.matexpr import lower, StripAnnotations, Lowerings, UnsizedArguments
 from prometeo.nonlinear.casadi_codegen import mangled_name
 import prometeo.nonlinear.casadi_codegen
 
@@ -306,7 +306,7 @@ def pmt_main():
         pmt_path = os.path.dirname(prometeo.__file__)
         filename_ = filename.split('.')[0]
         code = strip_pure_blocks(open(filename).read())
-        tree = lower(normalize(ast.parse(code)), plans)
+        tree = UnsizedArguments().visit(lower(normalize(ast.parse(code)), plans))
         # ap.pprint(tree)
         tree_copy = deepcopy(tree)
 

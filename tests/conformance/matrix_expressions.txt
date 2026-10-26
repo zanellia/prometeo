@@ -214,14 +214,14 @@
     C = A + B
 
 ### shape_mismatch_target
-# expect: error mismatching sizes: the result has 2 columns, but C has 3
+# expect: error mismatching sizes: the result is 3 x 2, but C is 3 x 3
     A : pmat = pmat(n, n)
     B : pmat = pmat(n, 2)
     C : pmat = pmat(n, n)
     C = A @ B
 
 ### shape_mismatch_transpose
-# expect: error mismatching sizes: the result has 2 rows, but C has 3
+# expect: error mismatching sizes: the result is 2 x 3, but C is 3 x 2
     B : pmat = pmat(n, 2)
     C : pmat = pmat(n, 2)
     C = B.T
@@ -557,3 +557,32 @@
     A : pmat = pmat(n, 2)
     C : pmat = pmat(2, n)
     A = A * C
+
+### sized_arguments
+# expect: ok
+@def gram(A: pmat[n, 2], G: pmat[2, 2], v: pvec[n]) -> None:
+@    G = A.T @ A + (v @ v) * A.T @ A
+@    return
+    A : pmat = pmat(n, 2)
+    G : pmat = pmat(2, 2)
+    v : pvec = pvec(n)
+    pmat_fill(A, 0.5)
+    v[0] = 1.0
+    gram(A, G, v)
+    pmat_print(G)
+
+### sized_argument_mismatch
+# expect: error argument 'G' of gram must have size 2 x 2, not 3 x 3
+@def gram(A: pmat[n, 2], G: pmat[2, 2]) -> None:
+@    G = A.T @ A
+@    return
+    A : pmat = pmat(n, 2)
+    G : pmat = pmat(n, n)
+    gram(A, G)
+
+### sized_argument_annotation
+# expect: error sizes of pmat arguments are declared as pmat[rows, cols]
+@def f(A: pmat[n]) -> None:
+@    return
+    A : pmat = pmat(n, n)
+    f(A)

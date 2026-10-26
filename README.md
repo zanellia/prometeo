@@ -1,54 +1,205 @@
 <img src="https://github.com/zanellia/prometeo/blob/master/logo/logo.png" align="left"
      alt="prometeo logo by Andrea Zanelli" width="80" height="120">
 
-[![CI](https://github.com/zanellia/prometeo/actions/workflows/ci.yml/badge.svg)](https://github.com/zanellia/prometeo/actions/workflows/ci.yml) [![PyPI version fury.io](https://badge.fury.io/py/prometeo-dsl.svg)](https://pypi.python.org/pypi/ansicolortags/) [![Documentation Status](https://readthedocs.org/projects/prometeo/badge/?version=latest)](https://prometeo.readthedocs.io/en/latest/?badge=latest)
+[![CI](https://github.com/zanellia/prometeo/actions/workflows/ci.yml/badge.svg)](https://github.com/zanellia/prometeo/actions/workflows/ci.yml) [![PyPI version](https://badge.fury.io/py/prometeo-dsl.svg)](https://pypi.org/project/prometeo-dsl/) [![Documentation Status](https://readthedocs.org/projects/prometeo/badge/?version=latest)](https://prometeo.readthedocs.io/en/latest/?badge=latest)
 
-
-This is prometeo, an experimental modeling tool for embedded high-performance computing. prometeo provides a 
-domain specific language (DSL) based on a subset of the Python language that allows 
+This is prometeo, an experimental modeling tool for embedded high-performance computing. prometeo provides a
+domain specific language (DSL) based on a subset of the Python language that allows
 one to conveniently write scientific computing programs in a high-level language (Python itself) that can be transpiled
 to high-performance self-contained C code easily deployable on embedded devices.
 
-### features
-- __Python compatible syntax__ : prometeo is a DSL embedded into the Python language. 
-prometeo programs can be executed from the Python interpreter, where they can be debugged with pdb and
-combined with any Python code (NumPy, SciPy, matplotlib, ...) that is removed when transpiling (see
-[`examples/python_workflow`](examples/python_workflow)).
-- __efficient__ : prometeo programs transpile to high-performance C code.
-- __statically typed__ : prometeo uses Python's native type hints to strictly enforce static typing.
-- __NumPy-like linear algebra__ : matrix and vector expressions such as `P = Q + A.T @ P @ A - K.T @ R @ K`,
-`K[0:n, n:] = B.T`, `y = A @ x + B @ u` or `c : float = x @ Q @ x`, with `cholesky` and `cho_solve`,
-are checked for size mismatches at compile time and lowered to
-BLASFEO calls, with temporaries allocated statically (see
-[`examples/sqp_mpc/sqp_mpc_hl.py`](examples/sqp_mpc/sqp_mpc_hl.py)).
-- __deterministic memory usage__ : a specific program structure is required and enforced through static analysis. In this way
-prometeo transpiled programs have a guaranteed maximum heap usage.
-- __fast memory management__ : thanks to its static analysis, prometeo can avoid allocating
-and garbage-collecting memory, resulting in faster and safer execution.
-- __self-contained and embeddable__ : unlike other similar tools and languages, prometeo targets specifically embedded applications and programs 
-written in prometeo transpile to self-contained C code that does not require linking against 
-the Python run-time library.
-
-### documentation (preliminary)
-prometeo's documentation can be found on Read the Docs at [https://prometeo.readthedocs.io/en/latest/index.html](https://prometeo.readthedocs.io/en/latest/index.html).
-      
-### hello world!
-
-A simple hello world example that shows how to either run a trivial prometeo program from Python or transpile it to C, build it and run it can be found [here](https://github.com/zanellia/prometeo/blob/master/examples/helloworld/helloworld.py). The output shows the outcome of the heap usage analysis and the execution time (in this case there is not much to see :p).
+The same program runs in the Python interpreter, where it can be debugged, checked and plotted with
+the whole Python ecosystem, and as transpiled C, which computes the same numbers with static memory
+and no Python runtime:
 
 <p align="center">
-<img src="https://github.com/zanellia/prometeo/blob/master/gifs/helloworld.gif" width="100%" >
+<img src="https://raw.githubusercontent.com/zanellia/prometeo/master/gifs/workflow.gif" width="100%" alt="a prometeo program run in Python, with its plots, then transpiled to C">
 </p>
 
+<sub>[`examples/python_workflow`](https://github.com/zanellia/prometeo/blob/master/examples/python_workflow): an SQP for closed-loop MPC of a cart-pole,
+run in Python (the Python-only code checks the results against SciPy and IPOPT and opens an interactive figure),
+then transpiled to C. The animation is generated from actual runs by [`gifs/make_workflow_gif.py`](https://github.com/zanellia/prometeo/blob/master/gifs/make_workflow_gif.py).</sub>
 
-### performance
-Since prometeo programs transpile to pure C code that calls the high performance linear algebra library BLASFEO (publication: [https://arxiv.org/abs/1704.02457](https://arxiv.org/abs/1704.02457), code: [https://github.com/giaf/blasfeo](https://github.com/giaf/blasfeo)), execution time can be comparable to hand-written high-performance code. The figure below shows a comparison of the CPU time necessary to carry out a Riccati factorization using highly optimized hand-written C code with calls to BLASFEO and the ones obtained with prometeo transpiled code from [this example](https://github.com/zanellia/prometeo/blob/master/examples/riccati_example/riccati_mass_spring.py). The computation times obtained with NumPy and Julia are added too for comparison - notice however that these last two implementations of the Riccati factorization are **not as easily embeddable** as the C code generated by prometeo and the hand-coded C implementation. All the benchmarks have been run on a Dell XPS-9360 equipped with an i7-7560U CPU running at 2.30 GHz (to avoid frequency fluctuations due to thermal throttling). 
+### Features
+- __Python compatible syntax__: prometeo is a DSL embedded into the Python language. prometeo programs run in the
+Python interpreter, where they can be debugged with pdb and combined with any Python code (NumPy, SciPy, matplotlib,
+CasADi, ...) that is removed when transpiling.
+- __NumPy-like linear algebra__: matrix and vector expressions such as `P = Q + A.T @ P @ A - K.T @ R @ K`,
+`K[0:n, n:] = B.T`, `y = A @ x + B @ u`, `w = u * v` or `c : float = x @ Q @ x`, with `cholesky` and `cho_solve`,
+are lowered to [BLASFEO](https://github.com/giaf/blasfeo) calls, with temporaries allocated statically.
+- __checked__: a static checker accepts exactly the [documented subset of Python](https://github.com/zanellia/prometeo/blob/master/docs/source/language/language.rst)
+and rejects everything else with an error pointing to the source, before running or transpiling. Types and matrix
+sizes are checked at compile time (and at run time when they are not known).
+- __efficient__: prometeo programs transpile to C code that calls BLASFEO, with performance comparable to
+hand-written code using it (see [performance](#performance)).
+- __deterministic memory usage__: prometeo computes a bound on the memory used by a program, and transpiled programs
+allocate it once: there is no dynamic memory allocation and no garbage collection.
+- __self-contained and embeddable__: transpiled programs are C99 code that depends only on BLASFEO and a small
+runtime, not on the Python runtime library.
+- __CasADi__: models and their derivatives defined with [CasADi](https://web.casadi.org) are called from prometeo
+code, through C code generated by CasADi.
+
+### A first example
+
+[`examples/minimal/minimal.py`](https://github.com/zanellia/prometeo/blob/master/examples/minimal/minimal.py) computes an LQR controller for a double integrator
+and simulates the closed loop:
+
+```python
+from prometeo import *
+
+# LQR for a double integrator: Riccati recursion, then a closed-loop simulation
+
+n : dims = 2        # sizes are compile-time constants
+m : dims = 1
+N : dims = 100
+
+def lqr(A: pmat[n, n], B: pmat[n, m], Q: pmat[n, n], R: pmat[m, m],
+        P: pmat[n, n], K: pmat[m, n]) -> None:
+    # P = Q + A'P(A + BK), K = -(R + B'PB)^-1 B'PA, iterated N times
+    L : pmat = pmat(m, m)
+    pmat_copy(Q, P)
+    for k in range(N):
+        L = cholesky(R + B.T @ P @ B)
+        K = -cho_solve(L, B.T @ P @ A)
+        P = Q + A.T @ P @ (A + B @ K)
+        P = 0.5 * (P + P.T)
+    return
+
+def main() -> int:
+    A : pmat = pmat(n, n)
+    B : pmat = pmat(n, m)
+    Q : pmat = pmat(n, n)
+    R : pmat = pmat(m, m)
+    P : pmat = pmat(n, n)
+    K : pmat = pmat(m, n)
+    x : pvec = pvec(n)
+    h : float = 0.1
+    A[0, 0] = 1.0
+    A[0, 1] = h
+    A[1, 1] = 1.0
+    B[1, 0] = h
+    Q[0, 0] = 1.0
+    Q[1, 1] = 0.1
+    R[0, 0] = 0.01
+
+    lqr(A, B, Q, R, P, K)
+    pmat_print(K)
+
+    x[0] = 1.0
+    print('cost-to-go: %f\n' % (0.5 * (x @ P @ x)))
+    for t in range(50):
+        x = (A + B @ K) @ x
+    print('state after 5 s: %e\n' % x[0])
+    return 0
+```
+
+Run it in Python, or transpile it to C, compile it and run it:
+
+```
+$ pmt minimal.py
+ -7.60447  -4.97765
+
+cost-to-go: 3.272843
+
+state after 5 s: 2.385667e-06
+
+Execution time = 0.012 sec
+
+$ pmt minimal.py --cgen=True
+ > prometeo: starting transpilation
+ ...
+ > prometeo: running compiled C code:
+
+ -7.60447  -4.97765
+
+cost-to-go: 3.272843
+
+state after 5 s: 2.385667e-06
+
+execution time:0.000422s
+```
+
+Every matrix expression becomes a few BLASFEO calls on statically allocated temporaries; for example, the first two
+lines of the Riccati recursion are transpiled to:
+
+```c
+    // L = cholesky(R + B.T @ P @ B)
+    c_pmt_pmat_copy(R, ___pmt_m0);
+    c_pmt_pmat_fill(___pmt_m1, 0.0);
+    c_pmt_gemm_ab_tn(1.0, B, P, 1.0, ___pmt_m1, ___pmt_m1);
+    c_pmt_gemm_ab_nn(1.0, ___pmt_m1, B, 1.0, ___pmt_m0, ___pmt_m0);
+    c_pmt_pmat_fill(L, 0.0);
+    c_pmt_potrf(___pmt_m0, L);
+    // K = -cho_solve(L, B.T @ P @ A)
+    c_pmt_pmat_copy(L, ___pmt_m0);
+    c_pmt_pmat_fill(K, 0.0);
+    c_pmt_pmat_fill(___pmt_m1, 0.0);
+    c_pmt_gemm_ab_tn(1.0, B, P, 1.0, ___pmt_m1, ___pmt_m1);
+    c_pmt_gemm_ab_nn(1.0, ___pmt_m1, A, 1.0, K, K);
+    c_pmt_potrsm(___pmt_m0, K);
+    c_pmt_pmat_scale(-1.0, K);
+```
+
+Sizes are declared with `dims` constants (and `pmat[rows, cols]` annotations for arguments), so mistakes are found
+before the program runs:
+
+```
+$ pmt minimal.py      # with a typo: K = -cho_solve(L, B.T @ P @ B)
+
+ > prometeo: error at minimal.py:16:13: mismatching sizes: the result is 1 x 1, but K is 1 x 2
+             K = -cho_solve(L, B.T @ P @ B)
+                 ^
+```
+
+### Developing in Python, deploying in C
+
+Code between `# pure >` and `# pure <` lines runs only in Python and is removed when transpiling: it can check
+intermediate results with NumPy (`np.array(A)` converts a matrix), compare with reference solvers, log and plot, or
+stop in the debugger. [`examples/python_workflow`](https://github.com/zanellia/prometeo/blob/master/examples/python_workflow) shows this workflow on an MPC
+example, including how its plots and checks found two bugs while it was written.
+
+### Examples
+
+| example | |
+|---|---|
+| [`minimal`](https://github.com/zanellia/prometeo/blob/master/examples/minimal) | the syntax: LQR with matrix expressions, vectors, functions |
+| [`python_workflow`](https://github.com/zanellia/prometeo/blob/master/examples/python_workflow) | checks, comparisons with SciPy and IPOPT, plots and debugging in Python |
+| [`sqp_mpc/sqp_mpc_hl.py`](https://github.com/zanellia/prometeo/blob/master/examples/sqp_mpc/sqp_mpc_hl.py) | SQP for MPC with input bounds: interior-point QP solver (Mehrotra), Riccati recursions, CasADi derivatives |
+| [`sqp_mpc/sqp_mpc.py`](https://github.com/zanellia/prometeo/blob/master/examples/sqp_mpc/sqp_mpc.py) | the same, with explicit calls of the linear algebra routines |
+| [`sqp_mpc/chain_mpc.py`](https://github.com/zanellia/prometeo/blob/master/examples/sqp_mpc/chain_mpc.py) | the same SQP on a hanging chain of masses (up to 33 states) |
+| [`riccati_example`](https://github.com/zanellia/prometeo/blob/master/examples/riccati_example) | Riccati recursions (used for the benchmark below) |
+| [`helloworld`](https://github.com/zanellia/prometeo/blob/master/examples/helloworld), [`fibonacci`](https://github.com/zanellia/prometeo/blob/master/examples/fibonacci) | basics: printing, functions and loops (`fibonacci` is the benchmark below) |
+
+### Performance
+
+Since prometeo programs transpile to C code that calls the high-performance linear algebra library BLASFEO
+(publication: [https://arxiv.org/abs/1704.02457](https://arxiv.org/abs/1704.02457), code:
+[https://github.com/giaf/blasfeo](https://github.com/giaf/blasfeo)), execution time can be comparable to hand-written
+high-performance code. The figure below shows a comparison of the CPU time necessary to carry out a Riccati
+factorization using highly optimized hand-written C code with calls to BLASFEO and the ones obtained with prometeo
+transpiled code from [this example](https://github.com/zanellia/prometeo/blob/master/examples/riccati_example/riccati_mass_spring.py). The computation times
+obtained with NumPy and Julia are added too for comparison - notice however that these last two implementations of the
+Riccati factorization are **not as easily embeddable** as the C code generated by prometeo and the hand-coded C
+implementation. All the benchmarks have been run on a Dell XPS-9360 equipped with an i7-7560U CPU running at 2.30 GHz
+(to avoid frequency fluctuations due to thermal throttling).
 
 <p align="center">
 <img src="https://github.com/zanellia/prometeo/blob/master/benchmarks/riccati_benchmark.png" width="100%" >
 </p>
 
-Moreover, prometeo can largely outperform state-of-the-art Python compilers such as Nuitka. The table below shows the CPU times obtained on a Fibonacci benchmark.
+The SQP examples compare with [acados](https://github.com/acados/acados), whose solvers are hand-written C on top of
+BLASFEO, on the same optimal control problems ([`benchmarks/sqp_mpc`](https://github.com/zanellia/prometeo/blob/master/benchmarks/sqp_mpc)). With the same BLASFEO
+build (AVX2), one real-time iteration of the prometeo SQP takes about as long as acados' (Intel i7-1370P, average over
+a closed loop of 30 steps):
+
+| problem | states | acados | prometeo |
+|---|---|---|---|
+| cart-pole | 4 | 226 us | 235 us |
+| chain of masses | 21 | 617 us | 533 us |
+| chain of masses | 33 | 1247 us | 1173 us |
+
+Moreover, prometeo can largely outperform state-of-the-art Python compilers such as Nuitka. The table below shows the
+CPU times obtained on a Fibonacci benchmark.
 
 |    parser/compiler   | CPU time [s] |
 |:--------------------:|--------------|
@@ -57,101 +208,44 @@ Moreover, prometeo can largely outperform state-of-the-art Python compilers such
 |	PyPy           |     1.78     |
 |       prometeo       |     0.657    |
 
+### Installation
 
-### PyPI installation
+prometeo needs Python 3.10 or later (it is tested with 3.10 to 3.14), a C compiler and make.
 
-prometeo can be installed through PyPI with `pip install prometeo-dsl`. Notice that, since prometeo makes extensive use of [type hints](https://docs.python.org/3.6/library/typing.html) to equip Python code with static typing information, the minimum Python version required is 3.6.
+Releases are published on PyPI (`pip install prometeo-dsl`). The features described here may be more recent than the
+latest release: to use them, install from source:
 
-### manual installation
-If you want to install prometeo building the sources on your local machine you can proceed as follows:
-
-- Run `git submodule update --init` to clone the submodules.
-- Run `make install_shared` from `<prometeo_root>/prometeo/cpmt` to compile and install the shared library associated with the C backend. Notice that the default installation path is `<prometeo_root>/prometeo/cpmt/install`.
-- You need Python 3.10 or later.
-- Optional: to keep things clean you can setup a virtual environment with `python3 -m venv <path_to_new_virtualenv>`.
-- Run `pip install -e .` from `<prometeo_root>` to install the Python package.
-
-Finally, you can run the examples in `<root>/examples` with `pmt <example_name>.py --cgen=<True/False>`, where the `--cgen` flag determines whether the code is executed by the Python interpreter or C code is generated compiled and run.
-
-### a simple example
-
-The Python code ([`examples/simple_example/simple_example.py`](https://github.com/zanellia/prometeo/blob/master/examples/simple_example/simple_example.py))
-```python
-from prometeo import *
-
-n : dims = 10
-
-def main() -> int:
-
-    A: pmat = pmat(n, n)
-    for i in range(10):
-        for j in range(10):
-            A[i, j] = 1.0
-
-    B: pmat = pmat(n, n)
-    for i in range(10):
-        B[0, i] = 2.0
-
-    C: pmat = pmat(n, n)
-    C = A @ B
-    pmat_print(C)
-    return 0
 ```
-can be run by the standard Python interpreter (version >=3.10 required) and it 
-will perform the described linear algebra operations using the command `pmt simple_example.py --cgen=False`. 
-At the same time, the code can be parsed by prometeo and its abstract syntax tree (AST) analyzed in order
-to generate the following high-performance C code:
-```c
-#include "stdlib.h"
-#include "simple_example.h"
-void * ___c_pmt_8_heap;
-void * ___c_pmt_64_heap;
-void * ___c_pmt_8_heap_head;
-void * ___c_pmt_64_heap_head;
-
-#include "prometeo.h"
-int main() {
-    ___c_pmt_8_heap = malloc(10000); 
-    ___c_pmt_8_heap_head = ___c_pmt_8_heap;
-    char * pmem_ptr = (char *)___c_pmt_8_heap;
-    align_char_to(8, &pmem_ptr);
-    ___c_pmt_8_heap = pmem_ptr;
-    ___c_pmt_64_heap = malloc(1000000);
-    ___c_pmt_64_heap_head = ___c_pmt_64_heap;
-    pmem_ptr = (char *)___c_pmt_64_heap;
-    align_char_to(64, &pmem_ptr);
-    ___c_pmt_64_heap = pmem_ptr;
-	void *callee_pmt_8_heap = ___c_pmt_8_heap;
-	void *callee_pmt_64_heap = ___c_pmt_64_heap;
-
-    struct pmat * A = c_pmt_create_pmat(n, n);
-    for(int i = 0; i < 10; i++) {
-        for(int j = 0; j < 10; j++) {
-            c_pmt_pmat_set_el(A, i, j, 1.0);
-    }
-
-    }
-
-    struct pmat * B = c_pmt_create_pmat(n, n);
-    for(int i = 0; i < 10; i++) {
-        c_pmt_pmat_set_el(B, 0, i, 2.0);
-    }
-
-    struct pmat * C = c_pmt_create_pmat(n, n);
-    c_pmt_pmat_fill(C, 0.0);
-    c_pmt_gemm_ab_nn(1.0, A, B, 1.0, C, C);
-    c_pmt_pmat_print(C);
-	___c_pmt_8_heap = callee_pmt_8_heap;
-	___c_pmt_64_heap = callee_pmt_64_heap;
-
-	free(___c_pmt_8_heap_head);
-	free(___c_pmt_64_heap_head);
-	return 0;
-}
+git clone https://github.com/zanellia/prometeo.git
+cd prometeo
+git submodule update --init                     # BLASFEO
+make -C prometeo/cpmt install_shared            # BLASFEO and the C runtime, into prometeo/lib
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e .
 ```
-which relies on the high-performance linear algebra package BLASFEO. The generated code will be readily compiled and run with when running `pmt simple_example.py --cgen=True`.
 
-### how does it work?
+Then run the examples in `examples/` with `pmt <example>.py` (Python) or `pmt <example>.py --cgen=True` (C).
+
+BLASFEO is built for `X64_INTEL_HASWELL` (x86-64 with AVX2) by default. For other CPUs, choose its target, e.g.
+`make -C prometeo/cpmt install_shared TARGET=GENERIC` (any CPU; the tests and CI use it) or
+`TARGET=ARMV8A_ARM_CORTEX_A57`; the targets are listed in `external/blasfeo/Makefile.rule`. On larger problems, the
+target matters: the AVX2 kernels are several times faster than the generic ones.
+
+### Documentation
+
+- [the language](https://github.com/zanellia/prometeo/blob/master/docs/source/language/language.rst): what can be written in prometeo programs, and what is
+checked; also on [Read the Docs](https://prometeo.readthedocs.io/en/latest/index.html)
+- [examples/python_workflow](https://github.com/zanellia/prometeo/blob/master/examples/python_workflow): developing in Python
+- [benchmarks/sqp_mpc](https://github.com/zanellia/prometeo/blob/master/benchmarks/sqp_mpc): the comparison with acados
+
+### Testing
+
+`pip install -e '.[test]' && pytest tests` runs, for every example, the transpiler against reference C code and
+compares the numbers printed by the Python and C versions; the conformance tests of the language
+([`tests/conformance`](https://github.com/zanellia/prometeo/blob/master/tests/conformance)); random programs and random matrix expressions, run in Python and C and
+checked against NumPy; and the SQP examples against IPOPT.
+
+### How does it work?
 
 Although translating a program written in a language into another with
 a comparable level of abstraction can be significantly easier than
@@ -190,7 +284,7 @@ and embeddability.
 <img src="https://github.com/zanellia/prometeo/blob/master/figures/prometeo_crop.png" width="50%" >
 </p>
      
-### related work
+### Related work
 Several software packages exist that address Python-to-C translation in
 various forms. 
 
@@ -260,197 +354,3 @@ the standard Python interpreter.
 <p align="center">
 <img src="https://github.com/zanellia/prometeo/blob/master/figures/simple_ast_annotated.png" width="70%" >
 </p>
-
-### a more advanced example (Riccati factorization)
-```python
-from prometeo import *
-
-nx:  dims = 2
-nu:  dims = 2
-nxu: dims = nx + nu
-N:   dims = 5
-
-def main() -> int:
-
-    # number of repetitions for timing
-    nrep : int = 10000
-
-    A: pmat = pmat(nx, nx)
-    A[0,0] = 0.8
-    A[0,1] = 0.1
-    A[1,0] = 0.3
-    A[1,1] = 0.8
-
-    B: pmat = pmat(nx, nu)
-    B[0,0] = 1.0  
-    B[1,1] = 1.0
-
-    Q: pmat = pmat(nx, nx)
-    Q[0,0] = 1.0  
-    Q[1,1] = 1.0
-
-    R: pmat = pmat(nu, nu)
-    R[0,0] = 1.0  
-    R[1,1] = 1.0
-
-    A: pmat = pmat(nx, nx)
-    B: pmat = pmat(nx, nu)
-    Q: pmat = pmat(nx, nx)
-    R: pmat = pmat(nu, nu)
-
-    RSQ: pmat = pmat(nxu, nxu)
-    Lxx: pmat = pmat(nx, nx)
-    M: pmat = pmat(nxu, nxu)
-    w_nxu_nx: pmat = pmat(nxu, nx)
-    BAt : pmat = pmat(nxu, nx)
-    BA : pmat = pmat(nx, nxu)
-    pmat_hcat(B, A, BA)
-    pmat_tran(BA, BAt)
-
-    RSQ[0:nu,0:nu] = R
-    RSQ[nu:nu+nx,nu:nu+nx] = Q
-
-    # array-type Riccati factorization
-    for i in range(nrep):
-        pmt_potrf(Q, Lxx)
-        M[nu:nu+nx,nu:nu+nx] = Lxx
-        for i in range(1, N):
-            pmt_trmm_rlnn(Lxx, BAt, w_nxu_nx)
-            pmt_syrk_ln(w_nxu_nx, w_nxu_nx, RSQ, M)
-            pmt_potrf(M, M)
-            Lxx[0:nx,0:nx] = M[nu:nu+nx,nu:nu+nx]
-
-    return 0
-
-```
-Similarly, the code above ([`example/riccati/riccati_array.py`](https://github.com/zanellia/prometeo/blob/master/examples/riccati_example/riccati_array.py)) can be run by the standard Python interpreter using the command `pmt riccati_array.py --cgen=False` and prometeo can generate, compile and run C code using instead `pmt riccati_array.py --cgen=True`.
-
-### supported Python constructs
-In order to be able to transpile to C, only a subset of the Python language is supported. However, non C-like features such as function overload and classes are supported by prometeo's transpiler. The adapted Riccati example ([`examples/riccati/riccati_mass_spring_2.py`](https://github.com/zanellia/prometeo/blob/master/examples/riccati_example/riccati_mass_spring_2.py)) below shows how classes can be created and used.
-
-```python
-from prometeo import *
-
-nm: dims = 4
-nx: dims  = 2*nm
-sizes: dimv = [[8,8], [8,8], [8,8], [8,8], [8,8]]
-nu: dims  = nm
-nxu: dims = nx + nu
-N:  dims  = 5
-
-class qp_data:
-    A: List = plist(pmat, sizes)
-    B: List = plist(pmat, sizes)
-    Q: List = plist(pmat, sizes)
-    R: List = plist(pmat, sizes)
-    P: List = plist(pmat, sizes)
-
-    fact: List = plist(pmat, sizes)
-
-    def factorize(self) -> None:
-        M: pmat = pmat(nxu, nxu)
-        Mxx: pmat = pmat(nx, nx)
-        L: pmat = pmat(nxu, nxu)
-        Q: pmat = pmat(nx, nx)
-        R: pmat = pmat(nu, nu)
-        BA: pmat = pmat(nx, nxu)
-        BAtP: pmat = pmat(nxu, nx)
-        pmat_copy(self.Q[N-1], self.P[N-1])
-
-        pmat_hcat(self.B[N-1], self.A[N-1], BA)
-        pmat_copy(self.Q[N-1], Q)
-        pmat_copy(self.R[N-1], R)
-        for i in range(1, N):
-            pmat_fill(BAtP, 0.0)
-            pmt_gemm_tn(BA, self.P[N-i], BAtP, BAtP)
-
-            pmat_fill(M, 0.0)
-            M[0:nu,0:nu] = R
-            M[nu:nu+nx,nu:nu+nx] = Q
-
-            pmt_gemm_nn(BAtP, BA, M, M)
-            pmat_fill(L, 0.0)
-            pmt_potrf(M, L)
-
-            Mxx[0:nx, 0:nx] = L[nu:nu+nx, nu:nu+nx]
-
-            # pmat_fill(self.P[N-i-1], 0.0)
-            pmt_gemm_nt(Mxx, Mxx, self.P[N-i-1], self.P[N-i-1])
-            # pmat_print(self.P[N-i-1])
-
-        return
-
-def main() -> int:
-
-    A: pmat = pmat(nx, nx)
-    Ac11 : pmat = pmat(nm,nm)
-    Ac12 : pmat = pmat(nm,nm)
-    for i in range(nm):
-        Ac12[i,i] = 1.0
-
-    Ac21 : pmat = pmat(nm,nm)
-    for i in range(nm):
-        Ac21[i,i] = -2.0
-
-    for i in range(nm-1):
-        Ac21[i+1,i] = 1.0
-        Ac21[i,i+1] = 1.0
-
-    Ac22 : pmat = pmat(nm,nm)
-
-    for i in range(nm):
-        for j in range(nm):
-            A[i,j] = Ac11[i,j]
-
-    for i in range(nm):
-        for j in range(nm):
-            A[i,nm+j] = Ac12[i,j]
-
-    for i in range(nm):
-        for j in range(nm):
-            A[nm+i,j] = Ac21[i,j]
-
-    for i in range(nm):
-        for j in range(nm):
-            A[nm+i,nm+j] = Ac22[i,j]
-
-    tmp : float = 0.0
-    for i in range(nx):
-        tmp = A[i,i]
-        tmp = tmp + 1.0
-        A[i,i] = tmp
-
-    B: pmat = pmat(nx, nu)
-
-    for i in range(nu):
-        B[nm+i,i] = 1.0
-
-    Q: pmat = pmat(nx, nx)
-    for i in range(nx):
-        Q[i,i] = 1.0
-
-    R: pmat = pmat(nu, nu)
-    for i in range(nu):
-        R[i,i] = 1.0
-
-    qp : qp_data = qp_data() 
-
-    for i in range(N):
-        qp.A[i] = A
-
-    for i in range(N):
-        qp.B[i] = B
-
-    for i in range(N):
-        qp.Q[i] = Q
-
-    for i in range(N):
-        qp.R[i] = R
-
-    qp.factorize()
-    
-    return 0
-```
-
-__Disclaimer: prometeo is still at a very preliminary stage and only a few linear algebra operations and Python constructs are supported for the time being.__
-

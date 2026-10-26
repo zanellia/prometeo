@@ -50,12 +50,14 @@ class Diagnostic:
 
 
 class FunctionInfo:
-    def __init__(self, name, arg_names, arg_types, ret_type, node):
+    def __init__(self, name, arg_names, arg_types, ret_type, node, arg_shapes=None):
         self.name = name
         self.arg_names = arg_names
         self.arg_types = arg_types
         self.ret_type = ret_type
         self.node = node
+        # declared sizes of pmat and pvec arguments (A: pmat[n, m]), or None
+        self.arg_shapes = arg_shapes or [None] * len(arg_names)
 
 
 class ClassInfo:
@@ -308,6 +310,7 @@ class Checker:
             self.check_identifier(node, node.name)
         arg_names = []
         arg_types = []
+        arg_shapes = []
         for arg in arg_list:
             self.check_identifier(arg, arg.arg)
             if arg.annotation is None:
@@ -317,6 +320,7 @@ class Checker:
                 t = self.annotation_type(arg.annotation, "the annotation of '{}'".format(arg.arg))
             arg_names.append(arg.arg)
             arg_types.append(t)
+            arg_shapes.append(self.annotation_shape(arg.annotation, t))
         if node.returns is None:
             self.error(node, "function '{}' needs a return type annotation".format(node.name))
             ret_type = None
@@ -324,7 +328,7 @@ class Checker:
             ret_type = self.annotation_type(node.returns, 'the return annotation', allow_none=True)
             if ret_type is not None and (is_list(ret_type) or ret_type.name in self.classes):
                 self.unsupported(node.returns, 'returning {} values'.format(ret_type.name))
-        info = FunctionInfo(node.name, arg_names, arg_types, ret_type, node)
+        info = FunctionInfo(node.name, arg_names, arg_types, ret_type, node, arg_shapes)
         overloads = table.setdefault(node.name, [])
         for other in overloads:
             if other.arg_types == arg_types:
@@ -334,6 +338,20 @@ class Checker:
             self.warning(node, "'{}' is overloaded: this works in transpiled code, but in "
                 "Python only the last definition is used".format(node.name))
         overloads.append(info)
+
+    def annotation_shape(self, node, t):
+        """Sizes declared by an argument annotation pmat[rows, cols] or
+        pvec[size], else None."""
+        if not isinstance(node, ast.Subscript) or t not in (PMAT, PVEC):
+            return None
+        dims = node.slice.elts if isinstance(node.slice, ast.Tuple) else [node.slice]
+        if len(dims) != (2 if t == PMAT else 1):
+            self.error(node, "sizes of {} arguments are declared as {}".format(t,
+                'pmat[rows, cols]' if t == PMAT else 'pvec[size]'))
+            return None
+        for d in dims:
+            self.check_dims(d)
+        return tuple(self.dim(d) for d in dims)
 
     def declare_class(self, node):
         self.check_identifier(node, node.name)
@@ -381,8 +399,10 @@ class Checker:
 
     def check_function_body(self, fun, cls):
         scope = Scope(fun, cls)
-        for name, t in zip(fun.arg_names, fun.arg_types):
+        for name, t, shape in zip(fun.arg_names, fun.arg_types, fun.arg_shapes):
             scope.declare(name, t)
+            if shape is not None:
+                scope.shapes[name] = shape
         self.check_block(fun.node.body, scope)
         if fun.ret_type not in (None, NONE) and not ends_with_return(fun.node.body):
             self.error(fun.node, "function '{}' must end with a return statement".format(fun.name))
@@ -827,11 +847,10 @@ class Checker:
             self.error(value, 'cannot assign a {} to a {}'.format(
                 'vector' if e.is_vector() else 'matrix', 'vector' if len(shape) == 1 else 'matrix'))
             return
-        what = ('size', 'rows', 'columns')
-        for i in range(len(shape)):
-            name = what[0] if len(shape) == 1 else what[i + 1]
-            self.check_dim(value, shape[i], e.shape[i], 'the result has {} {}, but {} has {}'.format(
-                e.shape[i], name, ast.unparse(target), shape[i]))
+        message = 'the result is {}, but {} is {}'.format(
+            size_str(e.shape), ast.unparse(target), size_str(shape))
+        if not all(self.check_dim(value, a, b, message) for a, b in zip(shape, e.shape)):
+            return
         plan = Plan(stmt, target, shape, e, position(scope.fun.node), self.dims_values)
         try:
             lower_statement(plan, Temporaries(TEMP_PREFIX), self.lowerings.dots)
@@ -1606,6 +1625,15 @@ class Checker:
         for fun in overloads:
             if len(fun.arg_types) == len(arg_types) and all(
                     p is not None and argument_matches(a, p) for a, p in zip(arg_types, fun.arg_types)):
+                # declared sizes of matrix and vector arguments
+                for arg, name, shape in zip(node.args, fun.arg_names, fun.arg_shapes):
+                    if shape is None:
+                        continue
+                    actual = self.matrix_shape(arg, scope)
+                    if any(a.value is not None and d.value is not None and a.value != d.value
+                            for a, d in zip(actual, shape)):
+                        self.error(arg, "argument '{}' of {} must have size {}, not {}".format(
+                            name, fun.name, ' x '.join(map(str, shape)), ' x '.join(map(str, actual))))
                 return fun.ret_type
         self.error(node, "no definition of '{}' takes ({})".format(overloads[0].name,
             ', '.join(map(str, arg_types))))
@@ -1702,6 +1730,12 @@ class Checker:
 
 
 # helpers
+
+def size_str(shape):
+    """'3 x 2' for a matrix, 'a vector of size 3' for a vector."""
+    return ' x '.join(map(str, shape)) if len(shape) == 2 else \
+        'a vector of size {}'.format(shape[0])
+
 
 def shape_str(shape):
     return '({})'.format(' x '.join(str(d) for d in shape)) if len(shape) == 2 else \

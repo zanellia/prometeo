@@ -814,6 +814,19 @@ def lower_block(stmts, lowerings, temps):
     return out
 
 
+class UnsizedArguments(ast.NodeTransformer):
+    """Rewrite argument annotations pmat[rows, cols] and pvec[size] as pmat
+    and pvec: the sizes are used by the checker only."""
+
+    def visit_arg(self, node):
+        if isinstance(node.annotation, ast.Subscript) and \
+                isinstance(node.annotation.value, ast.Name) and \
+                node.annotation.value.id in ('pmat', 'pvec'):
+            node.annotation = ast.copy_location(
+                ast.Name(node.annotation.value.id, ast.Load()), node.annotation)
+        return node
+
+
 class StripAnnotations(ast.NodeTransformer):
     """Remove type annotations, to run lowered code in Python."""
 

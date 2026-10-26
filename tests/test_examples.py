@@ -25,6 +25,7 @@ UPDATE_GOLDEN = os.environ.get('PMT_UPDATE_GOLDEN', '0') == '1'
 # (example directory, program name, run differential test)
 EXAMPLES = [
     ('helloworld', 'helloworld', True),
+    ('minimal', 'minimal', True),
     ('simple_example', 'simple_example', True),
     ('test', 'test', True),
     ('test', 'test_assignments', True),

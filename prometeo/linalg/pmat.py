@@ -9,6 +9,11 @@ class pmat_(ABC):
     pass
 
 class pmat(pmat_):
+    # sizes in annotations of arguments, A: pmat[n, m], are for the checker
+    @classmethod
+    def __class_getitem__(cls, sizes):
+        return cls
+
     blasfeo_dmat = None
 
     def __init__(self, m: int, n: int):

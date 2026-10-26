@@ -79,7 +79,7 @@ def ipopt_solution(x0, Q, R, QN):
         opti.subject_to(X[:, k + 1] == F(X[:, k], U[:, k])[0])
     opti.minimize(cost + 0.5 * ca.bilin(QN, X[:, N], X[:, N]))
     opti.subject_to(X[:, 0] == x0)
-    opti.solver('ipopt', {'print_time': False}, {'print_level': 0, 'tol': 1e-12})
+    opti.solver('ipopt', {'print_time': False}, {'print_level': 0, 'sb': 'yes', 'tol': 1e-12})
     return np.array(opti.solve().value(U)).reshape(N, nu)
 
 
