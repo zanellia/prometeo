@@ -64,12 +64,16 @@ UNKNOWN = Dim(None)
 
 
 class MExpr:
+    """A matrix (shape (rows, cols)) or vector (shape (size,)) expression."""
     shape = (UNKNOWN, UNKNOWN)
+
+    def is_vector(self):
+        return len(self.shape) == 1
 
 
 class Leaf(MExpr):
-    """A matrix (a variable, an attribute or an element of a List) or a block
-    of one, A[a:b, c:d] (node is then the Subscript)."""
+    """A matrix or vector (a variable, an attribute or an element of a List)
+    or a block of one, A[a:b, c:d] or v[a:b] (node is then the Subscript)."""
 
     def __init__(self, node, shape, trans=False):
         self.node = node
@@ -96,10 +100,12 @@ class Add(MExpr):
 
 
 class MatMul(MExpr):
+    """A matrix product, or a matrix-vector product (right is a vector)."""
+
     def __init__(self, left, right):
         self.left = left
         self.right = right
-        self.shape = (left.shape[0], right.shape[1])
+        self.shape = (left.shape[0],) if right.is_vector() else (left.shape[0], right.shape[1])
 
 
 class Transpose(MExpr):
@@ -116,6 +122,22 @@ class Call(MExpr):
         self.args = args
         self.shape = shape
         self.node = node
+
+
+class Dot:
+    """The dot product left @ right of two vector expressions: a float. dims:
+    the values of the dims constants."""
+
+    def __init__(self, left, right, node, dims):
+        self.left = left
+        self.right = right
+        self.node = node
+        self.dims = dims
+
+
+def dot_key(node):
+    """Key of a dot product (a BinOp node) in the table of the checker."""
+    return (node.lineno, node.col_offset, node.end_lineno, node.end_col_offset)
 
 
 # functions on matrices that can be used in matrix expressions -> arity
@@ -207,11 +229,18 @@ def is_block(node):
         any(isinstance(i, ast.Slice) for i in node.slice.elts)
 
 
+def is_vector_slice(node):
+    """Whether node is a slice v[a:b] of a vector."""
+    return isinstance(node, ast.Subscript) and isinstance(node.slice, ast.Slice)
+
+
 def split_block(node):
-    """(matrix, row slice, column slice) of a block, (node, None, None) for
-    a whole matrix."""
+    """(matrix, row slice, column slice) of a block (v, slice, None for a
+    slice of a vector), (node, None, None) for a whole matrix or vector."""
     if is_block(node):
         return node.value, node.slice.elts[0], node.slice.elts[1]
+    if is_vector_slice(node):
+        return node.value, node.slice, None
     return node, None, None
 
 
@@ -281,20 +310,23 @@ class Temporaries:
 
     def __init__(self, prefix):
         self.prefix = prefix
-        self.matrices = []  # (name, shape)
+        self.matrices = []  # (name, shape), matrices and vectors
         self.busy = set()
         self.scalars = 0
 
     def matrix(self, shape, node):
-        if shape[0].value is None or shape[1].value is None:
-            raise LoweringError(node, 'this expression needs a temporary matrix whose size is '
+        """A temporary matrix, or vector if shape has one dimension."""
+        if any(d.value is None for d in shape):
+            raise LoweringError(node, 'this expression needs a temporary {} whose size is '
                 'not known at compile time (an operand is a function argument): assign the '
-                'subexpression to a declared matrix first')
+                'subexpression to a declared {} first'.format(*(['vector'] * 2 if len(shape) == 1
+                else ['matrix'] * 2)))
         for name, s in self.matrices:
-            if name not in self.busy and s[0] == shape[0] and s[1] == shape[1]:
+            if name not in self.busy and len(s) == len(shape) and all(
+                    a == b for a, b in zip(s, shape)):
                 self.busy.add(name)
                 return ast.Name(name, ast.Load())
-        name = '{}m{}'.format(self.prefix, len(self.matrices))
+        name = '{}{}{}'.format(self.prefix, 'v' if len(shape) == 1 else 'm', len(self.matrices))
         self.matrices.append((name, shape))
         self.busy.add(name)
         return ast.Name(name, ast.Load())
@@ -307,21 +339,26 @@ class Temporaries:
         self.busy = set()
 
     def declarations(self):
-        return [ast.AnnAssign(target=ast.Name(name, ast.Store()),
-            annotation=ast.Name('pmat', ast.Load()),
-            value=ast.Call(func=ast.Name('pmat', ast.Load()),
-                args=[shape[0].expr(), shape[1].expr()], keywords=[]),
-            simple=1) for name, shape in self.matrices]
+        declarations = []
+        for name, shape in self.matrices:
+            t = 'pvec' if len(shape) == 1 else 'pmat'
+            declarations.append(ast.AnnAssign(target=ast.Name(name, ast.Store()),
+                annotation=ast.Name(t, ast.Load()),
+                value=ast.Call(func=ast.Name(t, ast.Load()), args=[d.expr() for d in shape],
+                    keywords=[]), simple=1))
+        return declarations
 
 
 class Lowering:
     """Lower one assignment target = expr."""
 
-    def __init__(self, temps, dims=None):
+    def __init__(self, temps, dims=None, dots=None):
         self.temps = temps
         # values of the dims constants: indices made of dims constants are
         # passed as literals (in C, dims constants are macros)
         self.dims = dims or {}
+        # dot products in scalar expressions: dot_key -> Dot
+        self.dots = dots or {}
         self.out = []
 
     def emit(self, stmt):
@@ -356,7 +393,8 @@ class Lowering:
                 else:
                     name = self.temps.scalar()
                     self.emit(ast.AnnAssign(target=ast.Name(name, ast.Store()),
-                        annotation=ast.Name('float', ast.Load()), value=load(f), simple=1))
+                        annotation=ast.Name('float', ast.Load()),
+                        value=self.replace_dots(load(f)), simple=1))
                     factors.append(ast.Name(name, ast.Load()))
             return Scale(Coef(e.coef.const, factors), self.hoist_factors(e.expr))
         if isinstance(e, Transpose):
@@ -382,7 +420,7 @@ class Lowering:
         if len(inplace) > 1 or any(may_alias(l.node, target) for l in reads):
             tmp = self.temps.matrix(target_shape, target)
             self.evaluate(tmp, expr)
-            self.copy(tmp, target)
+            self.copy(tmp, target, len(target_shape) == 1)
         else:
             self.evaluate(target, expr, ts)
 
@@ -412,27 +450,33 @@ class Lowering:
         value = eval_dims(node, self.dims)
         return ast.Constant(value) if value is not None else load(node)
 
+    def slice_size(self, s):
+        """Size of the slice s, -1 for 'to the end'."""
+        lo, up = (affine_index(x) if x is not None else None for x in (s.lower, s.upper))
+        if s.upper is None:
+            return ast.Constant(-1)
+        if s.lower is None:
+            return self.index(s.upper)
+        if lo is not None and up is not None and lo[0] == up[0]:
+            # k + c2 - (k + c1)
+            return ast.Constant(up[1] - lo[1])
+        return self.index(ast.BinOp(left=s.upper, op=ast.Sub(), right=s.lower))
+
     def view(self, node):
         # (M, first row, first column, rows, columns); -1: to the end
         base, rows, cols = split_block(node)
         if rows is None:
             return [load(node), ast.Constant(0), ast.Constant(0), ast.Constant(-1), ast.Constant(-1)]
-        args = [load(base)]
-        for s in (rows, cols):
-            args.append(self.index(s.lower) if s.lower is not None else ast.Constant(0))
-        for s in (rows, cols):
-            lo, up = (affine_index(x) if x is not None else None for x in (s.lower, s.upper))
-            if s.upper is None:
-                # to the end
-                args.append(ast.Constant(-1))
-            elif s.lower is None:
-                args.append(self.index(s.upper))
-            elif lo is not None and up is not None and lo[0] == up[0]:
-                # k + c2 - (k + c1)
-                args.append(ast.Constant(up[1] - lo[1]))
-            else:
-                args.append(self.index(ast.BinOp(left=s.upper, op=ast.Sub(), right=s.lower)))
-        return args
+        return [load(base)] + [self.index(s.lower) if s.lower is not None else ast.Constant(0)
+            for s in (rows, cols)] + [self.slice_size(s) for s in (rows, cols)]
+
+    def vview(self, node):
+        # (v, first element, size); -1: to the end
+        base, s, _ = split_block(node)
+        if s is None:
+            return [load(node), ast.Constant(0), ast.Constant(-1)]
+        return [load(base), self.index(s.lower) if s.lower is not None else ast.Constant(0),
+            self.slice_size(s)]
 
     def matrix_call(self, name, before, mats):
         """name(*before, *mats), or its _view variant if one of the matrices
@@ -442,20 +486,28 @@ class Lowering:
         else:
             self.emit(call(name, *(list(before) + [load(m) for m in mats])))
 
-    def copy(self, src, dest):
-        self.matrix_call('pmat_copy', [], [src, dest])
+    def copy(self, src, dest, vec=False):
+        if vec:
+            self.emit(call('pvec_copy_view', *(self.vview(src) + self.vview(dest))))
+        else:
+            self.matrix_call('pmat_copy', [], [src, dest])
 
     def tran(self, src, dest):
         self.matrix_call('pmat_tran', [], [src, dest])
 
-    def fill(self, dest, value):
-        if is_block(dest):
+    def fill(self, dest, value, vec=False):
+        if vec:
+            self.emit(call('pvec_fill_view', ast.Constant(value), *self.vview(dest)))
+        elif is_block(dest):
             self.emit(call('pmat_fill_view', ast.Constant(value), *self.view(dest)))
         else:
             self.emit(call('pmat_fill', load(dest), ast.Constant(value)))
 
-    def gead(self, alpha, src, dest):
-        self.matrix_call('pmt_gead', [alpha], [src, dest])
+    def gead(self, alpha, src, dest, vec=False):
+        if vec:
+            self.emit(call('pvec_axpy_view', alpha, *(self.vview(src) + self.vview(dest))))
+        else:
+            self.matrix_call('pmt_gead', [alpha], [src, dest])
 
     def gemm(self, trans, alpha, a, b, dest):
         """dest += alpha * op(a) op(b)."""
@@ -467,25 +519,28 @@ class Lowering:
             args = [alpha, load(a), load(b), ast.Constant(1.0), load(dest), load(dest)]
         self.emit(call(name, *args))
 
-    def scale(self, dest, coef):
+    def scale(self, dest, coef, vec=False):
         if not coef.is_one():
             alpha = self.coef_value(coef)
-            if is_block(dest):
+            if vec:
+                self.emit(call('pvec_scale_view', alpha, *self.vview(dest)))
+            elif is_block(dest):
                 self.emit(call('pmat_scale_view', alpha, *self.view(dest)))
             else:
                 self.emit(call('pmat_scale', alpha, load(dest)))
 
     def initialize(self, dest, coef, term):
+        vec = term.is_vector()
         if isinstance(term, Leaf):
             if not term.trans and same_matrix(term.node, dest):
                 pass
             elif term.trans:
                 self.tran(term.node, dest)
             else:
-                self.copy(term.node, dest)
-            self.scale(dest, coef)
+                self.copy(term.node, dest, vec)
+            self.scale(dest, coef, vec)
         elif isinstance(term, MatMul):
-            self.fill(dest, 0.0)
+            self.fill(dest, 0.0, vec)
             self.product(dest, coef, term)
         elif isinstance(term, Transpose):
             tmp = self.temps.matrix(term.expr.shape, term.expr.node)
@@ -494,7 +549,7 @@ class Lowering:
             self.scale(dest, coef)
         else:
             self.function(dest, term)
-            self.scale(dest, coef)
+            self.scale(dest, coef, vec)
 
     def accumulate(self, dest, coef, term):
         if isinstance(term, MatMul):
@@ -505,7 +560,7 @@ class Lowering:
         else:
             src = self.temps.matrix(term.shape, getattr(term, 'node', dest))
             self.initialize(src, ONE, term)
-        self.gead(self.coef_value(coef), src, dest)
+        self.gead(self.coef_value(coef), src, dest, term.is_vector())
 
     def operand(self, e):
         """A (possibly transposed) matrix holding the value of e."""
@@ -523,9 +578,48 @@ class Lowering:
         """dest += coef * left @ right."""
         a, ta = self.operand(term.left)
         b, tb = self.operand(term.right)
-        self.gemm(('t' if ta else 'n') + ('t' if tb else 'n'), self.coef_value(coef), a, b, dest)
+        if term.is_vector():
+            # matrix-vector product
+            self.emit(call('pmt_gemv_view_' + ('t' if ta else 'n'), self.coef_value(coef),
+                *(self.view(a) + self.vview(b) + [ast.Constant(1.0)] + self.vview(dest) +
+                self.vview(dest))))
+        else:
+            self.gemm(('t' if ta else 'n') + ('t' if tb else 'n'), self.coef_value(coef), a, b, dest)
+
+    def dot(self, d):
+        """A variable holding the dot product d."""
+        x, _ = self.operand(push_transposes(self.hoist_factors(d.left)))
+        y, _ = self.operand(push_transposes(self.hoist_factors(d.right)))
+        name = self.temps.scalar()
+        self.emit(ast.AnnAssign(target=ast.Name(name, ast.Store()),
+            annotation=ast.Name('float', ast.Load()),
+            value=ast.Call(func=ast.Name('pvec_dot_view', ast.Load()),
+                args=self.vview(x) + self.vview(y), keywords=[]), simple=1))
+        return ast.Name(name, ast.Load())
+
+    def replace_dots(self, node):
+        """node with its dot products computed before, into variables."""
+        lowering = self
+
+        class Replace(ast.NodeTransformer):
+            def visit_BinOp(self, n):
+                if isinstance(n.op, ast.MatMult) and dot_key(n) in lowering.dots:
+                    return lowering.dot(lowering.dots[dot_key(n)])
+                return self.generic_visit(n)
+
+        return Replace().visit(node)
 
     def function(self, dest, e):
+        if e.is_vector():
+            # cho_solve(L, v): the triangular solves do not modify L
+            a, ta = self.operand(e.args[0])
+            if ta or is_block(a):
+                tmp = self.temps.matrix(e.args[0].shape, e.node)
+                self.initialize(tmp, ONE, Leaf(a, e.args[0].shape, ta))
+                a = tmp
+            self.evaluate(dest, e.args[1])
+            self.emit(call('pmt_potrsv_view', load(a), *self.vview(dest)))
+            return
         if is_block(dest):
             # the factorizations work on whole matrices
             tmp = self.temps.matrix(e.shape, e.node)
@@ -565,8 +659,21 @@ class Plan:
         self.dims = dims
 
 
-def lower_statement(plan, temps):
-    lowering = Lowering(temps, plan.dims)
+class Lowerings:
+    """What the checker found to lower: assignments of matrix and vector
+    expressions (position -> Plan) and dot products in scalar expressions
+    (dot_key -> Dot)."""
+
+    def __init__(self):
+        self.plans = {}
+        self.dots = {}
+
+    def __bool__(self):
+        return bool(self.plans or self.dots)
+
+
+def lower_statement(plan, temps, dots=None):
+    lowering = Lowering(temps, plan.dims, dots)
     lowering.assign(plan.target, plan.target_shape, plan.expr)
     temps.release()
     for stmt in lowering.out:
@@ -581,28 +688,54 @@ def position(node):
 TEMP_PREFIX = '___pmt_'
 
 
-def lower(tree, plans):
-    """Replace the assignments of matrix expressions in tree (plans: position
-    -> Plan, from the checker) with calls; declare the temporaries at the
-    beginning of each function."""
-    if not plans:
+def lower(tree, lowerings):
+    """Replace the assignments of matrix expressions in tree with calls, and
+    compute the dot products in scalar expressions before the statements
+    that contain them; declare the temporaries at the beginning of each
+    function."""
+    if not lowerings:
         return tree
     for fun in [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)]:
         temps = Temporaries(TEMP_PREFIX)
-        fun.body = lower_block(fun.body, plans, temps)
+        fun.body = lower_block(fun.body, lowerings, temps)
         fun.body = [ast.copy_location(d, fun.body[0]) for d in temps.declarations()] + fun.body
     return ast.fix_missing_locations(tree)
 
 
-def lower_block(stmts, plans, temps):
+def expressions_of(stmt):
+    """The expressions of stmt evaluated once, before its body (if any)."""
+    if isinstance(stmt, ast.If):
+        return [stmt.test]
+    if isinstance(stmt, ast.For):
+        return [stmt.iter]
+    if isinstance(stmt, ast.While):
+        return []
+    return [stmt]
+
+
+def lower_block(stmts, lowerings, temps):
     out = []
     for stmt in stmts:
-        if isinstance(stmt, ast.Assign) and position(stmt) in plans:
-            out.extend(lower_statement(plans[position(stmt)], temps))
+        if isinstance(stmt, ast.Assign) and position(stmt) in lowerings.plans:
+            out.extend(lower_statement(lowerings.plans[position(stmt)], temps, lowerings.dots))
             continue
+        if any(isinstance(n, ast.BinOp) and dot_key(n) in lowerings.dots
+                for e in expressions_of(stmt) for n in ast.walk(e)
+                if not isinstance(n, ast.stmt) or n is stmt):
+            dims = next(iter(lowerings.dots.values())).dims
+            lowering = Lowering(temps, dims, lowerings.dots)
+            if isinstance(stmt, (ast.If, ast.For)):
+                field = 'test' if isinstance(stmt, ast.If) else 'iter'
+                setattr(stmt, field, lowering.replace_dots(getattr(stmt, field)))
+            else:
+                stmt = lowering.replace_dots(stmt)
+            temps.release()
+            for s in lowering.out:
+                ast.copy_location(s, stmt)
+            out.extend(lowering.out)
         for field in ('body', 'orelse'):
             if isinstance(stmt, (ast.For, ast.While, ast.If)):
-                setattr(stmt, field, lower_block(getattr(stmt, field), plans, temps))
+                setattr(stmt, field, lower_block(getattr(stmt, field), lowerings, temps))
         out.append(stmt)
     return out
 

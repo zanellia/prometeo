@@ -152,6 +152,12 @@ class pmat(pmat_):
     # In prometeo programs, matrix expressions are lowered to calls that
     # write into the target matrix (see prometeo/frontend/matexpr.py).
     def __matmul__(self, other):
+        if not isinstance(other, pmat_):
+            # matrix-vector product
+            from .pvec import pvec, pmt_gemv_view_n
+            res = pvec(self.m)
+            pmt_gemv_view_n(1.0, self, 0, 0, -1, -1, other, 0, -1, 1.0, res, 0, -1, res, 0, -1)
+            return res
         res = pmat(self.m, other.n)
         pmt_gemm_ab_nn(1.0, self, other, 1.0, res, res)
         return res
@@ -498,6 +504,9 @@ def cholesky(A: pmat):
 
 # X = (L L^T)^-1 B, with L from cholesky (as scipy.linalg.cho_solve)
 def cho_solve(L: pmat, B: pmat):
+    if not isinstance(B, pmat_):
+        from .pvec import cho_solve_vec
+        return cho_solve_vec(L, B)
     X = pmat(B.m, B.n)
     pmat_copy(B, X)
     fact = pmat(L.m, L.n)

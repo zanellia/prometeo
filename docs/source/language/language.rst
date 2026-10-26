@@ -126,7 +126,7 @@ Assignments
 Matrix expressions
 ------------------
 
-Matrices can be combined with NumPy's syntax:
+Matrices and vectors can be combined with NumPy's syntax:
 
 .. code-block:: python
 
@@ -137,8 +137,11 @@ Matrices can be combined with NumPy's syntax:
     self.P[k] = self.Q + self.A[k].T @ self.P[k + 1] @ self.A[k]
     K[0:n, n:] = B                  # blocks, as operands and as targets
     C[k:k + 2, :] = A[k:k + 2, 0:m] @ D
+    y = A @ x + B @ u               # vectors (pvec), slices v[a:b]
+    x[0:n] = cho_solve(L, b - A.T @ y)
+    cost : float = 0.5 * (x @ Q @ x) + q @ x   # dot products are numbers
 
-======================== ==========================================================
+======================== ==================================================================
 ``A @ B``                matrix product
 ``A + B``, ``A - B``     sum, difference
 ``s * A``, ``A / s``     scalar factor (a ``float`` expression, or a number)
@@ -147,8 +150,10 @@ Matrices can be combined with NumPy's syntax:
 ``cholesky(M)``          lower triangular ``L`` with ``L @ L.T = M``, as ``numpy.linalg.cholesky``
                          (``M`` symmetric positive definite)
 ``cho_solve(L, B)``      ``X`` with ``L @ L.T @ X = B``, ``L`` from ``cholesky`` (as
-                         ``scipy.linalg.cho_solve((L, True), B)``)
-======================== ==========================================================
+                         ``scipy.linalg.cho_solve((L, True), B)``); ``B`` can be a vector
+``A @ v``, ``v @ A``     matrix-vector products (``v @ A`` is ``A.T @ v``)
+``v @ w``                dot product, a ``float``
+======================== ==================================================================
 
 The operands are matrices (``pmat`` variables, attributes and elements of
 Lists of matrices), blocks of matrices (``A[a:b, c:d]``, also ``a:``, ``:b``
@@ -185,16 +190,27 @@ BLASFEO routines (the same in Python and in C):
 - nothing else is done behind the scenes: a subexpression that appears twice
   is computed twice. To reuse it, assign it to a matrix, e.g. ``PA = P @ A``.
 
+Vectors (``pvec``) follow NumPy's one-dimensional arrays: ``v.T`` is ``v``,
+``A @ v`` and ``v @ A`` are vectors and ``v @ w`` is a number. Dot products can
+be used in any scalar expression (assignments, ``if`` conditions, ``print``,
+``return``, scalar factors of matrices): they are computed just before the
+statement, into scalar temporaries. They cannot be used in ``while``
+conditions, which are evaluated at every iteration (compute the value before
+the loop and at the end of its body), nor in indices. Matrices and vectors
+cannot be added (in NumPy, a ``n x 1`` matrix plus a vector is a ``n x n``
+matrix).
+
 Restrictions:
 
-- ``*`` between two matrices is the elementwise product, as in NumPy, which is
-  *not supported yet*: use ``@`` for the matrix product.
+- ``*`` between two matrices or vectors is the elementwise product, as in
+  NumPy, which is *not supported yet*: use ``@`` for the matrix product.
 - Adding a number to a matrix (``A + 1.0``) is not supported: use
   ``pmat_fill``.
 - ``B = A`` is not a matrix expression: it is rejected (see Assignments).
-- Rows and columns ``A[i, :]`` (use ``A[i:i + 1, :]``), slices with a step,
-  vectors (``pvec``) and calls of other functions cannot be used in matrix
-  expressions *(not supported yet)*.
+- Rows and columns ``A[i, :]`` (use ``A[i:i + 1, :]``), slices with a step
+  and calls of other functions cannot be used in matrix expressions *(not
+  supported yet)*. CasADi functions take matrices only: use ``n x 1``
+  matrices for vectors passed to them.
 - ``cholesky`` and ``cho_solve`` can only be used in matrix expressions.
 
 Expressions

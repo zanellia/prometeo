@@ -359,10 +359,109 @@
     C = f(A) @ A
 
 ### vector_expressions
-# expect: error not supported (yet): expressions on vectors (pvec)
+# expect: ok
+    A : pmat = pmat(n, n)
+    B : pmat = pmat(n, 2)
+    L : pmat = pmat(n, n)
     v : pvec = pvec(n)
     w : pvec = pvec(n)
-    w = v + v
+    u : pvec = pvec(2)
+    x : float = 1.0
+    for i in range(n):
+        A[i, i] = 2.0
+        A[0, i] = 0.5
+        B[i, 0] = 1.0
+        B[i, 1] = x
+        v[i] = x
+        x += 1.0
+    w = A @ v - 0.5 * v
+    pvec_print(w)
+    u = w @ B + B.T @ v
+    pvec_print(u)
+    w = A.T @ (B @ u) / 2.0
+    pvec_print(w)
+    L = cholesky(A @ A.T)
+    w = -cho_solve(L, w + v)
+    pvec_print(w)
+    w[1:] = v[0:2] + w[1:]
+    pvec_print(w)
+    w += (v @ w) * v
+    pvec_print(w)
+
+### dot_products
+# expect: ok
+@def norm2(v: pvec) -> float:
+@    return v @ v
+    A : pmat = pmat(n, n)
+    v : pvec = pvec(n)
+    pmat_fill(A, 0.5)
+    for i in range(n):
+        v[i] = 1.0
+    x : float = v @ v
+    print('%f\n' % x)
+    x = 2.0 * (v @ A @ v) - x
+    print('%f\n' % x)
+    if v @ v > 2.0:
+        print('%f\n' % norm2(v))
+    print('%f\n' % (v[0:2] @ v[1:]))
+    A = (v @ v) * A
+    pmat_print(A)
+
+### matrix_plus_vector
+# expect: error '+' between a matrix and a vector is not supported
+    A : pmat = pmat(n, 1)
+    v : pvec = pvec(n)
+    A = A + v
+
+### dot_product_in_while_condition
+# expect: error not supported (yet): dot products in while conditions
+    v : pvec = pvec(n)
+    while v @ v < 1.0:
+        v[0] = 1.0
+
+### dot_product_assigned_to_vector
+# expect: error the product of two vectors is a number
+    v : pvec = pvec(n)
+    w : pvec = pvec(n)
+    w = 2.0 * (v @ w @ v)
+
+### matrix_product_assigned_to_number
+# expect: error expected a number, but this product is a vector
+    A : pmat = pmat(n, n)
+    v : pvec = pvec(n)
+    x : float = A @ v
+
+### vector_size_mismatch
+# expect: error mismatching sizes: (3 x 3) @ (vector of size 2)
+    A : pmat = pmat(n, n)
+    u : pvec = pvec(2)
+    w : pvec = pvec(n)
+    w = A @ u
+
+### vector_slice_out_of_range
+# expect: error the slice 2:4 is out of range for a vector of size 3
+    v : pvec = pvec(n)
+    w : pvec = pvec(2)
+    w = 2.0 * v[2:4]
+
+### vector_slice_assigned_to_vector
+# expect: error 'w = v[a:b]' would make w a view of v in NumPy
+    v : pvec = pvec(n)
+    w : pvec = pvec(2)
+    w = v[0:2]
+
+### cholesky_of_vector
+# expect: error the first argument of cholesky must be a matrix, not a vector
+    v : pvec = pvec(n)
+    L : pmat = pmat(n, n)
+    L = cholesky(v)
+
+### vector_to_matrix
+# expect: error cannot assign a vector to a matrix
+    A : pmat = pmat(n, n)
+    C : pmat = pmat(n, 1)
+    v : pvec = pvec(n)
+    C = A @ v
 
 ### plain_matrix_is_an_alias
 # expect: error would make two pmat variables share their data

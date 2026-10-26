@@ -160,7 +160,7 @@
     pmat_print(A)
 
 ### matrix_elementwise_product
-# expect: error '*' between matrices is the elementwise product (as in NumPy)
+# expect: error '*' between matrices or vectors is the elementwise product (as in NumPy)
     A : pmat = pmat(n, n)
     B : pmat = pmat(n, n)
     C : pmat = pmat(n, n)

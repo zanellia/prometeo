@@ -156,7 +156,7 @@
     pvec_print(w)
 
 ### pmat_times_pvec
-# expect: error not supported (yet): expressions on vectors (pvec)
+# expect: error '*' between matrices or vectors is the elementwise product
     A : pmat = pmat(n, n)
     v : pvec = pvec(n)
     w : pvec = pvec(n)

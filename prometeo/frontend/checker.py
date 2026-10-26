@@ -17,7 +17,7 @@ from .types import Type, INT, FLOAT, DIMS, DIMV, STR, NONE, PMAT, PVEC, \
 from .normalize import normalize, eval_dims
 from .matexpr import Dim, UNKNOWN, Leaf, Scale, Add, MatMul, Transpose, Call, Coef, Plan, \
     Temporaries, LoweringError, MATRIX_FUNCTIONS, TEMP_PREFIX, lower_statement, position, \
-    is_block, affine_index
+    is_block, is_vector_slice, affine_index, Dot, dot_key, Lowerings
 from .builtins import BUILTINS, UNSUPPORTED_BUILTINS, OUTPUT_ALIASING, BUILTIN_KEYWORDS
 
 C_KEYWORDS = {
@@ -116,8 +116,9 @@ class Checker:
         # values of dims constants, [rows, cols] pairs of dimv constants
         self.dims_values = {}
         self.dimv_values = {}
-        # assignments of matrix expressions: position -> Plan
-        self.plans = {}
+        # assignments of matrix expressions, dot products
+        self.lowerings = Lowerings()
+        self.plans = self.lowerings.plans
 
     # diagnostics
 
@@ -370,9 +371,10 @@ class Checker:
                     if t is not None:
                         self.check_identifier(stmt.target, stmt.target.attr)
                         cls.attrs[stmt.target.attr] = t
-                        if t == PMAT:
+                        if t in (PMAT, PVEC):
                             cls.shapes[stmt.target.attr] = self.constructor_shape(stmt.value)
-                        elif is_list(t) and t.elem == PMAT and isinstance(stmt.value.args[1], ast.Name):
+                        elif is_list(t) and t.elem in (PMAT, PVEC) and \
+                                isinstance(stmt.value.args[1], ast.Name):
                             cls.list_sizes[stmt.target.attr] = stmt.value.args[1].id
 
     # function bodies
@@ -401,6 +403,10 @@ class Checker:
         elif isinstance(stmt, ast.While):
             if stmt.orelse:
                 self.unsupported(stmt, "'else' on loops")
+            for n in ast.walk(stmt.test):
+                if isinstance(n, ast.BinOp) and isinstance(n.op, ast.MatMult):
+                    self.unsupported(n, 'dot products in while conditions',
+                        'assign the result to a variable before the loop and at its end')
             self.check_condition(stmt.test, scope)
             scope.push()
             scope.loops += 1
@@ -473,7 +479,7 @@ class Checker:
                     'loops and conditionals: each declaration allocates memory, so in a loop the '
                     'program would use more memory than the computed bound')
             t = self.check_constructor(stmt.value, t)
-            if t == PMAT and isinstance(target, ast.Name):
+            if t in (PMAT, PVEC) and isinstance(target, ast.Name):
                 scope.shapes[name] = self.constructor_shape(stmt.value)
         elif t in (INT, FLOAT):
             self.check_scalar_value(stmt.value, t, scope)
@@ -608,15 +614,16 @@ class Checker:
             self.error(value, "'B = A' would make two {} variables share their data, which behaves "
                 "differently in Python and in C: use {}_copy(A, B)".format(t, t))
             return
-        if t == PMAT and self.is_matrix_expression(value, scope):
+        if self.is_matrix_expression(value, scope):
             self.check_matrix_expression(stmt, target, value, scope)
             return
         if t == PMAT and is_block(value):
             self.error(value, "'B = A[a:b, c:d]' would make B a view of A in NumPy: copy the block "
                 "with 'B[:, :] = A[a:b, c:d]'")
             return
-        if isinstance(value, ast.BinOp) and t == PVEC:
-            self.unsupported(value, 'expressions on vectors (pvec)', 'use n x 1 matrices (pmat)')
+        if t == PVEC and is_vector_slice(value):
+            self.error(value, "'w = v[a:b]' would make w a view of v in NumPy: copy the slice "
+                "with 'w[:] = v[a:b]'")
             return
         if isinstance(value, ast.Call):
             vt = self.check_call(value, scope)
@@ -638,8 +645,11 @@ class Checker:
         return Dim(eval_dims(node, self.dims_values), node)
 
     def constructor_shape(self, value):
+        """Shape of pmat(rows, cols) or pvec(size)."""
         if isinstance(value, ast.Call) and len(value.args) == 2:
             return (self.dim(value.args[0]), self.dim(value.args[1]))
+        if isinstance(value, ast.Call) and len(value.args) == 1:
+            return (self.dim(value.args[0]),)
         return (UNKNOWN, UNKNOWN)
 
     def attribute_class(self, node, scope):
@@ -651,26 +661,33 @@ class Checker:
 
     def matrix_shape(self, node, scope):
         """Shape of a matrix variable, attribute, List element or block."""
+        unknown = (UNKNOWN,) if self.quiet(lambda: self.argument_type(node, scope)) == PVEC \
+            else (UNKNOWN, UNKNOWN)
         if is_block(node):
             base = self.matrix_shape(node.value, scope)
             return tuple(self.slice_size(s, d) for s, d in zip(node.slice.elts, base))
+        if is_vector_slice(node):
+            base = self.matrix_shape(node.value, scope)
+            return (self.slice_size(node.slice, base[0]),)
         if isinstance(node, ast.Name):
-            return scope.shapes.get(node.id, (UNKNOWN, UNKNOWN))
+            return scope.shapes.get(node.id, unknown)
         if isinstance(node, ast.Attribute):
             cls = self.attribute_class(node, scope)
             if cls is not None:
-                return cls.shapes.get(node.attr, (UNKNOWN, UNKNOWN))
+                return cls.shapes.get(node.attr, unknown)
         if isinstance(node, ast.Subscript) and isinstance(node.value, ast.Attribute):
             cls = self.attribute_class(node.value, scope)
             sizes = self.dimv_values.get(cls.list_sizes.get(node.value.attr)) if cls else None
             if sizes:
+                # a List of pvec is sized with [size, 1] pairs
+                vector = len(unknown) == 1
                 index = eval_dims(node.slice, self.dims_values)
                 if index is not None and 0 <= index < len(sizes):
-                    return sizes[index]
+                    return sizes[index][:1] if vector else sizes[index]
                 # all the elements have the same size
                 if all(s[0] == sizes[0][0] and s[1] == sizes[0][1] for s in sizes):
-                    return sizes[0]
-        return (UNKNOWN, UNKNOWN)
+                    return sizes[0][:1] if vector else sizes[0]
+        return unknown
 
     def slice_size(self, s, dim):
         """Size of the slice s (a:b, a:, :b or :) of a dimension dim."""
@@ -712,25 +729,45 @@ class Checker:
             return Leaf(node.value, shape)
         return Leaf(node, shape)
 
-    def is_matrix(self, node, scope):
-        """Whether node is a matrix-valued expression (no diagnostics)."""
-        if isinstance(node, ast.Attribute) and node.attr == 'T' and self.is_matrix(node.value, scope):
-            return True
+    def kind(self, node, scope):
+        """'matrix' or 'vector' for an expression with that value, None for
+        a number (no diagnostics)."""
+        if isinstance(node, ast.Attribute) and node.attr == 'T':
+            k = self.kind(node.value, scope)
+            if k is not None:
+                return k
         if is_block(node):
-            return self.quiet(lambda: self.subscript_base(node.value, scope)) == PMAT
+            return 'matrix' if self.quiet(lambda: self.subscript_base(node.value, scope)) == PMAT \
+                else None
+        if is_vector_slice(node):
+            return 'vector' if self.quiet(lambda: self.subscript_base(node.value, scope)) == PVEC \
+                else None
         if isinstance(node, (ast.Name, ast.Attribute, ast.Subscript)):
-            return self.quiet(lambda: self.argument_type(node, scope)) == PMAT
+            t = self.quiet(lambda: self.argument_type(node, scope))
+            return {PMAT: 'matrix', PVEC: 'vector'}.get(t)
         if isinstance(node, ast.BinOp):
-            return isinstance(node.op, ast.MatMult) or self.is_matrix(node.left, scope) or \
-                self.is_matrix(node.right, scope)
+            left, right = self.kind(node.left, scope), self.kind(node.right, scope)
+            if isinstance(node.op, ast.MatMult):
+                if left == 'vector' and right == 'vector':
+                    return None  # dot product
+                return 'vector' if 'vector' in (left, right) else 'matrix'
+            return left or right
         if isinstance(node, ast.UnaryOp):
-            return self.is_matrix(node.operand, scope)
-        if isinstance(node, ast.Call):
-            return isinstance(node.func, ast.Name) and node.func.id in MATRIX_FUNCTIONS
-        return False
+            return self.kind(node.operand, scope)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+            if node.func.id == 'cholesky':
+                return 'matrix'
+            if node.func.id == 'cho_solve':
+                return (self.kind(node.args[1], scope) if len(node.args) == 2 else None) or 'matrix'
+        return None
+
+    def is_matrix(self, node, scope):
+        """Whether node is a matrix- or vector-valued expression."""
+        return self.kind(node, scope) is not None
 
     def is_matrix_expression(self, node, scope):
-        """A matrix expression other than a plain matrix (B = A is an alias)."""
+        """A matrix or vector expression other than a plain matrix or vector
+        (B = A is an alias)."""
         if isinstance(node, ast.Attribute) and node.attr == 'T':
             return self.is_matrix(node, scope)
         if isinstance(node, (ast.BinOp, ast.UnaryOp)):
@@ -743,13 +780,18 @@ class Checker:
         if e is None:
             return
         shape = self.matrix_shape(target, scope)
-        self.check_dim(value, shape[0], e.shape[0], 'the result has {} rows, but {} has {}'.format(
-            e.shape[0], ast.unparse(target), shape[0]))
-        self.check_dim(value, shape[1], e.shape[1], 'the result has {} columns, but {} has {}'.format(
-            e.shape[1], ast.unparse(target), shape[1]))
+        if len(shape) != len(e.shape):
+            self.error(value, 'cannot assign a {} to a {}'.format(
+                'vector' if e.is_vector() else 'matrix', 'vector' if len(shape) == 1 else 'matrix'))
+            return
+        what = ('size', 'rows', 'columns')
+        for i in range(len(shape)):
+            name = what[0] if len(shape) == 1 else what[i + 1]
+            self.check_dim(value, shape[i], e.shape[i], 'the result has {} {}, but {} has {}'.format(
+                e.shape[i], name, ast.unparse(target), shape[i]))
         plan = Plan(stmt, target, shape, e, position(scope.fun.node), self.dims_values)
         try:
-            lower_statement(plan, Temporaries(TEMP_PREFIX))
+            lower_statement(plan, Temporaries(TEMP_PREFIX), self.lowerings.dots)
         except LoweringError as err:
             self.error(err.node if err.node is not None else value, err.message)
             return
@@ -762,19 +804,26 @@ class Checker:
         return True
 
     def matrix_expr(self, node, scope):
-        """MExpr for a matrix-valued expression, or None (with diagnostics)."""
+        """MExpr for a matrix- or vector-valued expression, or None (with
+        diagnostics)."""
         if isinstance(node, ast.Attribute) and node.attr == 'T' and self.is_matrix(node.value, scope):
             e = self.matrix_expr(node.value, scope)
-            return Transpose(e) if e is not None else None
+            if e is None or e.is_vector():
+                # the transpose of a vector is the vector, as in NumPy
+                return e
+            return Transpose(e)
         if isinstance(node, (ast.Name, ast.Attribute, ast.Subscript)):
-            if isinstance(node, ast.Subscript) and self.quiet(
-                    lambda: self.subscript_base(node.value, scope)) == PMAT:
-                return self.block_leaf(node, scope)
+            if isinstance(node, ast.Subscript):
+                base = self.quiet(lambda: self.subscript_base(node.value, scope))
+                if base == PMAT:
+                    return self.block_leaf(node, scope)
+                if base == PVEC:
+                    return self.vector_slice_leaf(node, scope)
             t = self.argument_type(node, scope)
             if t is None:
                 return None
-            if t != PMAT:
-                self.error(node, "expected a matrix, '{}' is {}".format(ast.unparse(node), t))
+            if t not in (PMAT, PVEC):
+                self.error(node, "expected a matrix or a vector, '{}' is {}".format(ast.unparse(node), t))
                 return None
             return Leaf(node, self.matrix_shape(node, scope))
         if isinstance(node, ast.UnaryOp):
@@ -797,34 +846,72 @@ class Checker:
         self.unsupported(node, '{} in matrix expressions'.format(describe(node)))
         return None
 
+    def vector_slice_leaf(self, node, scope):
+        """Leaf for a slice v[a:b] (or v[a:], v[:b]) of a vector."""
+        if not isinstance(node.slice, ast.Slice):
+            self.unsupported(node, 'elements v[i] in vector expressions',
+                'use a scalar factor v[i] * w, or a slice v[i:i+1]')
+            return None
+        if self.subscript_base(node.value, scope) != PVEC:
+            return None
+        if not self.check_slices([node.slice], scope, allow_all=True):
+            return None
+        base = self.matrix_shape(node.value, scope)
+        size = self.slice_size(node.slice, base[0])
+        s = node.slice
+        lower = eval_dims(s.lower, self.dims_values) if s.lower is not None else 0
+        upper = eval_dims(s.upper, self.dims_values) if s.upper is not None else base[0].value
+        if (size.value is not None and size.value <= 0) or (lower is not None and lower < 0) or \
+                (upper is not None and base[0].value is not None and upper > base[0].value):
+            self.error(node, 'the slice {} is out of range for a vector of size {}'.format(
+                ast.unparse(s), base[0]))
+            return None
+        if s.lower is None and s.upper is None:
+            return Leaf(node.value, base)
+        return Leaf(node, (size,))
+
     def matrix_binop(self, node, scope):
         op = node.op
-        left_m, right_m = self.is_matrix(node.left, scope), self.is_matrix(node.right, scope)
+        left_k, right_k = self.kind(node.left, scope), self.kind(node.right, scope)
+        left_m, right_m = left_k is not None, right_k is not None
         if isinstance(op, ast.MatMult):
             left, right = self.matrix_expr(node.left, scope), self.matrix_expr(node.right, scope)
             if left is None or right is None:
                 return None
+            if left.is_vector() and right.is_vector():
+                self.error(node, 'the product of two vectors is a number (a dot product), '
+                    'not a vector')
+                return None
+            if left.is_vector():
+                # v @ A = A.T @ v, as in NumPy
+                if not self.check_dim(node, left.shape[0], right.shape[0],
+                        '{} @ {}'.format(shape_str(left.shape), shape_str(right.shape))):
+                    return None
+                return MatMul(Transpose(right), left)
             if not self.check_dim(node, left.shape[1], right.shape[0],
-                    '({} x {}) @ ({} x {})'.format(*left.shape, *right.shape)):
+                    '{} @ {}'.format(shape_str(left.shape), shape_str(right.shape))):
                 return None
             return MatMul(left, right)
         if isinstance(op, (ast.Add, ast.Sub)):
             if not (left_m and right_m):
-                self.error(node, "'{}' between a matrix and a number is not supported: "
-                    "use pmat_fill for constant matrices".format(op_symbol(op)))
+                self.error(node, "'{}' between a {} and a number is not supported: "
+                    "use pmat_fill for constant matrices".format(op_symbol(op), left_k or right_k))
+                return None
+            if left_k != right_k:
+                self.error(node, "'{}' between a matrix and a vector is not supported (in NumPy, "
+                    "it would broadcast the vector)".format(op_symbol(op)))
                 return None
             left, right = self.matrix_expr(node.left, scope), self.matrix_expr(node.right, scope)
             if left is None or right is None:
                 return None
-            shapes = '({} x {}) {} ({} x {})'.format(*left.shape, op_symbol(op), *right.shape)
-            if not (self.check_dim(node, left.shape[0], right.shape[0], shapes) and
-                    self.check_dim(node, left.shape[1], right.shape[1], shapes)):
+            shapes = '{} {} {}'.format(shape_str(left.shape), op_symbol(op), shape_str(right.shape))
+            if not all(self.check_dim(node, a, b, shapes) for a, b in zip(left.shape, right.shape)):
                 return None
             return Add(left, right, 1.0 if isinstance(op, ast.Add) else -1.0)
         if isinstance(op, ast.Mult):
             if left_m and right_m:
-                self.error(node, "'*' between matrices is the elementwise product (as in NumPy), "
-                    "which is not supported (yet): use '@' for the matrix product")
+                self.error(node, "'*' between matrices or vectors is the elementwise product (as in "
+                    "NumPy), which is not supported (yet): use '@' for the matrix product")
                 return None
             scalar, matrix = (node.right, node.left) if left_m else (node.left, node.right)
             coef = self.scalar_coef(scalar, scope)
@@ -834,7 +921,7 @@ class Checker:
             return Scale(coef, e)
         if isinstance(op, ast.Div):
             if right_m:
-                self.unsupported(node, 'dividing by a matrix', 'use cho_solve')
+                self.unsupported(node, 'dividing by a matrix or a vector', 'use cho_solve')
                 return None
             coef = self.scalar_coef(node.right, scope)
             e = self.matrix_expr(node.left, scope)
@@ -872,16 +959,37 @@ class Checker:
         args = [self.matrix_expr(a, scope) for a in node.args]
         if None in args:
             return None
+        if args[0].is_vector():
+            self.error(node.args[0], 'the first argument of {} must be a matrix, not a vector'.format(
+                name))
+            return None
         square = args[0].shape
         if not self.check_dim(node, square[0], square[1],
                 'the first argument of {} must be square, not {} x {}'.format(name, *square)):
             return None
         if name == 'cho_solve':
             if not self.check_dim(node, square[0], args[1].shape[0],
-                    'cho_solve(L, B) with L {} x {} and B {} x {}'.format(*square, *args[1].shape)):
+                    'cho_solve(L, B) with L {} and B {}'.format(shape_str(square),
+                    shape_str(args[1].shape))):
                 return None
             return Call(name, args, args[1].shape, node)
         return Call(name, args, args[0].shape, node)
+
+    def dot_product(self, node, scope):
+        """Type of v @ w (a float), recorded to be computed before the
+        statement."""
+        left, right = self.matrix_expr(node.left, scope), self.matrix_expr(node.right, scope)
+        if left is None or right is None:
+            return None
+        if not (left.is_vector() and right.is_vector()):
+            self.error(node, 'expected a number, but this product is a {}'.format(
+                'vector' if left.is_vector() or right.is_vector() else 'matrix'))
+            return None
+        if not self.check_dim(node, left.shape[0], right.shape[0], '{} @ {}'.format(
+                shape_str(left.shape), shape_str(right.shape))):
+            return None
+        self.lowerings.dots[dot_key(node)] = Dot(left, right, node, self.dims_values)
+        return FLOAT
 
     def check_subscript_assignment(self, stmt, target, value, scope):
         base_t = self.subscript_base(target.value, scope)
@@ -923,7 +1031,13 @@ class Checker:
                 self.index_expr(i, scope)
             self.check_element_value(value, scope)
         elif base_t == PVEC:
-            if isinstance(target.slice, (ast.Tuple, ast.Slice)):
+            if isinstance(target.slice, ast.Slice):
+                # a slice v[a:b] assigned a vector expression or a vector
+                leaf = self.vector_slice_leaf(target, scope)
+                if leaf is not None:
+                    self.check_matrix_expression(stmt, leaf.node, value, scope)
+                return
+            if isinstance(target.slice, ast.Tuple):
                 self.error(target, 'a pvec must be indexed with one index, v[i]')
                 return
             self.index_expr(target.slice, scope)
@@ -1005,6 +1119,11 @@ class Checker:
                 self.unsupported(node, "the '{}' operator".format(op_symbol(node.op)))
                 return None
             return self.scalar_expr(node.operand, scope, in_index)
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.MatMult):
+            if in_index:
+                self.unsupported(node, 'dot products in indices', 'assign the result to a variable first')
+                return None
+            return self.dot_product(node, scope)
         if isinstance(node, ast.BinOp):
             left = self.scalar_expr(node.left, scope, in_index)
             right = self.scalar_expr(node.right, scope, in_index)
@@ -1080,7 +1199,9 @@ class Checker:
             operands = []
         if len(operands) > 1:
             effects = [self.has_side_effects(o, scope) for o in operands]
-            reads = [any(isinstance(n, (ast.Call, ast.Subscript, ast.Attribute))
+            # dot products are computed before the statement
+            reads = [any(isinstance(n, (ast.Call, ast.Subscript, ast.Attribute)) or
+                (isinstance(n, ast.BinOp) and isinstance(n.op, ast.MatMult))
                 for n in ast.walk(o)) for o in operands]
             for i, effect in enumerate(effects):
                 if effect and any(reads[j] for j in range(len(operands)) if j != i):
@@ -1504,6 +1625,11 @@ class Checker:
 
 # helpers
 
+def shape_str(shape):
+    return '({})'.format(' x '.join(str(d) for d in shape)) if len(shape) == 2 else \
+        '(vector of size {})'.format(shape[0])
+
+
 def matrix_indices(node):
     if isinstance(node.slice, ast.Tuple) and len(node.slice.elts) == 2:
         return node.slice.elts
@@ -1560,15 +1686,15 @@ def op_symbol(op):
 
 
 def analyze(tree, casadi_functions=None):
-    """Check a prometeo program; return the list of diagnostics and the
-    assignments of matrix expressions to lower (see matexpr.lower).
+    """Check a prometeo program; return the list of diagnostics and what to
+    lower (matexpr.Lowerings: matrix and vector expressions, dot products).
 
     casadi_functions: CasADi functions defined in pure blocks, as a dict
     name -> (number of inputs, number of outputs)."""
     checker = Checker(casadi_functions)
     checker.check_module(normalize(deepcopy(tree)))
     unique = {(d.lineno, d.col, d.severity, d.message): d for d in checker.diagnostics}
-    return sorted(unique.values(), key=lambda d: (d.lineno, d.col)), checker.plans
+    return sorted(unique.values(), key=lambda d: (d.lineno, d.col)), checker.lowerings
 
 
 def check(tree, casadi_functions=None):

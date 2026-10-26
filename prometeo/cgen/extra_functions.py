@@ -42,3 +42,19 @@ for t in ('nn', 'nt', 'tn', 'tt'):
         ['float'] + _view + _view + ['float'] + _view + _view)
 for name, (c_name, arg_types) in _view_functions.items():
     extra_functions['_Z{}{}{}'.format(len(name), name, ''.join(arg_types))] = (c_name, arg_types, 'None')
+
+# vector expressions: a vector argument is (v, first element, size)
+_vview = ['pvec', 'int', 'int']
+_vector_functions = {
+    'pvec_copy_view': ('c_pmt_pvec_copy_view', _vview + _vview, 'None'),
+    'pvec_fill_view': ('c_pmt_pvec_fill_view', ['float'] + _vview, 'None'),
+    'pvec_scale_view': ('c_pmt_pvec_scale_view', ['float'] + _vview, 'None'),
+    'pvec_axpy_view': ('c_pmt_pvec_axpy_view', ['float'] + _vview + _vview, 'None'),
+    'pvec_dot_view': ('c_pmt_pvec_dot_view', _vview + _vview, 'float'),
+    'pmt_potrsv_view': ('c_pmt_potrsv_view', ['pmat'] + _vview, 'None'),
+}
+for t in ('n', 't'):
+    _vector_functions['pmt_gemv_view_' + t] = ('c_pmt_gemv_view_' + t,
+        ['float'] + _view + _vview + ['float'] + _vview + _vview, 'None')
+for name, (c_name, arg_types, ret_type) in _vector_functions.items():
+    extra_functions['_Z{}{}{}'.format(len(name), name, ''.join(arg_types))] = (c_name, arg_types, ret_type)

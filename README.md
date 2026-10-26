@@ -14,8 +14,9 @@ to high-performance self-contained C code easily deployable on embedded devices.
 prometeo programs can be executed from the Python interpreter.
 - __efficient__ : prometeo programs transpile to high-performance C code.
 - __statically typed__ : prometeo uses Python's native type hints to strictly enforce static typing.
-- __NumPy-like linear algebra__ : matrix expressions such as `P = Q + A.T @ P @ A - K.T @ R @ K`,
-`cholesky` and `cho_solve` are checked for size mismatches at compile time and lowered to
+- __NumPy-like linear algebra__ : matrix and vector expressions such as `P = Q + A.T @ P @ A - K.T @ R @ K`,
+`K[0:n, n:] = B.T`, `y = A @ x + B @ u` or `c : float = x @ Q @ x`, with `cholesky` and `cho_solve`,
+are checked for size mismatches at compile time and lowered to
 BLASFEO calls, with temporaries allocated statically (see
 [`examples/sqp_mpc/sqp_mpc_hl.py`](examples/sqp_mpc/sqp_mpc_hl.py)).
 - __deterministic memory usage__ : a specific program structure is required and enforced through static analysis. In this way

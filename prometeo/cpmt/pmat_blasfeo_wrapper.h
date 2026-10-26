@@ -61,6 +61,17 @@ void c_pmt_gemm_view_nt(double alpha, struct pmat *A, int ai, int aj, int ar, in
 void c_pmt_gemm_view_tn(double alpha, struct pmat *A, int ai, int aj, int ar, int ac, struct pmat *B, int bi, int bj, int br, int bc, double beta, struct pmat *C, int ci, int cj, int cr, int cc, struct pmat *D, int di, int dj, int dr, int dc);
 void c_pmt_gemm_view_tt(double alpha, struct pmat *A, int ai, int aj, int ar, int ac, struct pmat *B, int bi, int bj, int br, int bc, double beta, struct pmat *C, int ci, int cj, int cr, int cc, struct pmat *D, int di, int dj, int dr, int dc);
 
+// vectors and slices of vectors (vector expressions with v[a:b]): a vector
+// argument is (v, first element, size), with -1 for all the elements
+void c_pmt_pvec_copy_view(struct pvec *x, int xi, int xr, struct pvec *y, int yi, int yr);
+void c_pmt_pvec_fill_view(double value, struct pvec *x, int xi, int xr);
+void c_pmt_pvec_scale_view(double alpha, struct pvec *x, int xi, int xr);
+void c_pmt_pvec_axpy_view(double alpha, struct pvec *x, int xi, int xr, struct pvec *y, int yi, int yr);
+double c_pmt_pvec_dot_view(struct pvec *x, int xi, int xr, struct pvec *y, int yi, int yr);
+void c_pmt_gemv_view_n(double alpha, struct pmat *A, int ai, int aj, int ar, int ac, struct pvec *x, int xi, int xr, double beta, struct pvec *y, int yi, int yr, struct pvec *z, int zi, int zr);
+void c_pmt_gemv_view_t(double alpha, struct pmat *A, int ai, int aj, int ar, int ac, struct pvec *x, int xi, int xr, double beta, struct pvec *y, int yi, int yr, struct pvec *z, int zi, int zr);
+void c_pmt_potrsv_view(struct pmat *L, struct pvec *x, int xi, int xr);
+
 
 // auxiliary
 void c_pmt_pmat_fill(struct pmat *A, double fill_value);

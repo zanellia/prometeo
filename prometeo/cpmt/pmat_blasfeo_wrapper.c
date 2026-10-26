@@ -547,3 +547,73 @@ void c_pmt_gemm_view_tt(double alpha, struct pmat *A, int ai, int aj, int ar, in
         c_pmt_dims_error("pmt_gemm_tt");
     blasfeo_dgemm_tt(ac, br, ar, alpha, A->bmat, ai, aj, B->bmat, bi, bj, beta, C->bmat, ci, cj, D->bmat, di, dj);
 }
+
+// resolve the slice (i, r) of v, abort if it is out of range
+static void c_pmt_vview(const char *fun, struct pvec *v, int *i, int *r) {
+    if (*r < 0) *r = v->bvec->m - *i;
+    if (*i < 0 || *r <= 0 || *i + *r > v->bvec->m) {
+        fprintf(stderr, "prometeo: %s: slice [%d:%d] out of range for a pvec of size %d\n",
+            fun, *i, *i + *r, v->bvec->m);
+        exit(1);
+    }
+}
+
+void c_pmt_pvec_copy_view(struct pvec *x, int xi, int xr, struct pvec *y, int yi, int yr) {
+    c_pmt_vview("pvec_copy", x, &xi, &xr);
+    c_pmt_vview("pvec_copy", y, &yi, &yr);
+    if (xr != yr) c_pmt_dims_error("pvec_copy");
+    blasfeo_dveccp(xr, x->bvec, xi, y->bvec, yi);
+}
+
+void c_pmt_pvec_fill_view(double value, struct pvec *x, int xi, int xr) {
+    c_pmt_vview("pvec_fill", x, &xi, &xr);
+    blasfeo_dvecse(xr, value, x->bvec, xi);
+}
+
+void c_pmt_pvec_scale_view(double alpha, struct pvec *x, int xi, int xr) {
+    c_pmt_vview("pvec_scale", x, &xi, &xr);
+    blasfeo_dvecsc(xr, alpha, x->bvec, xi);
+}
+
+// y <= y + alpha * x
+void c_pmt_pvec_axpy_view(double alpha, struct pvec *x, int xi, int xr, struct pvec *y, int yi, int yr) {
+    c_pmt_vview("pvec_axpy", x, &xi, &xr);
+    c_pmt_vview("pvec_axpy", y, &yi, &yr);
+    if (xr != yr) c_pmt_dims_error("pvec_axpy");
+    blasfeo_daxpy(xr, alpha, x->bvec, xi, y->bvec, yi, y->bvec, yi);
+}
+
+double c_pmt_pvec_dot_view(struct pvec *x, int xi, int xr, struct pvec *y, int yi, int yr) {
+    c_pmt_vview("pvec_dot", x, &xi, &xr);
+    c_pmt_vview("pvec_dot", y, &yi, &yr);
+    if (xr != yr) c_pmt_dims_error("pvec_dot");
+    return blasfeo_ddot(xr, x->bvec, xi, y->bvec, yi);
+}
+
+// z <= beta * y + alpha * op(A) x
+void c_pmt_gemv_view_n(double alpha, struct pmat *A, int ai, int aj, int ar, int ac, struct pvec *x, int xi, int xr, double beta, struct pvec *y, int yi, int yr, struct pvec *z, int zi, int zr) {
+    c_pmt_view("pmt_gemv_n", A, &ai, &aj, &ar, &ac);
+    c_pmt_vview("pmt_gemv_n", x, &xi, &xr);
+    c_pmt_vview("pmt_gemv_n", y, &yi, &yr);
+    c_pmt_vview("pmt_gemv_n", z, &zi, &zr);
+    if (xr != ac || yr != ar || zr != ar) c_pmt_dims_error("pmt_gemv_n");
+    blasfeo_dgemv_n(ar, ac, alpha, A->bmat, ai, aj, x->bvec, xi, beta, y->bvec, yi, z->bvec, zi);
+}
+
+// z <= beta * y + alpha * op(A) x
+void c_pmt_gemv_view_t(double alpha, struct pmat *A, int ai, int aj, int ar, int ac, struct pvec *x, int xi, int xr, double beta, struct pvec *y, int yi, int yr, struct pvec *z, int zi, int zr) {
+    c_pmt_view("pmt_gemv_t", A, &ai, &aj, &ar, &ac);
+    c_pmt_vview("pmt_gemv_t", x, &xi, &xr);
+    c_pmt_vview("pmt_gemv_t", y, &yi, &yr);
+    c_pmt_vview("pmt_gemv_t", z, &zi, &zr);
+    if (xr != ar || yr != ac || zr != ac) c_pmt_dims_error("pmt_gemv_t");
+    blasfeo_dgemv_t(ar, ac, alpha, A->bmat, ai, aj, x->bvec, xi, beta, y->bvec, yi, z->bvec, zi);
+}
+
+// x <= (L L^T)^-1 x, L lower triangular (not modified)
+void c_pmt_potrsv_view(struct pmat *L, struct pvec *x, int xi, int xr) {
+    c_pmt_vview("pmt_potrsv", x, &xi, &xr);
+    if (L->bmat->m != L->bmat->n || L->bmat->m != xr) c_pmt_dims_error("pmt_potrsv");
+    blasfeo_dtrsv_lnn(xr, L->bmat, 0, 0, x->bvec, xi, x->bvec, xi);
+    blasfeo_dtrsv_ltn(xr, L->bmat, 0, 0, x->bvec, xi, x->bvec, xi);
+}

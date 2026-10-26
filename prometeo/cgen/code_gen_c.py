@@ -1259,11 +1259,11 @@ class SourceGenerator(ExplicitNodeVisitor):
                                             '[', str(i),'] = c_pmt_create_pvec(', \
                                             str(dim_list[i][0]), ');')
 
-                                        # increment scoped heap usage (2 pointers and 3 ints for pvecs)
+                                        # increment scoped heap usage (2 pointers and 3 ints for pvecs, padded to 4)
                                         self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
                                             '+' + '2*' + str(self.size_of_pointer).replace('\n','')
                                         self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
-                                            '+' + '3*' + str(self.size_of_int).replace('\n','')
+                                            '+' + '4*' + str(self.size_of_int).replace('\n','')
 
                                         # upper bound of blasfeo_dvec memsize
                                         # memsize \leq ps + m -1
@@ -1320,11 +1320,11 @@ class SourceGenerator(ExplicitNodeVisitor):
                                 ann = item.annotation.value.id
                                 self.var_dim_record[self.scope][item.target.attr] = [dim1]
 
-                                # increment scoped heap usage (2 pointers and 3 ints for pvecs)
+                                # increment scoped heap usage (2 pointers and 3 ints for pvecs, padded to 4)
                                 self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
                                     '+' + '2*' + str(self.size_of_pointer).replace('\n','')
                                 self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
-                                    '+' + '3*' + str(self.size_of_int).replace('\n','')
+                                    '+' + '4*' + str(self.size_of_int).replace('\n','')
 
                                 # upper bound of blasfeo_dvec memsize
                                 # memsize \leq ps + m -1
@@ -2068,11 +2068,11 @@ class SourceGenerator(ExplicitNodeVisitor):
                 self.statement(node, node.annotation, ' ', node.target)
                 self.conditional_write(' = ', node.value, ';', dest = 'src')
 
-            # increment scoped heap usage (2 pointers and 3 ints for pvecs)
+            # increment scoped heap usage (2 pointers and 3 ints for pvecs, padded to 4)
             self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
                 '+' + '2*' + str(self.size_of_pointer).replace('\n','')
             self.heap8_record[self.scope] = self.heap8_record[self.scope] + \
-                '+' + '3*' + str(self.size_of_int).replace('\n','')
+                '+' + '4*' + str(self.size_of_int).replace('\n','')
 
             # upper bound of blasfeo_dvec memsize
             # memsize \leq ps + m -1
