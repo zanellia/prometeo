@@ -71,6 +71,17 @@ double c_pmt_pvec_dot_view(struct pvec *x, int xi, int xr, struct pvec *y, int y
 void c_pmt_gemv_view_n(double alpha, struct pmat *A, int ai, int aj, int ar, int ac, struct pvec *x, int xi, int xr, double beta, struct pvec *y, int yi, int yr, struct pvec *z, int zi, int zr);
 void c_pmt_gemv_view_t(double alpha, struct pmat *A, int ai, int aj, int ar, int ac, struct pvec *x, int xi, int xr, double beta, struct pvec *y, int yi, int yr, struct pvec *z, int zi, int zr);
 void c_pmt_potrsv_view(struct pmat *L, struct pvec *x, int xi, int xr);
+// elementwise products: D <= D + alpha * op(A) .* op(B), z <= z + alpha * x .* y
+void c_pmt_pmat_mul_view_nn(double alpha, struct pmat *A, int ai, int aj, int ar, int ac, struct pmat *B, int bi, int bj, int br, int bc, struct pmat *D, int di, int dj, int dr, int dc);
+void c_pmt_pmat_mul_view_nt(double alpha, struct pmat *A, int ai, int aj, int ar, int ac, struct pmat *B, int bi, int bj, int br, int bc, struct pmat *D, int di, int dj, int dr, int dc);
+void c_pmt_pmat_mul_view_tn(double alpha, struct pmat *A, int ai, int aj, int ar, int ac, struct pmat *B, int bi, int bj, int br, int bc, struct pmat *D, int di, int dj, int dr, int dc);
+void c_pmt_pmat_mul_view_tt(double alpha, struct pmat *A, int ai, int aj, int ar, int ac, struct pmat *B, int bi, int bj, int br, int bc, struct pmat *D, int di, int dj, int dr, int dc);
+void c_pmt_pvec_mul_view(double alpha, struct pvec *x, int xi, int xr, struct pvec *y, int yi, int yr, struct pvec *z, int zi, int zr);
+// rows A[i, j:j + r] and columns A[i:i + r, j] of matrices, to and from vectors
+void c_pmt_pmat_getrow_view(struct pmat *A, int i, int j, int r, struct pvec *x, int xi, int xr);
+void c_pmt_pmat_getcol_view(struct pmat *A, int i, int j, int r, struct pvec *x, int xi, int xr);
+void c_pmt_pmat_setrow_view(struct pvec *x, int xi, int xr, struct pmat *A, int i, int j, int r);
+void c_pmt_pmat_setcol_view(struct pvec *x, int xi, int xr, struct pmat *A, int i, int j, int r);
 
 
 // auxiliary

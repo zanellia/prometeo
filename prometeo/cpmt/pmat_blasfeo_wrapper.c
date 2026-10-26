@@ -617,3 +617,93 @@ void c_pmt_potrsv_view(struct pmat *L, struct pvec *x, int xi, int xr) {
     blasfeo_dtrsv_lnn(xr, L->bmat, 0, 0, x->bvec, xi, x->bvec, xi);
     blasfeo_dtrsv_ltn(xr, L->bmat, 0, 0, x->bvec, xi, x->bvec, xi);
 }
+
+// D <= D + alpha * op(A) .* op(B) (the same operations, in the same order, as
+// _mul_view in the Python runtime)
+static void c_pmt_pmat_mul_view(int ta, int tb, double alpha, struct pmat *A, int ai, int aj, int ar, int ac, struct pmat *B, int bi, int bj, int br, int bc, struct pmat *D, int di, int dj, int dr, int dc) {
+    c_pmt_view("pmat_mul", A, &ai, &aj, &ar, &ac);
+    c_pmt_view("pmat_mul", B, &bi, &bj, &br, &bc);
+    c_pmt_view("pmat_mul", D, &di, &dj, &dr, &dc);
+    if ((ta ? ac : ar) != dr || (ta ? ar : ac) != dc || (tb ? bc : br) != dr || (tb ? br : bc) != dc)
+        c_pmt_dims_error("pmat_mul");
+    D->bmat->use_dA = 0;
+    for (int j = 0; j < dc; j++) {
+        for (int i = 0; i < dr; i++) {
+            double a = ta ? BLASFEO_DMATEL(A->bmat, ai + j, aj + i) : BLASFEO_DMATEL(A->bmat, ai + i, aj + j);
+            double b = tb ? BLASFEO_DMATEL(B->bmat, bi + j, bj + i) : BLASFEO_DMATEL(B->bmat, bi + i, bj + j);
+            BLASFEO_DMATEL(D->bmat, di + i, dj + j) = BLASFEO_DMATEL(D->bmat, di + i, dj + j) + alpha * (a * b);
+        }
+    }
+}
+
+void c_pmt_pmat_mul_view_nn(double alpha, struct pmat *A, int ai, int aj, int ar, int ac, struct pmat *B, int bi, int bj, int br, int bc, struct pmat *D, int di, int dj, int dr, int dc) {
+    c_pmt_pmat_mul_view(0, 0, alpha, A, ai, aj, ar, ac, B, bi, bj, br, bc, D, di, dj, dr, dc);
+}
+
+void c_pmt_pmat_mul_view_nt(double alpha, struct pmat *A, int ai, int aj, int ar, int ac, struct pmat *B, int bi, int bj, int br, int bc, struct pmat *D, int di, int dj, int dr, int dc) {
+    c_pmt_pmat_mul_view(0, 1, alpha, A, ai, aj, ar, ac, B, bi, bj, br, bc, D, di, dj, dr, dc);
+}
+
+void c_pmt_pmat_mul_view_tn(double alpha, struct pmat *A, int ai, int aj, int ar, int ac, struct pmat *B, int bi, int bj, int br, int bc, struct pmat *D, int di, int dj, int dr, int dc) {
+    c_pmt_pmat_mul_view(1, 0, alpha, A, ai, aj, ar, ac, B, bi, bj, br, bc, D, di, dj, dr, dc);
+}
+
+void c_pmt_pmat_mul_view_tt(double alpha, struct pmat *A, int ai, int aj, int ar, int ac, struct pmat *B, int bi, int bj, int br, int bc, struct pmat *D, int di, int dj, int dr, int dc) {
+    c_pmt_pmat_mul_view(1, 1, alpha, A, ai, aj, ar, ac, B, bi, bj, br, bc, D, di, dj, dr, dc);
+}
+
+// z <= z + alpha * x .* y
+void c_pmt_pvec_mul_view(double alpha, struct pvec *x, int xi, int xr, struct pvec *y, int yi, int yr, struct pvec *z, int zi, int zr) {
+    c_pmt_vview("pvec_mul", x, &xi, &xr);
+    c_pmt_vview("pvec_mul", y, &yi, &yr);
+    c_pmt_vview("pvec_mul", z, &zi, &zr);
+    if (xr != zr || yr != zr) c_pmt_dims_error("pvec_mul");
+    for (int i = 0; i < zr; i++)
+        BLASFEO_DVECEL(z->bvec, zi + i) = BLASFEO_DVECEL(z->bvec, zi + i) +
+            alpha * (BLASFEO_DVECEL(x->bvec, xi + i) * BLASFEO_DVECEL(y->bvec, yi + i));
+}
+
+// resolve the row (row = 1) or column A[i, j:j + r] or A[i:i + r, j]
+static void c_pmt_line(const char *fun, struct pmat *A, int i, int j, int *r, int row) {
+    if (*r < 0) *r = row ? A->bmat->n - j : A->bmat->m - i;
+    int end_i = row ? i + 1 : i + *r, end_j = row ? j + *r : j + 1;
+    if (i < 0 || j < 0 || *r <= 0 || end_i > A->bmat->m || end_j > A->bmat->n) {
+        if (row)
+            fprintf(stderr, "prometeo: %s: [%d, %d:%d] out of range for a %dx%d pmat\n",
+                fun, i, j, j + *r, A->bmat->m, A->bmat->n);
+        else
+            fprintf(stderr, "prometeo: %s: [%d:%d, %d] out of range for a %dx%d pmat\n",
+                fun, i, i + *r, j, A->bmat->m, A->bmat->n);
+        exit(1);
+    }
+}
+
+void c_pmt_pmat_getrow_view(struct pmat *A, int i, int j, int r, struct pvec *x, int xi, int xr) {
+    c_pmt_line("pmat_getrow", A, i, j, &r, 1);
+    c_pmt_vview("pmat_getrow", x, &xi, &xr);
+    if (r != xr) c_pmt_dims_error("pmat_getrow");
+    blasfeo_drowex(r, 1.0, A->bmat, i, j, x->bvec, xi);
+}
+
+void c_pmt_pmat_getcol_view(struct pmat *A, int i, int j, int r, struct pvec *x, int xi, int xr) {
+    c_pmt_line("pmat_getcol", A, i, j, &r, 0);
+    c_pmt_vview("pmat_getcol", x, &xi, &xr);
+    if (r != xr) c_pmt_dims_error("pmat_getcol");
+    blasfeo_dcolex(r, A->bmat, i, j, x->bvec, xi);
+}
+
+void c_pmt_pmat_setrow_view(struct pvec *x, int xi, int xr, struct pmat *A, int i, int j, int r) {
+    c_pmt_line("pmat_setrow", A, i, j, &r, 1);
+    c_pmt_vview("pmat_setrow", x, &xi, &xr);
+    if (r != xr) c_pmt_dims_error("pmat_setrow");
+    blasfeo_drowin(r, 1.0, x->bvec, xi, A->bmat, i, j);
+    A->bmat->use_dA = 0;
+}
+
+void c_pmt_pmat_setcol_view(struct pvec *x, int xi, int xr, struct pmat *A, int i, int j, int r) {
+    c_pmt_line("pmat_setcol", A, i, j, &r, 0);
+    c_pmt_vview("pmat_setcol", x, &xi, &xr);
+    if (r != xr) c_pmt_dims_error("pmat_setcol");
+    blasfeo_dcolin(r, x->bvec, xi, A->bmat, i, j);
+    A->bmat->use_dA = 0;
+}

@@ -170,8 +170,10 @@ class pmat(pmat_):
 
     def __mul__(self, other):
         if isinstance(other, pmat_):
-            raise TypeError("'*' between matrices is the elementwise product (as in NumPy), "
-                "which is not supported: use '@' for the matrix product")
+            # elementwise product
+            res = pmat(self.m, self.n)
+            pmat_mul_view_nn(1.0, self, 0, 0, -1, -1, other, 0, 0, -1, -1, res, 0, 0, -1, -1)
+            return res
         res = pmat(self.m, self.n)
         pmat_copy(self, res)
         pmat_scale(float(other), res)
@@ -600,3 +602,37 @@ def pmt_gemm_view_tt(alpha: float, A: pmat, ai: int, aj: int, ar: int, ac: int,
         C: pmat, ci: int, cj: int, cr: int, cc: int, D: pmat, di: int, dj: int, dr: int, dc: int):
     _gemm_view('tt', alpha, A, ai, aj, ar, ac, B, bi, bj, br, bc, beta, C, ci, cj, cr, cc,
         D, di, dj, dr, dc)
+
+
+# D <= D + alpha * op(A) .* op(B), elementwise (the same operations, in the
+# same order, as c_pmt_pmat_mul_view in the C runtime)
+def _mul_view(t, alpha, A, ai, aj, ar, ac, B, bi, bj, br, bc, D, di, dj, dr, dc):
+    name = 'pmat_mul'
+    ai, aj, ar, ac = _view(name, A, ai, aj, ar, ac)
+    bi, bj, br, bc = _view(name, B, bi, bj, br, bc)
+    di, dj, dr, dc = _view(name, D, di, dj, dr, dc)
+    sa = (ac, ar) if t[0] == 't' else (ar, ac)
+    sb = (bc, br) if t[1] == 't' else (br, bc)
+    _same_size(name, sa[0], sa[1], sb[0], sb[1], dr, dc)
+    get, put = bw.blasfeo_dgeex1, bw.blasfeo_dgein1
+    for j in range(dc):
+        for i in range(dr):
+            a = get(A._ref, ai + j, aj + i) if t[0] == 't' else get(A._ref, ai + i, aj + j)
+            b = get(B._ref, bi + j, bj + i) if t[1] == 't' else get(B._ref, bi + i, bj + j)
+            put(get(D._ref, di + i, dj + j) + alpha * (a * b), D._ref, di + i, dj + j)
+
+def pmat_mul_view_nn(alpha: float, A: pmat, ai: int, aj: int, ar: int, ac: int,
+        B: pmat, bi: int, bj: int, br: int, bc: int, D: pmat, di: int, dj: int, dr: int, dc: int):
+    _mul_view('nn', alpha, A, ai, aj, ar, ac, B, bi, bj, br, bc, D, di, dj, dr, dc)
+
+def pmat_mul_view_nt(alpha: float, A: pmat, ai: int, aj: int, ar: int, ac: int,
+        B: pmat, bi: int, bj: int, br: int, bc: int, D: pmat, di: int, dj: int, dr: int, dc: int):
+    _mul_view('nt', alpha, A, ai, aj, ar, ac, B, bi, bj, br, bc, D, di, dj, dr, dc)
+
+def pmat_mul_view_tn(alpha: float, A: pmat, ai: int, aj: int, ar: int, ac: int,
+        B: pmat, bi: int, bj: int, br: int, bc: int, D: pmat, di: int, dj: int, dr: int, dc: int):
+    _mul_view('tn', alpha, A, ai, aj, ar, ac, B, bi, bj, br, bc, D, di, dj, dr, dc)
+
+def pmat_mul_view_tt(alpha: float, A: pmat, ai: int, aj: int, ar: int, ac: int,
+        B: pmat, bi: int, bj: int, br: int, bc: int, D: pmat, di: int, dj: int, dr: int, dc: int):
+    _mul_view('tt', alpha, A, ai, aj, ar, ac, B, bi, bj, br, bc, D, di, dj, dr, dc)

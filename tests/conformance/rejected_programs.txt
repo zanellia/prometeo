@@ -159,13 +159,6 @@
         A[i + 1, i] = 1.0
     pmat_print(A)
 
-### matrix_elementwise_product
-# expect: error '*' between matrices or vectors is the elementwise product (as in NumPy)
-    A : pmat = pmat(n, n)
-    B : pmat = pmat(n, n)
-    C : pmat = pmat(n, n)
-    C = A * B
-
 ### transpose_in_place
 # expect: error the output of pmat_tran must be a different matrix than its input
     A : pmat = pmat(n, n)

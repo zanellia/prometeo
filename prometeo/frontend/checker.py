@@ -15,9 +15,9 @@ from copy import deepcopy
 from .types import Type, INT, FLOAT, DIMS, DIMV, STR, NONE, PMAT, PVEC, \
     list_of, is_list, is_int_like, is_scalar, LIST_ELEMENT_TYPES
 from .normalize import normalize, eval_dims
-from .matexpr import Dim, UNKNOWN, Leaf, Scale, Add, MatMul, Transpose, Call, Coef, Plan, \
+from .matexpr import Dim, UNKNOWN, Leaf, Scale, Add, MatMul, Mul, Transpose, Call, Coef, Plan, \
     Temporaries, LoweringError, MATRIX_FUNCTIONS, TEMP_PREFIX, lower_statement, position, \
-    is_block, is_vector_slice, affine_index, Dot, dot_key, Lowerings
+    is_block, is_line, is_vector_slice, affine_index, may_alias, Dot, dot_key, Lowerings
 from .builtins import BUILTINS, UNSUPPORTED_BUILTINS, OUTPUT_ALIASING, BUILTIN_KEYWORDS
 
 C_KEYWORDS = {
@@ -621,6 +621,10 @@ class Checker:
             self.error(value, "'B = A[a:b, c:d]' would make B a view of A in NumPy: copy the block "
                 "with 'B[:, :] = A[a:b, c:d]'")
             return
+        if t == PVEC and is_line(value):
+            self.error(value, "'v = A[i, :]' would make v a view of A in NumPy: copy the row or "
+                "column with 'v[:] = A[i, :]'")
+            return
         if t == PVEC and is_vector_slice(value):
             self.error(value, "'w = v[a:b]' would make w a view of v in NumPy: copy the slice "
                 "with 'w[:] = v[a:b]'")
@@ -669,6 +673,11 @@ class Checker:
         if is_vector_slice(node):
             base = self.matrix_shape(node.value, scope)
             return (self.slice_size(node.slice, base[0]),)
+        if is_line(node):
+            base = self.matrix_shape(node.value, scope)
+            rows, cols = node.slice.elts
+            return (self.slice_size(cols, base[1]) if isinstance(cols, ast.Slice)
+                else self.slice_size(rows, base[0]),)
         if isinstance(node, ast.Name):
             return scope.shapes.get(node.id, unknown)
         if isinstance(node, ast.Attribute):
@@ -705,10 +714,12 @@ class Checker:
     def block_leaf(self, node, scope):
         """Leaf for a block A[a:b, c:d] (or A[:, c:d], ...) in a matrix
         expression."""
+        if is_line(node):
+            return self.line_leaf(node, scope)
         indices = matrix_indices(node)
         if indices is None or not all(isinstance(i, ast.Slice) for i in indices):
-            self.unsupported(node, 'elements or rows/columns A[i, :] in matrix expressions',
-                'use blocks A[i:i+1, :], or a scalar factor A[i, j] * B')
+            self.unsupported(node, 'elements A[i, j] in matrix expressions',
+                'use a scalar factor A[i, j] * B, or a block A[i:i+1, j:j+1]')
             return None
         if self.subscript_base(node.value, scope) != PMAT:
             return None
@@ -742,6 +753,9 @@ class Checker:
         if is_vector_slice(node):
             return 'vector' if self.quiet(lambda: self.subscript_base(node.value, scope)) == PVEC \
                 else None
+        if is_line(node):
+            return 'vector' if self.quiet(lambda: self.subscript_base(node.value, scope)) == PMAT \
+                else None
         if isinstance(node, (ast.Name, ast.Attribute, ast.Subscript)):
             t = self.quiet(lambda: self.argument_type(node, scope))
             return {PMAT: 'matrix', PVEC: 'vector'}.get(t)
@@ -760,6 +774,35 @@ class Checker:
             if node.func.id == 'cho_solve':
                 return (self.kind(node.args[1], scope) if len(node.args) == 2 else None) or 'matrix'
         return None
+
+    def line_leaf(self, node, scope):
+        """Leaf for a row A[i, a:b] or a column A[a:b, j] of a matrix: a vector,
+        as in NumPy."""
+        if self.subscript_base(node.value, scope) != PMAT:
+            return None
+        rows, cols = node.slice.elts
+        row = isinstance(cols, ast.Slice)
+        line, index = (cols, rows) if row else (rows, cols)
+        if not self.check_slices([line], scope, allow_all=True):
+            return None
+        self.index_expr(index, scope)
+        base = self.matrix_shape(node.value, scope)
+        length, count = (base[1], base[0]) if row else (base[0], base[1])
+        size = self.slice_size(line, length)
+        lower = eval_dims(line.lower, self.dims_values) if line.lower is not None else 0
+        upper = eval_dims(line.upper, self.dims_values) if line.upper is not None else length.value
+        i = eval_dims(index, self.dims_values)
+        what = ('row', 'columns', 'rows') if row else ('column', 'rows', 'columns')
+        if (size.value is not None and size.value <= 0) or (lower is not None and lower < 0) or \
+                (upper is not None and length.value is not None and upper > length.value):
+            self.error(node, 'the {} {} is out of range for a matrix with {} {}'.format(
+                what[1], ast.unparse(line), length, what[1]))
+            return None
+        if i is not None and (i < 0 or (count.value is not None and i >= count.value)):
+            self.error(node, 'the {} {} is out of range for a matrix with {} {}'.format(
+                what[0], i, count, what[2]))
+            return None
+        return Leaf(node, (size,))
 
     def is_matrix(self, node, scope):
         """Whether node is a matrix- or vector-valued expression."""
@@ -908,11 +951,20 @@ class Checker:
             if not all(self.check_dim(node, a, b, shapes) for a, b in zip(left.shape, right.shape)):
                 return None
             return Add(left, right, 1.0 if isinstance(op, ast.Add) else -1.0)
-        if isinstance(op, ast.Mult):
-            if left_m and right_m:
-                self.error(node, "'*' between matrices or vectors is the elementwise product (as in "
-                    "NumPy), which is not supported (yet): use '@' for the matrix product")
+        if isinstance(op, ast.Mult) and left_m and right_m:
+            # elementwise product, as in NumPy (without broadcasting)
+            if left_k != right_k:
+                self.error(node, "'*' between a matrix and a vector is not supported (in NumPy, "
+                    "it would broadcast the vector)")
                 return None
+            left, right = self.matrix_expr(node.left, scope), self.matrix_expr(node.right, scope)
+            if left is None or right is None:
+                return None
+            shapes = '{} * {}'.format(shape_str(left.shape), shape_str(right.shape))
+            if not all(self.check_dim(node, a, b, shapes) for a, b in zip(left.shape, right.shape)):
+                return None
+            return Mul(left, right)
+        if isinstance(op, ast.Mult):
             scalar, matrix = (node.right, node.left) if left_m else (node.left, node.right)
             coef = self.scalar_coef(scalar, scope)
             e = self.matrix_expr(matrix, scope)
@@ -1001,11 +1053,14 @@ class Checker:
                 self.error(target, 'a pmat must be indexed with two indices, A[i, j] or A[a:b, c:d]')
                 return
             if all(isinstance(i, ast.Slice) for i in indices):
-                # blocks assigned expressions, or with slices other than a:b,
-                # are matrix expressions (copies for a plain matrix or block)
+                # blocks assigned expressions, with slices other than a:b, or
+                # copies between blocks that may overlap are matrix expressions
+                # (copies for a plain matrix or block)
                 full = any(i.lower is None or i.upper is None for i in indices + (
                     matrix_indices(value) or [] if is_block(value) else []))
-                if self.is_matrix_expression(value, scope) or full:
+                overlap = isinstance(value, (ast.Name, ast.Attribute, ast.Subscript)) and \
+                    may_alias(target, value)
+                if self.is_matrix_expression(value, scope) or full or overlap:
                     leaf = self.block_leaf(target, scope)
                     if leaf is not None:
                         self.check_matrix_expression(stmt, leaf.node, value, scope)
@@ -1025,7 +1080,10 @@ class Checker:
                     self.error(value, 'a block of a matrix must be assigned a matrix or a block A[a:b, c:d]')
                 return
             if any(isinstance(i, ast.Slice) for i in indices):
-                self.error(target, 'mixing indices and slices is not supported (yet)')
+                # a row or column, assigned a vector expression or a vector
+                leaf = self.line_leaf(target, scope)
+                if leaf is not None:
+                    self.check_matrix_expression(stmt, target, value, scope)
                 return
             for i in indices:
                 self.index_expr(i, scope)

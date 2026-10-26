@@ -58,3 +58,20 @@ for t in ('n', 't'):
         ['float'] + _view + _vview + ['float'] + _vview + _vview, 'None')
 for name, (c_name, arg_types, ret_type) in _vector_functions.items():
     extra_functions['_Z{}{}{}'.format(len(name), name, ''.join(arg_types))] = (c_name, arg_types, ret_type)
+
+# elementwise products
+for t in ('nn', 'nt', 'tn', 'tt'):
+    _name = 'pmat_mul_view_' + t
+    extra_functions['_Z{}{}{}'.format(len(_name), _name, ''.join(['float'] + _view * 3))] = \
+        ('c_pmt_pmat_mul_view_' + t, ['float'] + _view * 3, 'None')
+extra_functions['_Z13pvec_mul_view' + ''.join(['float'] + _vview * 3)] = \
+    ('c_pmt_pvec_mul_view', ['float'] + _vview * 3, 'None')
+
+# rows and columns of matrices, to and from vectors
+_line = ['pmat', 'int', 'int', 'int']
+for _name in ('pmat_getrow_view', 'pmat_getcol_view'):
+    extra_functions['_Z{}{}{}'.format(len(_name), _name, ''.join(_line + _vview))] = \
+        ('c_pmt_' + _name, _line + _vview, 'None')
+for _name in ('pmat_setrow_view', 'pmat_setcol_view'):
+    extra_functions['_Z{}{}{}'.format(len(_name), _name, ''.join(_vview + _line))] = \
+        ('c_pmt_' + _name, _vview + _line, 'None')

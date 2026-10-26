@@ -2,9 +2,10 @@
 NumPy.
 
 Each generated program assigns random expressions (+, -, scalar factors, @,
-.T, cholesky, cho_solve, blocks A[a:b, c:d], vectors and slices v[a:b], dot
-products v @ w in scalar factors, targets read by their expression, +=) to
-matrices, vectors, blocks, slices and numbers, and prints the results. The program must print the same
+*, .T, cholesky, cho_solve, blocks A[a:b, c:d], rows and columns A[i, :],
+vectors and slices v[a:b], dot products v @ w in scalar factors, targets
+read by their expression, +=) to matrices, vectors, blocks, slices, rows,
+columns and numbers, and prints the results. The program must print the same
 numbers in Python and as transpiled C, and these must match the same
 expressions evaluated with NumPy, which has the same syntax. Set
 PMT_RANDOM_EXPRESSIONS=<count> to test more programs, PMT_RANDOM_SEED=<seed>
@@ -94,17 +95,38 @@ class ExpressionProgram:
             return '{}[{}:{} + {}]'.format(name, start, start, r)
         return '{}[{}:{}]'.format(name, start, start + size)
 
+    def line(self, r):
+        """A random row A[i, a:b] or column A[a:b, j] of r (a dims name)
+        elements."""
+        rng = self.rng
+        size = DIMS[r]
+        row = rng.random() < 0.5
+        name = rng.choice([n for n in list(self.mats) + list(self.big)
+            if self.size_of(n)[1 if row else 0] >= size])
+        total, count = self.size_of(name)[::-1] if row else self.size_of(name)
+        start = rng.randint(0, total - size)
+        if start == 0 and size == total and rng.random() < 0.5:
+            line = ':'
+        elif start + size == total and rng.random() < 0.5:
+            line = '{}:'.format(start)
+        else:
+            line = '{}:{}'.format(start, start + size)
+        index = rng.randint(0, count - 1)
+        return '{}[{}, {}]'.format(name, index, line) if row else '{}[{}, {}]'.format(name, line, index)
+
     def vexpr(self, r, depth):
         """A random vector expression of size r."""
         rng = self.rng
         if depth <= 0 or rng.random() < 0.25:
-            if rng.random() < 0.3:
-                return self.vslice(r)
+            if rng.random() < 0.4:
+                return self.vslice(r) if rng.random() < 0.6 else self.line(r)
             return rng.choice([v for v, s in self.vecs.items() if s == r])
         kind = rng.choice(['add', 'sub', 'scale', 'scalevar', 'div', 'neg', 'matvec', 'matvec',
-            'vecmat', 'cho_solve', 'dotscale'])
+            'vecmat', 'cho_solve', 'dotscale', 'elementwise'])
         d = depth - 1
         k = rng.choice(list(DIMS))
+        if kind == 'elementwise':
+            return '{} * {}'.format(self.vterm(r, d), self.vterm(r, d))
         if kind in ('add', 'sub'):
             return '{} {} {}'.format(self.vexpr(r, d), '+' if kind == 'add' else '-', self.vterm(r, d))
         if kind == 'scale':
@@ -161,8 +183,10 @@ class ExpressionProgram:
                 return self.block(r, c) if rng.random() < 0.7 else self.block(c, r) + '.T'
             return rng.choice(leaves + tleaves)
         kind = rng.choice(['add', 'sub', 'scale', 'scalevar', 'div', 'neg', 'matmul', 'matmul',
-            'transpose', 'cholesky', 'cho_solve', 'dotscale'])
+            'transpose', 'cholesky', 'cho_solve', 'dotscale', 'elementwise'])
         d = depth - 1
+        if kind == 'elementwise':
+            return '{} * {}'.format(self.term(r, c, d), self.term(r, c, d))
         if kind == 'dotscale':
             k = rng.choice(list(DIMS))
             return '0.1 * ({} @ {}) * {}'.format(self.vterm(k, 0), self.vterm(k, 0), self.term(r, c, d))
@@ -209,9 +233,10 @@ class ExpressionProgram:
                 target = rng.choice(sorted(self.vecs))
                 r = self.vecs[target]
                 base = target
-                if rng.random() < 0.3:
+                if rng.random() < 0.4:
+                    # a slice of a vector, or a row or column of a matrix
                     r = rng.choice(list(DIMS))
-                    target = self.vslice(r)
+                    target = self.vslice(r) if rng.random() < 0.5 else self.line(r)
                     base = target.split('[')[0]
                 e = self.vexpr(r, rng.randint(1, 3))
                 term = self.vterm(r, 1)

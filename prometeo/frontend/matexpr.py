@@ -108,6 +108,15 @@ class MatMul(MExpr):
         self.shape = (left.shape[0],) if right.is_vector() else (left.shape[0], right.shape[1])
 
 
+class Mul(MExpr):
+    """Elementwise product of two matrices or vectors of the same shape."""
+
+    def __init__(self, left, right):
+        self.left = left
+        self.right = right
+        self.shape = left.shape
+
+
 class Transpose(MExpr):
     def __init__(self, expr):
         self.expr = expr
@@ -168,7 +177,7 @@ def leaves(e):
         return leaves(e.expr)
     if isinstance(e, Transpose):
         return leaves(e.expr)
-    if isinstance(e, (Add, MatMul)):
+    if isinstance(e, (Add, MatMul, Mul)):
         return leaves(e.left) + leaves(e.right)
     if isinstance(e, Call):
         return [l for a in e.args for l in leaves(a)]
@@ -189,6 +198,8 @@ def push_transposes(e, trans=False):
         if trans:
             return MatMul(push_transposes(e.right, True), push_transposes(e.left, True))
         return MatMul(push_transposes(e.left), push_transposes(e.right))
+    if isinstance(e, Mul):
+        return Mul(push_transposes(e.left, trans), push_transposes(e.right, trans))
     if isinstance(e, Call):
         call = Call(e.name, [push_transposes(a) for a in e.args], e.shape, e.node)
         return Transpose(call) if trans else call
@@ -206,16 +217,16 @@ def split_coef(e):
 
 def terms(e, coef=ONE):
     """Expand e (with transposes pushed down) into a list of (coef, term),
-    where a term is a Leaf, a MatMul of two operands, a Call or a transposed
-    Call."""
+    where a term is a Leaf, a MatMul or Mul of two operands, a Call or a
+    transposed Call."""
     if isinstance(e, Scale):
         return terms(e.expr, coef * e.coef)
     if isinstance(e, Add):
         return terms(e.left, coef) + terms(e.right, coef * Coef(e.sign))
-    if isinstance(e, MatMul):
+    if isinstance(e, (MatMul, Mul)):
         cl, left = split_coef(e.left)
         cr, right = split_coef(e.right)
-        return [(coef * cl * cr, MatMul(left, right))]
+        return [(coef * cl * cr, type(e)(left, right))]
     return [(coef, e)]
 
 
@@ -226,7 +237,15 @@ def same_matrix(a, b):
 def is_block(node):
     """Whether node is a block A[a:b, c:d] of a matrix."""
     return isinstance(node, ast.Subscript) and isinstance(node.slice, ast.Tuple) and \
-        any(isinstance(i, ast.Slice) for i in node.slice.elts)
+        all(isinstance(i, ast.Slice) for i in node.slice.elts)
+
+
+def is_line(node):
+    """Whether node is (part of) a row A[i, a:b] or a column A[a:b, j] of a
+    matrix: a vector, as in NumPy."""
+    return isinstance(node, ast.Subscript) and isinstance(node.slice, ast.Tuple) and \
+        len(node.slice.elts) == 2 and \
+        [isinstance(i, ast.Slice) for i in node.slice.elts].count(True) == 1
 
 
 def is_vector_slice(node):
@@ -401,16 +420,61 @@ class Lowering:
             return Transpose(self.hoist_factors(e.expr))
         if isinstance(e, Add):
             return Add(self.hoist_factors(e.left), self.hoist_factors(e.right), e.sign)
-        if isinstance(e, MatMul):
-            return MatMul(self.hoist_factors(e.left), self.hoist_factors(e.right))
+        if isinstance(e, (MatMul, Mul)):
+            return type(e)(self.hoist_factors(e.left), self.hoist_factors(e.right))
         if isinstance(e, Call):
             return Call(e.name, [self.hoist_factors(a) for a in e.args], e.shape, e.node)
         return e
 
     # assignment
 
+    def line_args(self, node):
+        """(A, i, j, size) for a row A[i, a:b] (size b - a) or a column
+        A[a:b, j]; -1: to the end."""
+        base, (rows, cols) = node.value, node.slice.elts
+        if isinstance(rows, ast.Slice):
+            line, index = rows, cols
+            start = [self.index(rows.lower) if rows.lower is not None else ast.Constant(0),
+                self.index(index)]
+        else:
+            line, index = cols, rows
+            start = [self.index(index),
+                self.index(cols.lower) if cols.lower is not None else ast.Constant(0)]
+        kind = 'col' if isinstance(rows, ast.Slice) else 'row'
+        return kind, [load(base)] + start + [self.slice_size(line)]
+
+    def lines_to_temporaries(self, e):
+        """e with the rows and columns of matrices copied to vectors, before
+        anything is written."""
+        if isinstance(e, Leaf):
+            if not is_line(e.node):
+                return e
+            tmp = self.temps.matrix(e.shape, e.node)
+            kind, args = self.line_args(e.node)
+            self.emit(call('pmat_get' + kind + '_view', *(args + self.vview(tmp))))
+            return Leaf(tmp, e.shape)
+        if isinstance(e, Scale):
+            return Scale(e.coef, self.lines_to_temporaries(e.expr))
+        if isinstance(e, Transpose):
+            return Transpose(self.lines_to_temporaries(e.expr))
+        if isinstance(e, Add):
+            return Add(self.lines_to_temporaries(e.left), self.lines_to_temporaries(e.right), e.sign)
+        if isinstance(e, (MatMul, Mul)):
+            return type(e)(self.lines_to_temporaries(e.left), self.lines_to_temporaries(e.right))
+        if isinstance(e, Call):
+            return Call(e.name, [self.lines_to_temporaries(a) for a in e.args], e.shape, e.node)
+        raise TypeError(e)
+
     def assign(self, target, target_shape, expr):
-        expr = push_transposes(self.hoist_factors(expr))
+        expr = self.lines_to_temporaries(self.hoist_factors(expr))
+        if is_line(target):
+            # computed into a vector, then copied into the row or column
+            tmp = self.temps.matrix(target_shape, target)
+            self.evaluate(tmp, push_transposes(expr))
+            kind, args = self.line_args(target)
+            self.emit(call('pmat_set' + kind + '_view', *(self.vview(tmp) + args)))
+            return
+        expr = push_transposes(expr)
         ts = terms(expr)
         # target = target + ...: accumulate in place, unless the target is
         # also read elsewhere
@@ -434,7 +498,7 @@ class Lowering:
             c, t = item
             if isinstance(t, Leaf) and not t.trans and same_matrix(t.node, dest):
                 return 0
-            return 2 if isinstance(t, MatMul) else 1
+            return 2 if isinstance(t, (MatMul, Mul)) else 1
         ts = sorted(ts, key=rank)
         for i, (coef, term) in enumerate(ts):
             if i == 0:
@@ -539,7 +603,7 @@ class Lowering:
             else:
                 self.copy(term.node, dest, vec)
             self.scale(dest, coef, vec)
-        elif isinstance(term, MatMul):
+        elif isinstance(term, (MatMul, Mul)):
             self.fill(dest, 0.0, vec)
             self.product(dest, coef, term)
         elif isinstance(term, Transpose):
@@ -552,7 +616,7 @@ class Lowering:
             self.scale(dest, coef, vec)
 
     def accumulate(self, dest, coef, term):
-        if isinstance(term, MatMul):
+        if isinstance(term, (MatMul, Mul)):
             self.product(dest, coef, term)
             return
         if isinstance(term, Leaf) and not term.trans:
@@ -575,10 +639,17 @@ class Lowering:
         return tmp, False
 
     def product(self, dest, coef, term):
-        """dest += coef * left @ right."""
+        """dest += coef * left @ right (or left * right, elementwise)."""
         a, ta = self.operand(term.left)
         b, tb = self.operand(term.right)
-        if term.is_vector():
+        if isinstance(term, Mul):
+            if term.is_vector():
+                self.emit(call('pvec_mul_view', self.coef_value(coef),
+                    *(self.vview(a) + self.vview(b) + self.vview(dest))))
+            else:
+                self.emit(call('pmat_mul_view_' + ('t' if ta else 'n') + ('t' if tb else 'n'),
+                    self.coef_value(coef), *(self.view(a) + self.view(b) + self.view(dest))))
+        elif term.is_vector():
             # matrix-vector product
             self.emit(call('pmt_gemv_view_' + ('t' if ta else 'n'), self.coef_value(coef),
                 *(self.view(a) + self.vview(b) + [ast.Constant(1.0)] + self.vview(dest) +
@@ -588,8 +659,8 @@ class Lowering:
 
     def dot(self, d):
         """A variable holding the dot product d."""
-        x, _ = self.operand(push_transposes(self.hoist_factors(d.left)))
-        y, _ = self.operand(push_transposes(self.hoist_factors(d.right)))
+        x, _ = self.operand(push_transposes(self.lines_to_temporaries(self.hoist_factors(d.left))))
+        y, _ = self.operand(push_transposes(self.lines_to_temporaries(self.hoist_factors(d.right))))
         name = self.temps.scalar()
         self.emit(ast.AnnAssign(target=ast.Name(name, ast.Store()),
             annotation=ast.Name('float', ast.Load()),

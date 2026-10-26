@@ -49,8 +49,10 @@ class pvec(pvec_):
 
     def __mul__(self, other):
         if isinstance(other, pvec_):
-            raise TypeError("'*' between vectors is the elementwise product (as in NumPy), "
-                "which is not supported: use '@' for the dot product")
+            # elementwise product
+            res = pvec(self.m)
+            pvec_mul_view(1.0, self, 0, -1, other, 0, -1, res, 0, -1)
+            return res
         res = pvec(self.m)
         pvec_copy_view(self, 0, -1, res, 0, -1)
         pvec_scale_view(float(other), res, 0, -1)
@@ -189,3 +191,51 @@ def cho_solve_vec(L, b: pvec):
     pvec_copy_view(b, 0, -1, x, 0, -1)
     pmt_potrsv_view(L, x, 0, -1)
     return x
+
+# z <= z + alpha * x .* y, elementwise (as c_pmt_pvec_mul_view)
+def pvec_mul_view(alpha: float, x: pvec, xi: int, xr: int, y: pvec, yi: int, yr: int,
+        z: pvec, zi: int, zr: int):
+    xi, xr = _vview('pvec_mul', x, xi, xr)
+    yi, yr = _vview('pvec_mul', y, yi, yr)
+    zi, zr = _vview('pvec_mul', z, zi, zr)
+    _same_length('pvec_mul', xr, yr, zr)
+    get, put = bw.blasfeo_dvecex1, bw.blasfeo_dvecin1
+    for i in range(zr):
+        put(get(z._ref, zi + i) + alpha * (get(x._ref, xi + i) * get(y._ref, yi + i)), z._ref, zi + i)
+
+# Rows A[i, j:j + r] and columns A[i:i + r, j] of matrices, copied to and from
+# vectors (r = -1: to the end)
+def _line(name, A, i, j, r, row):
+    if r < 0:
+        r = (A.n - j) if row else (A.m - i)
+    end_i, end_j = (i + 1, j + r) if row else (i + r, j + 1)
+    if i < 0 or j < 0 or r <= 0 or end_i > A.m or end_j > A.n:
+        where = '[{}, {}:{}]'.format(i, j, j + r) if row else '[{}:{}, {}]'.format(i, i + r, j)
+        raise IndexError('{}: {} out of range for a {}x{} pmat'.format(name, where, A.m, A.n))
+    return r
+
+def pmat_getrow_view(A, i: int, j: int, r: int, x: pvec, xi: int, xr: int):
+    r = _line('pmat_getrow', A, i, j, r, True)
+    xi, xr = _vview('pmat_getrow', x, xi, xr)
+    _same_length('pmat_getrow', r, xr)
+    bw.blasfeo_drowex(r, 1.0, A._ref, i, j, x._ref, xi)
+
+def pmat_getcol_view(A, i: int, j: int, r: int, x: pvec, xi: int, xr: int):
+    r = _line('pmat_getcol', A, i, j, r, False)
+    xi, xr = _vview('pmat_getcol', x, xi, xr)
+    _same_length('pmat_getcol', r, xr)
+    bw.blasfeo_dcolex(r, A._ref, i, j, x._ref, xi)
+
+def pmat_setrow_view(x: pvec, xi: int, xr: int, A, i: int, j: int, r: int):
+    r = _line('pmat_setrow', A, i, j, r, True)
+    xi, xr = _vview('pmat_setrow', x, xi, xr)
+    _same_length('pmat_setrow', r, xr)
+    bw.blasfeo_drowin(r, 1.0, x._ref, xi, A._ref, i, j)
+    A.blasfeo_dmat.use_dA = 0
+
+def pmat_setcol_view(x: pvec, xi: int, xr: int, A, i: int, j: int, r: int):
+    r = _line('pmat_setcol', A, i, j, r, False)
+    xi, xr = _vview('pmat_setcol', x, xi, xr)
+    _same_length('pmat_setcol', r, xr)
+    bw.blasfeo_dcolin(r, x._ref, xi, A._ref, i, j)
+    A.blasfeo_dmat.use_dA = 0
