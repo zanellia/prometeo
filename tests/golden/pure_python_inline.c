@@ -45,7 +45,7 @@ int main() {
     c_pmt_pmat_print(A);
     c_pmt_pmat_print(B);
     c_pmt_pmat_fill(C, 0.0);
-    c_pmt_gemm_nn(A, B, C, C);
+    c_pmt_gemm_ab_nn(1.0, A, B, 1.0, C, C);
     c_pmt_pmat_print(C);
 	___c_pmt_8_heap = callee_pmt_8_heap;
 	___c_pmt_64_heap = callee_pmt_64_heap;

@@ -15,6 +15,12 @@ void c_pmt_check_heap(void)
     }
 }
 
+void c_pmt_dims_error(const char *fun)
+{
+    fprintf(stderr, "prometeo: %s: mismatching dimensions\n", fun);
+    exit(1);
+}
+
 int align_char_to(int num, char **c_ptr)
 {
     size_t s_ptr = (size_t) *c_ptr;

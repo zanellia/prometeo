@@ -84,7 +84,8 @@ def ipopt_solution(problem):
     return w[nx * (N + 1):]
 
 
-@pytest.mark.parametrize('program, problem', [('sqp_mpc', cartpole), ('chain_mpc', chain)])
+@pytest.mark.parametrize('program, problem', [('sqp_mpc', cartpole), ('sqp_mpc_hl', cartpole),
+    ('chain_mpc', chain)])
 def test_sqp_matches_ipopt(tmp_path, program, problem):
     problem = problem()
     workdir = str(tmp_path / 'sqp_mpc')

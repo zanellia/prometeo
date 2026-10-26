@@ -112,19 +112,77 @@ Assignments
     obj.A[i, j] = x            # element of a matrix attribute
     obj.L[k][i, j] = x         # element of a matrix in a List attribute
     L[i] = A                   # make a List element refer to A (shared, as in Python)
-    C = A * B                  # matrix product, sum (+) and difference (-)
+    C = A.T @ B + 2.0 * C      # matrix expression (see Matrix expressions)
 
-- Matrix operators take two matrix variables (``A * B + C`` *(not supported
-  yet)*), and the result must be stored in a different matrix than the
-  operands: ``A = A * B`` is rejected because the transpiled code computes the
-  result in place.
 - ``B = A`` between two matrix (or vector) variables is rejected: in Python
   both names would refer to the same matrix, while in C ``B`` keeps its own
   memory, so later updates would differ. Use ``pmat_copy(A, B)``.
-- Matrix and vector attributes cannot be assigned as a whole
-  (``obj.A = B``), for the same reason: copy into them instead.
+- Matrix and vector attributes cannot be assigned another matrix
+  (``obj.A = B``), for the same reason: copy into them instead. They can be
+  assigned matrix expressions (``obj.A = B @ C``), which write into them.
 - Elements of a List of ``int`` or ``float`` cannot be assigned or read
   *(not supported yet)*.
+
+Matrix expressions
+------------------
+
+Matrices can be combined with NumPy's syntax:
+
+.. code-block:: python
+
+    P = Q + A.T @ P_next @ A - K.T @ R @ K
+    C += alpha * A @ B         # also C = C + ..., C -= ...
+    X = -cho_solve(L, B) / 2.0
+    L = cholesky(M + B.T @ B)
+    self.P[k] = self.Q + self.A[k].T @ self.P[k + 1] @ self.A[k]
+
+======================== ==========================================================
+``A @ B``                matrix product
+``A + B``, ``A - B``     sum, difference
+``s * A``, ``A / s``     scalar factor (a ``float`` expression, or a number)
+``-A``                   negation
+``A.T``                  transpose
+``cholesky(M)``          lower triangular ``L`` with ``L @ L.T = M``, as ``numpy.linalg.cholesky``
+                         (``M`` symmetric positive definite)
+``cho_solve(L, B)``      ``X`` with ``L @ L.T @ X = B``, ``L`` from ``cholesky`` (as
+                         ``scipy.linalg.cho_solve((L, True), B)``)
+======================== ==========================================================
+
+The operands are matrices (``pmat`` variables, attributes and elements of
+Lists of matrices) and subexpressions. The sizes of all subexpressions are
+checked when the sizes of the operands are known (they are declared with
+``dims`` constants), else at run time.
+
+An assignment ``C = <expression>`` writes the result into the memory of
+``C``, like ``C[:] = <expression>`` in NumPy, and is translated into calls of
+BLASFEO routines (the same in Python and in C):
+
+- transposes are moved to the operands (``(A @ B).T`` is ``B.T @ A.T``) and
+  products of (transposed) matrices are single ``gemm`` calls, which also
+  accumulate into ``C``: ``C = D + A.T @ B`` is a copy and one ``gemm``;
+- subexpressions that are operands of a product, e.g. ``A.T @ P`` in
+  ``A.T @ P @ A`` (products are evaluated from left to right, use parentheses
+  to choose another order), are computed into temporary matrices, allocated
+  once per function with their sizes known at compile time (they are counted
+  in the memory bound). If a temporary would have a size that is only known at
+  run time (an operand is a function argument), the expression is rejected:
+  assign the subexpression to a declared matrix first;
+- if ``C`` is read by the expression other than as a term ``C + ...``
+  (``C = A @ C``), the result is computed into a temporary and then copied
+  into ``C``;
+- nothing else is done behind the scenes: a subexpression that appears twice
+  is computed twice. To reuse it, assign it to a matrix, e.g. ``PA = P @ A``.
+
+Restrictions:
+
+- ``*`` between two matrices is the elementwise product, as in NumPy, which is
+  *not supported yet*: use ``@`` for the matrix product.
+- Adding a number to a matrix (``A + 1.0``) is not supported: use
+  ``pmat_fill``.
+- ``B = A`` is not a matrix expression: it is rejected (see Assignments).
+- Blocks (``A[0:2, 0:2]``), vectors (``pvec``) and calls of other functions
+  cannot be used in matrix expressions *(not supported yet)*.
+- ``cholesky`` and ``cho_solve`` can only be used in matrix expressions.
 
 Expressions
 -----------

@@ -35,7 +35,7 @@
     for i in range(n):
         A[i, i] = 2.0
         B[i, 0] = 1.0
-    C = A * B
+    C = A @ B
     pmat_print(C)
 
 ### pmat_add_op
@@ -59,13 +59,13 @@
     pmat_print(C)
 
 ### pmat_expr_chain
-# expect: error not supported (yet): matrix expressions with more than one o
+# expect: ok
     A : pmat = pmat(n, n)
     B : pmat = pmat(n, n)
     C : pmat = pmat(n, n)
     A[0, 0] = 2.0
     B[0, 0] = 1.0
-    C = A * B + A
+    C = A @ B + A
     pmat_print(C)
 
 ### pmat_slice_copy
@@ -156,7 +156,7 @@
     pvec_print(w)
 
 ### pmat_times_pvec
-# expect: error not supported (yet): this pvec assignment
+# expect: error not supported (yet): expressions on vectors (pvec)
     A : pmat = pmat(n, n)
     v : pvec = pvec(n)
     w : pvec = pvec(n)

@@ -88,6 +88,9 @@ bw.blasfeo_dgecp.argtypes = [c_int, c_int, POINTER(blasfeo_dmat), c_int, c_int,
     POINTER(blasfeo_dmat), c_int, c_int]
 bw.blasfeo_dgetr.argtypes = [c_int, c_int, POINTER(blasfeo_dmat), c_int, c_int,
     POINTER(blasfeo_dmat), c_int, c_int]
+bw.blasfeo_dtrtr_l.argtypes = [c_int, POINTER(blasfeo_dmat), c_int, c_int,
+    POINTER(blasfeo_dmat), c_int, c_int]
+bw.blasfeo_dgesc.argtypes = [c_int, c_int, c_double, POINTER(blasfeo_dmat), c_int, c_int]
 bw.blasfeo_dvecse.argtypes = [c_int, c_double, POINTER(blasfeo_dvec), c_int]
 # def blasfeo_dgemm_nt(m: c_int, n: c_int, k: c_int, alpha: c_double, 
 #                      sA: POINTER(blasfeo_dmat), ai: c_int, aj: c_int, 

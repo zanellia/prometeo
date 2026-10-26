@@ -101,6 +101,34 @@ void c_pmt_gemm_ab(double alpha, struct pmat *A, struct pmat *B, double beta, st
     blasfeo_dgemm_nn(A->bmat->m, B->bmat->n, A->bmat->n, alpha, A->bmat, 0, 0, B->bmat, 0, 0, beta, C->bmat, 0, 0, D->bmat, 0, 0);
 }
 
+void c_pmt_gemm_ab_nn(double alpha, struct pmat *A, struct pmat *B, double beta, struct pmat *C, struct pmat *D) {
+    int m = A->bmat->m, n = B->bmat->n, k = A->bmat->n;
+    if (k != B->bmat->m || C->bmat->m != m || C->bmat->n != n || D->bmat->m != m || D->bmat->n != n)
+        c_pmt_dims_error("pmt_gemm_ab_nn");
+    blasfeo_dgemm_nn(m, n, k, alpha, A->bmat, 0, 0, B->bmat, 0, 0, beta, C->bmat, 0, 0, D->bmat, 0, 0);
+}
+
+void c_pmt_gemm_ab_nt(double alpha, struct pmat *A, struct pmat *B, double beta, struct pmat *C, struct pmat *D) {
+    int m = A->bmat->m, n = B->bmat->m, k = A->bmat->n;
+    if (k != B->bmat->n || C->bmat->m != m || C->bmat->n != n || D->bmat->m != m || D->bmat->n != n)
+        c_pmt_dims_error("pmt_gemm_ab_nt");
+    blasfeo_dgemm_nt(m, n, k, alpha, A->bmat, 0, 0, B->bmat, 0, 0, beta, C->bmat, 0, 0, D->bmat, 0, 0);
+}
+
+void c_pmt_gemm_ab_tn(double alpha, struct pmat *A, struct pmat *B, double beta, struct pmat *C, struct pmat *D) {
+    int m = A->bmat->n, n = B->bmat->n, k = A->bmat->m;
+    if (k != B->bmat->m || C->bmat->m != m || C->bmat->n != n || D->bmat->m != m || D->bmat->n != n)
+        c_pmt_dims_error("pmt_gemm_ab_tn");
+    blasfeo_dgemm_tn(m, n, k, alpha, A->bmat, 0, 0, B->bmat, 0, 0, beta, C->bmat, 0, 0, D->bmat, 0, 0);
+}
+
+void c_pmt_gemm_ab_tt(double alpha, struct pmat *A, struct pmat *B, double beta, struct pmat *C, struct pmat *D) {
+    int m = A->bmat->n, n = B->bmat->m, k = A->bmat->m;
+    if (k != B->bmat->n || C->bmat->m != m || C->bmat->n != n || D->bmat->m != m || D->bmat->n != n)
+        c_pmt_dims_error("pmt_gemm_ab_tt");
+    blasfeo_dgemm_tt(m, n, k, alpha, A->bmat, 0, 0, B->bmat, 0, 0, beta, C->bmat, 0, 0, D->bmat, 0, 0);
+}
+
 void c_pmt_gemm_tn(struct pmat *A, struct pmat *B, struct pmat *C, struct pmat *D) {
     int mA = A->bmat->m; 
     int nA = A->bmat->n; 
@@ -181,6 +209,8 @@ void c_pmt_getrf(struct pmat *A, struct pmat *fact, int *ipiv) {
 
 void c_pmt_potrf(struct pmat *A, struct pmat *fact) {
     int mA = A->bmat->m; 
+    if (A->bmat->n != mA || fact->bmat->m != mA || fact->bmat->n != mA)
+        c_pmt_dims_error("pmt_potrf");
     struct blasfeo_dmat *bA = A->bmat;
     struct blasfeo_dmat *bfact = fact->bmat;
 
@@ -240,6 +270,8 @@ void c_pmt_potrsm(struct pmat *fact, struct pmat *rhs) {
     // struct blasfeo_dmat *bout  = out->bmat;
 
     int mfact = fact->bmat->m;
+    if (fact->bmat->n != mfact || mrhs != mfact)
+        c_pmt_dims_error("pmt_potrsm");
 
     // triangular solves: L * Y = rhs, then L^T * X = Y
     blasfeo_dtrsm_llnn(mrhs, nrhs, 1.0, bfact, 0, 0, brhs, 0, 0, brhs, 0, 0);
@@ -266,6 +298,8 @@ void c_pmt_potrsv(struct pmat *fact, struct pvec *rhs) {
 void c_pmt_gead(double alpha, struct pmat *A, struct pmat *B) {
     int mA = A->bmat->m; 
     int nA = A->bmat->n; 
+    if (B->bmat->m != mA || B->bmat->n != nA)
+        c_pmt_dims_error("pmt_gead");
     struct blasfeo_dmat *bA = A->bmat;
     struct blasfeo_dmat *bB = B->bmat;
 
@@ -320,9 +354,15 @@ void c_pmt_gecp(int m, int n, struct pmat *A, int ai, int aj, struct pmat *B, in
     blasfeo_dgecp(m, n, bA, ai, aj, bB, bi, bj);
 }
 
+void c_pmt_pmat_scale(double alpha, struct pmat *A) {
+    blasfeo_dgesc(A->bmat->m, A->bmat->n, alpha, A->bmat, 0, 0);
+}
+
 void c_pmt_pmat_copy(struct pmat *A, struct pmat *B) {
     int m = A->bmat->m;
     int n = A->bmat->n;
+    if (B->bmat->m != m || B->bmat->n != n)
+        c_pmt_dims_error("pmat_copy");
     double value;
 
 
@@ -352,6 +392,8 @@ struct pmat * _c_pmt_pmat_copy(struct pmat *A, struct pmat *B) {
 void c_pmt_pmat_tran(struct pmat *A, struct pmat *B) {
     int m = A->bmat->m;
     int n = A->bmat->n;
+    if (B->bmat->m != n || B->bmat->n != m)
+        c_pmt_dims_error("pmat_tran");
     double value;
 
     blasfeo_dgetr(m, n, A->bmat, 0, 0, B->bmat, 0, 0);

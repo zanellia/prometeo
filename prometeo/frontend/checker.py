@@ -14,7 +14,9 @@ from copy import deepcopy
 
 from .types import Type, INT, FLOAT, DIMS, DIMV, STR, NONE, PMAT, PVEC, \
     list_of, is_list, is_int_like, is_scalar, LIST_ELEMENT_TYPES
-from .normalize import normalize
+from .normalize import normalize, eval_dims
+from .matexpr import Dim, UNKNOWN, Leaf, Scale, Add, MatMul, Transpose, Call, Coef, Plan, \
+    Temporaries, LoweringError, MATRIX_FUNCTIONS, TEMP_PREFIX, lower_statement, position
 from .builtins import BUILTINS, UNSUPPORTED_BUILTINS, OUTPUT_ALIASING, BUILTIN_KEYWORDS
 
 C_KEYWORDS = {
@@ -25,7 +27,7 @@ C_KEYWORDS = {
     'void', 'volatile', 'while', 'NULL', 'printf', 'malloc', 'free', 'dims',
     'dimv', 'pmat', 'pvec', 'List', 'plist', 'range', 'print', 'self',
 }
-RESERVED_PREFIXES = ('c_pmt_', '_c_pmt_', '___c_pmt', 'blasfeo_', '_Z')
+RESERVED_PREFIXES = ('c_pmt_', '_c_pmt_', '___c_pmt', '___pmt', 'blasfeo_', '_Z')
 
 # scalar functions (sin, cos, ... on floats; abs, min, max on ints or floats)
 # -> number of arguments
@@ -60,6 +62,9 @@ class ClassInfo:
         self.name = name
         self.node = node
         self.attrs = {}
+        # shapes of pmat attributes, dimv constants sizing Lists of pmat
+        self.shapes = {}
+        self.list_sizes = {}
         self.methods = {}
 
 
@@ -74,6 +79,8 @@ class Scope:
         # all the variables declared in the function, in any block
         self.declared = {}
         self.loop_vars = []
+        # shapes of the pmat variables
+        self.shapes = {}
         self.depth = 0  # nesting depth of loops and conditionals
         self.loops = 0  # nesting depth of loops
 
@@ -105,6 +112,11 @@ class Checker:
         self.functions = {}
         self.classes = {}
         self.global_names = set()
+        # values of dims constants, [rows, cols] pairs of dimv constants
+        self.dims_values = {}
+        self.dimv_values = {}
+        # assignments of matrix expressions: position -> Plan
+        self.plans = {}
 
     # diagnostics
 
@@ -133,7 +145,8 @@ class Checker:
         elif name.startswith(RESERVED_PREFIXES):
             self.error(node, "names starting with '{}' are reserved".format(
                 [p for p in RESERVED_PREFIXES if name.startswith(p)][0]))
-        elif name in BUILTINS or name in UNSUPPORTED_BUILTINS or name in MATH_FUNCTIONS:
+        elif name in BUILTINS or name in UNSUPPORTED_BUILTINS or name in MATH_FUNCTIONS \
+                or name in MATRIX_FUNCTIONS:
             self.error(node, "'{}' is a built-in function and cannot be redefined".format(name))
 
     # module
@@ -190,9 +203,12 @@ class Checker:
         if ann == 'dims':
             if self.constant_expr(stmt.value, int_only=True) is not None:
                 self.globals[name] = DIMS
+                self.dims_values[name] = eval_dims(stmt.value, self.dims_values)
         elif ann == 'dimv':
             if self.check_dimv(stmt.value):
                 self.globals[name] = DIMV
+                self.dimv_values[name] = [(self.dim(pair.elts[0]), self.dim(pair.elts[1]))
+                    for pair in stmt.value.elts]
         elif ann in ('int', 'float'):
             t = self.constant_expr(stmt.value, int_only=ann == 'int')
             if t is not None:
@@ -353,6 +369,10 @@ class Checker:
                     if t is not None:
                         self.check_identifier(stmt.target, stmt.target.attr)
                         cls.attrs[stmt.target.attr] = t
+                        if t == PMAT:
+                            cls.shapes[stmt.target.attr] = self.constructor_shape(stmt.value)
+                        elif is_list(t) and t.elem == PMAT and isinstance(stmt.value.args[1], ast.Name):
+                            cls.list_sizes[stmt.target.attr] = stmt.value.args[1].id
 
     # function bodies
 
@@ -452,6 +472,8 @@ class Checker:
                     'loops and conditionals: each declaration allocates memory, so in a loop the '
                     'program would use more memory than the computed bound')
             t = self.check_constructor(stmt.value, t)
+            if t == PMAT and isinstance(target, ast.Name):
+                scope.shapes[name] = self.constructor_shape(stmt.value)
         elif t in (INT, FLOAT):
             self.check_scalar_value(stmt.value, t, scope)
         if t is not None and isinstance(target, ast.Name):
@@ -548,14 +570,17 @@ class Checker:
             if is_scalar(t):
                 self.check_scalar_value(value, t, scope)
             elif t in (PMAT, PVEC):
-                self.check_matrix_value(value, t, scope, target.id)
+                self.check_matrix_value(stmt, value, t, scope, target)
             else:
                 self.unsupported(stmt, 'assigning to a variable of type {}'.format(t))
         elif isinstance(target, ast.Subscript):
-            self.check_subscript_assignment(target, value, scope)
+            self.check_subscript_assignment(stmt, target, value, scope)
         elif isinstance(target, ast.Attribute):
             t = self.attribute_type(target, scope)
             if t is None:
+                return
+            if t == PMAT and self.is_matrix_expression(value, scope):
+                self.check_matrix_expression(stmt, target, value, scope)
                 return
             if not is_scalar(t):
                 self.unsupported(stmt, 'assigning to an attribute of type {}'.format(t),
@@ -576,26 +601,17 @@ class Checker:
         if not same_scalar(vt, t):
             self.error(value, 'cannot assign a value of type {} to a variable of type {}'.format(vt, t))
 
-    def check_matrix_value(self, value, t, scope, target):
+    def check_matrix_value(self, stmt, value, t, scope, target):
         """Right-hand side assigned to the pmat or pvec variable target."""
         if isinstance(value, ast.Name):
             self.error(value, "'B = A' would make two {} variables share their data, which behaves "
                 "differently in Python and in C: use {}_copy(A, B)".format(t, t))
             return
-        if isinstance(value, ast.BinOp) and t == PMAT:
-            if not isinstance(value.op, (ast.Mult, ast.Add, ast.Sub)):
-                self.error(value, 'only +, - and * are defined on matrices')
-                return
-            for side in (value.left, value.right):
-                if not isinstance(side, ast.Name):
-                    self.unsupported(side, 'matrix expressions with more than one operator')
-                    return
-                if self.name_type(side, scope) != PMAT:
-                    self.error(side, "'{}' is not a pmat".format(side.id))
-                    return
-            if target in (value.left.id, value.right.id):
-                self.error(value, "the result of a matrix operation must be stored in a different "
-                    "matrix than its operands: the transpiled code computes it in place")
+        if t == PMAT and self.is_matrix_expression(value, scope):
+            self.check_matrix_expression(stmt, target, value, scope)
+            return
+        if isinstance(value, ast.BinOp) and t == PVEC:
+            self.unsupported(value, 'expressions on vectors (pvec)', 'use n x 1 matrices (pmat)')
             return
         if isinstance(value, ast.Call):
             vt = self.check_call(value, scope)
@@ -604,7 +620,222 @@ class Checker:
             return
         self.unsupported(value, 'this {} assignment'.format(t))
 
-    def check_subscript_assignment(self, target, value, scope):
+    # matrix expressions
+
+    def quiet(self, f):
+        """f() without its diagnostics."""
+        n = len(self.diagnostics)
+        result = f()
+        del self.diagnostics[n:]
+        return result
+
+    def dim(self, node):
+        return Dim(eval_dims(node, self.dims_values), node)
+
+    def constructor_shape(self, value):
+        if isinstance(value, ast.Call) and len(value.args) == 2:
+            return (self.dim(value.args[0]), self.dim(value.args[1]))
+        return (UNKNOWN, UNKNOWN)
+
+    def attribute_class(self, node, scope):
+        """Class of the object whose attribute node is (no diagnostics)."""
+        if isinstance(node.value, ast.Name) and node.value.id == 'self':
+            return scope.cls
+        t = self.quiet(lambda: self.argument_type(node.value, scope))
+        return self.classes.get(t.name) if t is not None else None
+
+    def matrix_shape(self, node, scope):
+        """Shape of a matrix variable, attribute or List element."""
+        if isinstance(node, ast.Name):
+            return scope.shapes.get(node.id, (UNKNOWN, UNKNOWN))
+        if isinstance(node, ast.Attribute):
+            cls = self.attribute_class(node, scope)
+            if cls is not None:
+                return cls.shapes.get(node.attr, (UNKNOWN, UNKNOWN))
+        if isinstance(node, ast.Subscript) and isinstance(node.value, ast.Attribute):
+            cls = self.attribute_class(node.value, scope)
+            sizes = self.dimv_values.get(cls.list_sizes.get(node.value.attr)) if cls else None
+            if sizes:
+                index = eval_dims(node.slice, self.dims_values)
+                if index is not None and 0 <= index < len(sizes):
+                    return sizes[index]
+                # all the elements have the same size
+                if all(s[0] == sizes[0][0] and s[1] == sizes[0][1] for s in sizes):
+                    return sizes[0]
+        return (UNKNOWN, UNKNOWN)
+
+    def is_matrix(self, node, scope):
+        """Whether node is a matrix-valued expression (no diagnostics)."""
+        if isinstance(node, ast.Attribute) and node.attr == 'T' and self.is_matrix(node.value, scope):
+            return True
+        if isinstance(node, (ast.Name, ast.Attribute, ast.Subscript)):
+            return self.quiet(lambda: self.argument_type(node, scope)) == PMAT
+        if isinstance(node, ast.BinOp):
+            return isinstance(node.op, ast.MatMult) or self.is_matrix(node.left, scope) or \
+                self.is_matrix(node.right, scope)
+        if isinstance(node, ast.UnaryOp):
+            return self.is_matrix(node.operand, scope)
+        if isinstance(node, ast.Call):
+            return isinstance(node.func, ast.Name) and node.func.id in MATRIX_FUNCTIONS
+        return False
+
+    def is_matrix_expression(self, node, scope):
+        """A matrix expression other than a plain matrix (B = A is an alias)."""
+        if isinstance(node, ast.Attribute) and node.attr == 'T':
+            return self.is_matrix(node, scope)
+        if isinstance(node, (ast.BinOp, ast.UnaryOp)):
+            return self.is_matrix(node, scope)
+        return isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and \
+            node.func.id in MATRIX_FUNCTIONS
+
+    def check_matrix_expression(self, stmt, target, value, scope):
+        e = self.matrix_expr(value, scope)
+        if e is None:
+            return
+        shape = self.matrix_shape(target, scope)
+        self.check_dim(value, shape[0], e.shape[0], 'the result has {} rows, but {} has {}'.format(
+            e.shape[0], ast.unparse(target), shape[0]))
+        self.check_dim(value, shape[1], e.shape[1], 'the result has {} columns, but {} has {}'.format(
+            e.shape[1], ast.unparse(target), shape[1]))
+        plan = Plan(stmt, target, shape, e, position(scope.fun.node))
+        try:
+            lower_statement(plan, Temporaries(TEMP_PREFIX))
+        except LoweringError as err:
+            self.error(err.node if err.node is not None else value, err.message)
+            return
+        self.plans[position(stmt)] = plan
+
+    def check_dim(self, node, a, b, message):
+        if a.value is not None and b.value is not None and a.value != b.value:
+            self.error(node, 'mismatching sizes: ' + message)
+            return False
+        return True
+
+    def matrix_expr(self, node, scope):
+        """MExpr for a matrix-valued expression, or None (with diagnostics)."""
+        if isinstance(node, ast.Attribute) and node.attr == 'T' and self.is_matrix(node.value, scope):
+            e = self.matrix_expr(node.value, scope)
+            return Transpose(e) if e is not None else None
+        if isinstance(node, (ast.Name, ast.Attribute, ast.Subscript)):
+            if isinstance(node, ast.Subscript) and self.quiet(
+                    lambda: self.subscript_base(node.value, scope)) == PMAT:
+                self.unsupported(node, 'blocks or elements of matrices in matrix expressions',
+                    'copy the block to a matrix first')
+                return None
+            t = self.argument_type(node, scope)
+            if t is None:
+                return None
+            if t != PMAT:
+                self.error(node, "expected a matrix, '{}' is {}".format(ast.unparse(node), t))
+                return None
+            return Leaf(node, self.matrix_shape(node, scope))
+        if isinstance(node, ast.UnaryOp):
+            if not isinstance(node.op, (ast.USub, ast.UAdd)):
+                self.unsupported(node, "the '{}' operator on matrices".format(op_symbol(node.op)))
+                return None
+            e = self.matrix_expr(node.operand, scope)
+            if e is None or isinstance(node.op, ast.UAdd):
+                return e
+            return Scale(Coef(-1.0), e)
+        if isinstance(node, ast.BinOp):
+            return self.matrix_binop(node, scope)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and \
+                node.func.id in MATRIX_FUNCTIONS:
+            return self.matrix_call(node, scope)
+        if isinstance(node, ast.Call):
+            self.unsupported(node, 'calls in matrix expressions (other than {})'.format(
+                ', '.join(sorted(MATRIX_FUNCTIONS))), 'assign the result to a matrix first')
+            return None
+        self.unsupported(node, '{} in matrix expressions'.format(describe(node)))
+        return None
+
+    def matrix_binop(self, node, scope):
+        op = node.op
+        left_m, right_m = self.is_matrix(node.left, scope), self.is_matrix(node.right, scope)
+        if isinstance(op, ast.MatMult):
+            left, right = self.matrix_expr(node.left, scope), self.matrix_expr(node.right, scope)
+            if left is None or right is None:
+                return None
+            if not self.check_dim(node, left.shape[1], right.shape[0],
+                    '({} x {}) @ ({} x {})'.format(*left.shape, *right.shape)):
+                return None
+            return MatMul(left, right)
+        if isinstance(op, (ast.Add, ast.Sub)):
+            if not (left_m and right_m):
+                self.error(node, "'{}' between a matrix and a number is not supported: "
+                    "use pmat_fill for constant matrices".format(op_symbol(op)))
+                return None
+            left, right = self.matrix_expr(node.left, scope), self.matrix_expr(node.right, scope)
+            if left is None or right is None:
+                return None
+            shapes = '({} x {}) {} ({} x {})'.format(*left.shape, op_symbol(op), *right.shape)
+            if not (self.check_dim(node, left.shape[0], right.shape[0], shapes) and
+                    self.check_dim(node, left.shape[1], right.shape[1], shapes)):
+                return None
+            return Add(left, right, 1.0 if isinstance(op, ast.Add) else -1.0)
+        if isinstance(op, ast.Mult):
+            if left_m and right_m:
+                self.error(node, "'*' between matrices is the elementwise product (as in NumPy), "
+                    "which is not supported (yet): use '@' for the matrix product")
+                return None
+            scalar, matrix = (node.right, node.left) if left_m else (node.left, node.right)
+            coef = self.scalar_coef(scalar, scope)
+            e = self.matrix_expr(matrix, scope)
+            if coef is None or e is None:
+                return None
+            return Scale(coef, e)
+        if isinstance(op, ast.Div):
+            if right_m:
+                self.unsupported(node, 'dividing by a matrix', 'use cho_solve')
+                return None
+            coef = self.scalar_coef(node.right, scope)
+            e = self.matrix_expr(node.left, scope)
+            if coef is None or e is None:
+                return None
+            if not coef.factors:
+                return Scale(Coef(1.0 / coef.const), e)
+            return Scale(Coef(1.0, [ast.BinOp(left=ast.Constant(1.0), op=ast.Div(),
+                right=node.right)]), e)
+        self.unsupported(node, "the '{}' operator on matrices".format(op_symbol(op)))
+        return None
+
+    def scalar_coef(self, node, scope):
+        """A scalar factor of a matrix."""
+        literal = node.operand if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.USub) \
+            else node
+        if isinstance(literal, ast.Constant) and type(literal.value) in (int, float):
+            value = float(literal.value)
+            return Coef(-value if literal is not node else value)
+        self.check_evaluation_order(node, scope)
+        t = self.scalar_expr(node, scope)
+        if t is None:
+            return None
+        if t != FLOAT:
+            self.error(node, 'a matrix can be multiplied by a float, not by {}'.format(t))
+            return None
+        return Coef(1.0, [node])
+
+    def matrix_call(self, node, scope):
+        name = node.func.id
+        if len(node.args) != MATRIX_FUNCTIONS[name] or node.keywords:
+            self.error(node, '{} takes {} matrix argument{}'.format(name, MATRIX_FUNCTIONS[name],
+                's' if MATRIX_FUNCTIONS[name] > 1 else ''))
+            return None
+        args = [self.matrix_expr(a, scope) for a in node.args]
+        if None in args:
+            return None
+        square = args[0].shape
+        if not self.check_dim(node, square[0], square[1],
+                'the first argument of {} must be square, not {} x {}'.format(name, *square)):
+            return None
+        if name == 'cho_solve':
+            if not self.check_dim(node, square[0], args[1].shape[0],
+                    'cho_solve(L, B) with L {} x {} and B {} x {}'.format(*square, *args[1].shape)):
+                return None
+            return Call(name, args, args[1].shape, node)
+        return Call(name, args, args[0].shape, node)
+
+    def check_subscript_assignment(self, stmt, target, value, scope):
         base_t = self.subscript_base(target.value, scope)
         if base_t is None:
             return
@@ -645,7 +876,9 @@ class Checker:
                 self.error(target, 'a List must be indexed with one index, l[i]')
                 return
             self.index_expr(target.slice, scope)
-            if base_t.elem in (PMAT, PVEC):
+            if base_t.elem == PMAT and self.is_matrix_expression(value, scope):
+                self.check_matrix_expression(stmt, target, value, scope)
+            elif base_t.elem in (PMAT, PVEC):
                 if not isinstance(value, ast.Name) or self.name_type(value, scope) != base_t.elem:
                     self.error(value, 'an element of a List of {} must be assigned a {} variable'.format(
                         base_t.elem, base_t.elem))
@@ -999,6 +1232,10 @@ class Checker:
                 return None
             if name in MATH_FUNCTIONS:
                 return self.check_math_call(node, name, scope)
+            if name in MATRIX_FUNCTIONS:
+                self.unsupported(node, '{} outside matrix expressions'.format(name),
+                    'assign it to a matrix: L = {}(...)'.format(name))
+                return None
             if name in self.casadi_functions:
                 return self.check_casadi_call(node, name, scope)
             if name in ('pmat', 'pvec', 'plist') or name in self.classes:
@@ -1260,12 +1497,18 @@ def op_symbol(op):
     }.get(type(op), type(op).__name__)
 
 
-def check(tree, casadi_functions=None):
-    """Check a prometeo program; return the list of diagnostics.
+def analyze(tree, casadi_functions=None):
+    """Check a prometeo program; return the list of diagnostics and the
+    assignments of matrix expressions to lower (see matexpr.lower).
 
     casadi_functions: CasADi functions defined in pure blocks, as a dict
     name -> (number of inputs, number of outputs)."""
     checker = Checker(casadi_functions)
     checker.check_module(normalize(deepcopy(tree)))
     unique = {(d.lineno, d.col, d.severity, d.message): d for d in checker.diagnostics}
-    return sorted(unique.values(), key=lambda d: (d.lineno, d.col))
+    return sorted(unique.values(), key=lambda d: (d.lineno, d.col)), checker.plans
+
+
+def check(tree, casadi_functions=None):
+    """Check a prometeo program; return the list of diagnostics."""
+    return analyze(tree, casadi_functions)[0]

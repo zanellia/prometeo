@@ -20,3 +20,10 @@ extra_functions.update({
     '_Z4pmatintint': ('c_pmt_create_pmat', ['int', 'int'], 'pmat'),
     '_Z4pvecint': ('c_pmt_create_pvec', ['int'], 'pvec'),
 })
+
+# matrix expressions (prometeo/frontend/matexpr.py) are lowered to these
+for t in ('nn', 'nt', 'tn', 'tt'):
+    name = 'pmt_gemm_ab_' + t
+    extra_functions['_Z{}{}floatpmatpmatfloatpmatpmat'.format(len(name), name)] = \
+        ('c_pmt_gemm_ab_' + t, ['float', 'pmat', 'pmat', 'float', 'pmat', 'pmat'], 'None')
+extra_functions['_Z10pmat_scalefloatpmat'] = ('c_pmt_pmat_scale', ['float', 'pmat'], 'None')

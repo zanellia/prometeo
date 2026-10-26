@@ -33,6 +33,8 @@ EXAMPLES = [
     ('riccati_example', 'riccati', True),
     # SQP for MPC (cart-pole), also checked against IPOPT in test_sqp_reference.py
     ('sqp_mpc', 'sqp_mpc', True),
+    # the same, written with matrix expressions
+    ('sqp_mpc', 'sqp_mpc_hl', True),
     # the same SQP on a hanging chain of masses (21 states)
     ('sqp_mpc', 'chain_mpc', True),
     # README benchmark: the interpreted run (10000 repetitions) takes too long

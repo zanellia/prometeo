@@ -1,1 +1,1 @@
-from .checker import check, Diagnostic  # NOQA
+from .checker import check, analyze, Diagnostic  # NOQA

@@ -148,47 +148,44 @@ class pmat(pmat_):
     # 2) intermediate-level
     # 3) low-level (BLASFEO wrapper)
 
-    # high-level linear algebra
-    @dispatch(pmat_)
-    def __mul__(self, other):
-        if self.n != other.m:
-            raise Exception('__mul__: mismatching dimensions:'
-                ' ({}, {}) x ({}, {})'.format(self.m, self.n, other.m, other.n))
-
+    # high-level linear algebra, as in NumPy: these allocate their result.
+    # In prometeo programs, matrix expressions are lowered to calls that
+    # write into the target matrix (see prometeo/frontend/matexpr.py).
+    def __matmul__(self, other):
         res = pmat(self.m, other.n)
-        pmat_fill(res, 0.0)
-        zero_mat = pmat(self.m, other.n)
-        pmat_fill(zero_mat, 0.0)
-        pmt_gemm_nn(self, other, zero_mat, res)
+        pmt_gemm_ab_nn(1.0, self, other, 1.0, res, res)
         return res
 
-    @dispatch(pvec_)
+    @property
+    def T(self):
+        res = pmat(self.n, self.m)
+        pmat_tran(self, res)
+        return res
+
     def __mul__(self, other):
-        if self.n != other.blasfeo_dvec.m:
-            raise Exception('__mul__: mismatching dimensions:'
-                ' ({}, {}) x ({},)'.format(self.m, self.n, other.blasfeo_dvec.m))
-
-        res = pvec(self.m)
-        res.fill(0.0)
-        zero_vec = pvec(self.m)
-        zero_vec.fill(0.0)
-        pmt_gemv_n(self, other, zero_vec, res)
+        if isinstance(other, pmat_):
+            raise TypeError("'*' between matrices is the elementwise product (as in NumPy), "
+                "which is not supported: use '@' for the matrix product")
+        res = pmat(self.m, self.n)
+        pmat_copy(self, res)
+        pmat_scale(float(other), res)
         return res
 
-    @dispatch(pmat_)
+    __rmul__ = __mul__
+
+    def __truediv__(self, other):
+        return self * (1.0 / other)
+
+    def __neg__(self):
+        return self * -1.0
+
     def __add__(self, other):
-        if self.m != other.m or self.n != other.n:
-            raise Exception('__add__: mismatching dimensions:'
-                ' ({}, {}) + ({}, {})'.format(self.m, self.n, other.m, other.n))
         res = pmat(self.m, self.n)
-        pmat_copy(other, res)
-        pmt_gead(1.0, self, res)
+        pmat_copy(self, res)
+        pmt_gead(1.0, other, res)
         return res
 
     def __sub__(self, other):
-        if self.m != other.m or self.n != other.n:
-            raise Exception('__sub__: mismatching dimensions:'
-                ' ({}, {}) + ({}, {})'.format(self.m, self.n, other.m, other.n))
         res = pmat(self.m, self.n)
         pmat_copy(self, res)
         pmt_gead(-1.0, other, res)
@@ -261,12 +258,16 @@ def pmat_hcat(A: pmat, B: pmat, res: pmat):
 #     pmt_trsv_lunn(fact, rhs)
 #     return
 
+# rhs <= (fact fact^T)^-1 rhs, fact lower triangular. As in the C runtime
+# (the bundled BLASFEO has no dtrsm_lltn), the upper triangle of fact is
+# overwritten with the transpose of the lower one.
 def pmt_potrsm(fact: pmat, rhs: pmat):
-    # solve
-    pmt_trsm_llnn(fact, rhs)
-    fact_tran = pmat(fact.m, fact.n)
-    pmat_tran(fact, fact_tran)
-    pmt_trsm_lunn(fact_tran, rhs)
+    if fact.m != fact.n or fact.m != rhs.m:
+        raise Exception('pmt_potrsm: mismatching dimensions: ({}, {}) \\ ({}, {})'.format(
+            fact.m, fact.n, rhs.m, rhs.n))
+    bw.blasfeo_dtrsm_llnn(rhs.m, rhs.n, 1.0, fact._ref, 0, 0, rhs._ref, 0, 0, rhs._ref, 0, 0)
+    bw.blasfeo_dtrtr_l(fact.m, fact._ref, 0, 0, fact._ref, 0, 0)
+    bw.blasfeo_dtrsm_lunn(rhs.m, rhs.n, 1.0, fact._ref, 0, 0, rhs._ref, 0, 0, rhs._ref, 0, 0)
     return
 
 def pmt_potrsv(fact: pmat, rhs: pvec):
@@ -428,6 +429,9 @@ def pmt_getrf(A: pmat, fact: pmat, ipiv: list):
     return
 
 def pmt_potrf(A: pmat, fact: pmat):
+    if A.m != A.n or fact.m != A.m or fact.n != A.n:
+        raise Exception('pmt_potrf: mismatching dimensions: ({}, {}) -> ({}, {})'.format(
+            A.m, A.n, fact.m, fact.n))
     # factorize
     c_pmt_potrf(A, fact)
     return
@@ -454,3 +458,49 @@ def pmat_print(M: pmat):
     return
 
 
+
+def _check_gemm(name, ta, tb, A, B, C, D):
+    m, k = (A.n, A.m) if ta else (A.m, A.n)
+    kb, n = (B.n, B.m) if tb else (B.m, B.n)
+    if k != kb or C.m != m or C.n != n or D.m != m or D.n != n:
+        raise Exception('{}: mismatching dimensions: ({}, {}) <- ({}, {}) + ({}, {}){} x ({}, {}){}'.format(
+            name, D.m, D.n, C.m, C.n, A.m, A.n, '^T' if ta else '', B.m, B.n, '^T' if tb else ''))
+    return m, n, k
+
+# D <= beta * C + alpha * op(A) op(B), op(X) = X (n) or X^T (t)
+def pmt_gemm_ab_nn(alpha: float, A: pmat, B: pmat, beta: float, C: pmat, D: pmat):
+    m, n, k = _check_gemm('pmt_gemm_ab_nn', False, False, A, B, C, D)
+    bw.blasfeo_dgemm_nn(m, n, k, alpha, A._ref, 0, 0, B._ref, 0, 0, beta, C._ref, 0, 0, D._ref, 0, 0)
+
+def pmt_gemm_ab_nt(alpha: float, A: pmat, B: pmat, beta: float, C: pmat, D: pmat):
+    m, n, k = _check_gemm('pmt_gemm_ab_nt', False, True, A, B, C, D)
+    bw.blasfeo_dgemm_nt(m, n, k, alpha, A._ref, 0, 0, B._ref, 0, 0, beta, C._ref, 0, 0, D._ref, 0, 0)
+
+def pmt_gemm_ab_tn(alpha: float, A: pmat, B: pmat, beta: float, C: pmat, D: pmat):
+    m, n, k = _check_gemm('pmt_gemm_ab_tn', True, False, A, B, C, D)
+    bw.blasfeo_dgemm_tn(m, n, k, alpha, A._ref, 0, 0, B._ref, 0, 0, beta, C._ref, 0, 0, D._ref, 0, 0)
+
+def pmt_gemm_ab_tt(alpha: float, A: pmat, B: pmat, beta: float, C: pmat, D: pmat):
+    m, n, k = _check_gemm('pmt_gemm_ab_tt', True, True, A, B, C, D)
+    bw.blasfeo_dgemm_tt(m, n, k, alpha, A._ref, 0, 0, B._ref, 0, 0, beta, C._ref, 0, 0, D._ref, 0, 0)
+
+# A <= alpha * A
+def pmat_scale(alpha: float, A: pmat):
+    bw.blasfeo_dgesc(A.m, A.n, alpha, A._ref, 0, 0)
+
+# L L^T = A, L lower triangular (as numpy.linalg.cholesky)
+def cholesky(A: pmat):
+    if A.m != A.n:
+        raise Exception('cholesky: the matrix must be square, not ({}, {})'.format(A.m, A.n))
+    L = pmat(A.m, A.n)
+    pmt_potrf(A, L)
+    return L
+
+# X = (L L^T)^-1 B, with L from cholesky (as scipy.linalg.cho_solve)
+def cho_solve(L: pmat, B: pmat):
+    X = pmat(B.m, B.n)
+    pmat_copy(B, X)
+    fact = pmat(L.m, L.n)
+    pmat_copy(L, fact)
+    pmt_potrsm(fact, X)
+    return X

@@ -14,6 +14,10 @@ to high-performance self-contained C code easily deployable on embedded devices.
 prometeo programs can be executed from the Python interpreter.
 - __efficient__ : prometeo programs transpile to high-performance C code.
 - __statically typed__ : prometeo uses Python's native type hints to strictly enforce static typing.
+- __NumPy-like linear algebra__ : matrix expressions such as `P = Q + A.T @ P @ A - K.T @ R @ K`,
+`cholesky` and `cho_solve` are checked for size mismatches at compile time and lowered to
+BLASFEO calls, with temporaries allocated statically (see
+[`examples/sqp_mpc/sqp_mpc_hl.py`](examples/sqp_mpc/sqp_mpc_hl.py)).
 - __deterministic memory usage__ : a specific program structure is required and enforced through static analysis. In this way
 prometeo transpiled programs have a guaranteed maximum heap usage.
 - __fast memory management__ : thanks to its static analysis, prometeo can avoid allocating
@@ -86,7 +90,7 @@ def main() -> int:
         B[0, i] = 2.0
 
     C: pmat = pmat(n, n)
-    C = A * B
+    C = A @ B
     pmat_print(C)
     return 0
 ```
@@ -132,7 +136,7 @@ int main() {
 
     struct pmat * C = c_pmt_create_pmat(n, n);
     c_pmt_pmat_fill(C, 0.0);
-    c_pmt_gemm_nn(A, B, C, C);
+    c_pmt_gemm_ab_nn(1.0, A, B, 1.0, C, C);
     c_pmt_pmat_print(C);
 	___c_pmt_8_heap = callee_pmt_8_heap;
 	___c_pmt_64_heap = callee_pmt_64_heap;

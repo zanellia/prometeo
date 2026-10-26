@@ -17,6 +17,7 @@ from prometeo.mem.ast_analyzer import compute_reach_graph
 
 from copy import deepcopy
 from prometeo.frontend.normalize import normalize
+from prometeo.frontend.matexpr import lower, StripAnnotations
 from prometeo.nonlinear.casadi_codegen import mangled_name
 import prometeo.nonlinear.casadi_codegen
 
@@ -82,7 +83,8 @@ def casadi_functions_in(namespace):
 
 def check_program(filename, casadi_functions):
     """Run the static checker; print its diagnostics and return False if the
-    program is not valid prometeo code."""
+    program is not valid prometeo code, else the assignments of matrix
+    expressions to lower."""
     code = open(filename).read()
     source_lines = code.splitlines()
     try:
@@ -90,8 +92,8 @@ def check_program(filename, casadi_functions):
     except SyntaxError as e:
         print('\n\033[;1m > prometeo:\033[0;0m \033[91msyntax error\033[0;0m at {}:{}: {}'.format(
             filename, e.lineno, e.msg))
-        return False
-    diagnostics = prometeo.frontend.check(tree,
+        return None
+    diagnostics, plans = prometeo.frontend.analyze(tree,
         {name: (f.n_in, f.n_out) for name, f in casadi_functions.items()})
     for d in diagnostics:
         color = '\033[91m' if d.severity == 'error' else '\033[93m'
@@ -103,7 +105,16 @@ def check_program(filename, casadi_functions):
     errors = [d for d in diagnostics if d.severity == 'error']
     if errors:
         print('\n\033[;1m > prometeo:\033[0;0m {} error(s), exiting.\n'.format(len(errors)))
-    return not errors
+    return None if errors else plans
+
+def run_python(filename, plans):
+    """Run a program in Python: the module with its matrix expressions
+    lowered (as in the transpiled code), without type annotations."""
+    tree = lower(normalize(ast.parse(open(filename).read(), filename)), plans)
+    tree = ast.fix_missing_locations(StripAnnotations().visit(tree))
+    namespace = {'__name__': '__pmt_program__'}
+    exec(compile(tree, filename, 'exec'), namespace)
+    return namespace
 
 def str2bool(v):
     if isinstance(v, bool):
@@ -277,10 +288,15 @@ def pmt_main():
     namespace = load_module(filename)
     casadi_functions = casadi_functions_in(namespace)
 
-    if args.check and not check_program(filename, casadi_functions):
-        return 1
+    plans = {}
+    if args.check:
+        plans = check_program(filename, casadi_functions)
+        if plans is None:
+            return 1
 
     if cgen is False:
+        if plans:
+            namespace = run_python(filename, plans)
         tic = time.time()
         namespace['main']()
         toc = time.time() - tic
@@ -290,7 +306,7 @@ def pmt_main():
         pmt_path = os.path.dirname(prometeo.__file__)
         filename_ = filename.split('.')[0]
         code = strip_pure_blocks(open(filename).read())
-        tree = normalize(ast.parse(code))
+        tree = lower(normalize(ast.parse(code)), plans)
         # ap.pprint(tree)
         tree_copy = deepcopy(tree)
 

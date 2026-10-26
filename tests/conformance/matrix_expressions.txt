@@ -1,0 +1,302 @@
+### products_and_transposes
+# expect: ok
+    A : pmat = pmat(n, n)
+    B : pmat = pmat(n, 2)
+    C : pmat = pmat(n, 2)
+    D : pmat = pmat(2, n)
+    E : pmat = pmat(n, n)
+    for i in range(n):
+        A[i, i] = 2.0
+        A[0, i] = 1.0
+        B[i, 0] = 1.0
+        B[i, 1] = -0.5
+    C = A @ B
+    pmat_print(C)
+    C = A.T @ B
+    pmat_print(C)
+    D = B.T @ A
+    pmat_print(D)
+    D = B.T @ A.T
+    pmat_print(D)
+    E = B @ B.T
+    pmat_print(E)
+    D = (A @ B).T
+    pmat_print(D)
+
+### scalar_factors
+# expect: ok
+    A : pmat = pmat(n, n)
+    C : pmat = pmat(n, n)
+    s : float = 0.25
+    pmat_fill(A, 1.0)
+    A[1, 2] = 3.0
+    C = 2 * A
+    pmat_print(C)
+    C = -A + s * A.T
+    pmat_print(C)
+    C = A / s - A * 2.0
+    pmat_print(C)
+    C = -(s * A @ A) / 4.0
+    pmat_print(C)
+    C = +A
+    pmat_print(C)
+
+### factor_read_before_write
+# expect: ok
+    A : pmat = pmat(n, n)
+    B : pmat = pmat(n, n)
+    pmat_fill(A, 1.0)
+    pmat_fill(B, 2.0)
+    A[0, 0] = 3.0
+    A = A + A[0, 0] * B
+    pmat_print(A)
+    A = A[0, 0] * B @ A
+    pmat_print(A)
+
+### accumulate_in_place
+# expect: ok
+    A : pmat = pmat(n, n)
+    B : pmat = pmat(n, n)
+    C : pmat = pmat(n, n)
+    pmat_fill(A, 1.0)
+    pmat_fill(B, 0.5)
+    pmat_fill(C, 2.0)
+    C = C + A @ B
+    pmat_print(C)
+    C += A @ B.T
+    pmat_print(C)
+    C -= 2.0 * A
+    pmat_print(C)
+    C = 0.5 * C - B
+    pmat_print(C)
+
+### target_read_by_expression
+# expect: ok
+    A : pmat = pmat(n, n)
+    B : pmat = pmat(n, n)
+    for i in range(n):
+        A[i, i] = 1.0
+        A[0, i] = 2.0
+        B[i, 0] = 1.0
+    A = A @ B
+    pmat_print(A)
+    B = A.T @ B + B
+    pmat_print(B)
+    A = A.T
+    pmat_print(A)
+    A = A + A.T
+    pmat_print(A)
+    B = B @ B
+    pmat_print(B)
+
+### chains_and_parentheses
+# expect: ok
+    A : pmat = pmat(n, n)
+    B : pmat = pmat(n, n)
+    C : pmat = pmat(n, n)
+    D : pmat = pmat(n, n)
+    for i in range(n):
+        A[i, i] = 1.0
+        A[i, 0] = 0.5
+        B[0, i] = 1.0
+        B[i, i] = 2.0
+    C = A @ B @ A.T
+    pmat_print(C)
+    C = A @ (B @ A.T)
+    pmat_print(C)
+    D = (A + B) @ (A - B) - A.T @ B @ A + (B - A).T
+    pmat_print(D)
+    D = (A @ B + B).T @ A
+    pmat_print(D)
+
+### cholesky_and_cho_solve
+# expect: ok
+    A : pmat = pmat(n, n)
+    B : pmat = pmat(n, 2)
+    L : pmat = pmat(n, n)
+    X : pmat = pmat(n, 2)
+    M : pmat = pmat(n, n)
+    for i in range(n):
+        A[i, i] = 4.0
+        A[0, i] = 1.0
+        B[i, 0] = 1.0
+        B[i, 1] = 2.0
+    M = A @ A.T
+    L = cholesky(M)
+    pmat_print(L)
+    X = cho_solve(L, B)
+    pmat_print(X)
+    # L is not modified by cho_solve
+    pmat_print(L)
+    X = -cho_solve(L, B - M @ B) + B
+    pmat_print(X)
+    L = cholesky(A @ A.T + M)
+    pmat_print(L)
+    M = cho_solve(L, M).T
+    pmat_print(M)
+
+### attributes_and_list_elements
+# expect: ok
+@sizes : dimv = [[n, n]] * 3
+@class Ric:
+@    def __init__(self) -> None:
+@        self.Q : pmat = pmat(n, n)
+@        self.A : List = plist(pmat, sizes)
+@        self.P : List = plist(pmat, sizes)
+@        self.S : pmat = pmat(n, n)
+@
+@    def run(self) -> None:
+@        for i in range(n):
+@            self.Q[i, i] = 1.0
+@        for k in range(2):
+@            for i in range(n):
+@                self.A[k][i, i] = 0.5
+@                self.A[k][0, i] = 0.25
+@        self.P[2] = 2.0 * self.Q
+@        for k in range(1, -1, -1):
+@            self.P[k] = self.Q + self.A[k].T @ self.P[k + 1] @ self.A[k]
+@        self.S = self.P[0] @ self.P[1]
+@        for k in range(2):
+@            self.P[k] = self.P[k] @ self.A[k]
+@        return
+    r : Ric = Ric()
+    r.run()
+    pmat_print(r.P[0])
+    pmat_print(r.P[1])
+    pmat_print(r.S)
+    r.S = r.S.T - r.Q
+    pmat_print(r.S)
+
+### list_elements_that_may_alias
+# expect: ok
+@sizes : dimv = [[n, n]] * 2
+@class Two:
+@    def __init__(self) -> None:
+@        self.P : List = plist(pmat, sizes)
+@
+@    def mix(self, j: int) -> None:
+@        for i in range(n):
+@            self.P[0][i, i] = 2.0
+@            self.P[1][0, i] = 1.0
+@        self.P[0] = self.P[j] @ self.P[1]
+@        return
+    t : Two = Two()
+    t.mix(0)
+    pmat_print(t.P[0])
+    t.mix(1)
+    pmat_print(t.P[0])
+
+### function_arguments_without_temporaries
+# expect: ok
+@def mul_add(A: pmat, B: pmat, C: pmat) -> None:
+@    C = C + A @ B.T - 2.0 * A
+@    return
+    A : pmat = pmat(n, n)
+    B : pmat = pmat(n, n)
+    C : pmat = pmat(n, n)
+    pmat_fill(A, 1.0)
+    pmat_fill(B, 0.5)
+    mul_add(A, B, C)
+    pmat_print(C)
+
+### shape_mismatch_product
+# expect: error mismatching sizes: (3 x 3) @ (2 x 3)
+    A : pmat = pmat(n, n)
+    B : pmat = pmat(2, n)
+    C : pmat = pmat(n, n)
+    C = A @ B
+
+### shape_mismatch_sum
+# expect: error mismatching sizes: (3 x 3) + (3 x 2)
+    A : pmat = pmat(n, n)
+    B : pmat = pmat(n, 2)
+    C : pmat = pmat(n, n)
+    C = A + B
+
+### shape_mismatch_target
+# expect: error mismatching sizes: the result has 2 columns, but C has 3
+    A : pmat = pmat(n, n)
+    B : pmat = pmat(n, 2)
+    C : pmat = pmat(n, n)
+    C = A @ B
+
+### shape_mismatch_transpose
+# expect: error mismatching sizes: the result has 2 rows, but C has 3
+    B : pmat = pmat(n, 2)
+    C : pmat = pmat(n, 2)
+    C = B.T
+
+### matrix_plus_number
+# expect: error '+' between a matrix and a number is not supported
+    A : pmat = pmat(n, n)
+    C : pmat = pmat(n, n)
+    C = A + 1.0
+
+### int_factor
+# expect: error a matrix can be multiplied by a float, not by int
+    A : pmat = pmat(n, n)
+    C : pmat = pmat(n, n)
+    k : int = 2
+    C = k * A
+
+### divide_by_matrix
+# expect: error not supported (yet): dividing by a matrix
+    A : pmat = pmat(n, n)
+    C : pmat = pmat(n, n)
+    C = 1.0 / A
+
+### temporary_of_unknown_size
+# expect: error this expression needs a temporary matrix whose size is not known at compile time
+@def triple(A: pmat, B: pmat, C: pmat) -> None:
+@    C = A @ B @ A
+@    return
+    A : pmat = pmat(n, n)
+    triple(A, A, A)
+
+### cholesky_outside_expression
+# expect: error not supported (yet): cholesky outside matrix expressions
+    A : pmat = pmat(n, n)
+    B : pmat = pmat(n, n)
+    pmt_gead(1.0, cholesky(A), B)
+
+### cholesky_not_square
+# expect: error the first argument of cholesky must be square
+    A : pmat = pmat(n, 2)
+    L : pmat = pmat(n, 2)
+    L = cholesky(A)
+
+### cho_solve_arguments
+# expect: error cho_solve takes 2 matrix arguments
+    A : pmat = pmat(n, n)
+    X : pmat = pmat(n, n)
+    X = cho_solve(A)
+
+### cholesky_is_reserved
+# expect: error 'cholesky' is a built-in function and cannot be redefined
+    cholesky : float = 1.0
+
+### blocks_in_expressions
+# expect: error not supported (yet): blocks or elements of matrices in matrix expressions
+    A : pmat = pmat(n, n)
+    C : pmat = pmat(2, 2)
+    C = A[0:2, 0:2] @ A[0:2, 0:2]
+
+### calls_in_expressions
+# expect: error not supported (yet): calls in matrix expressions
+@def f(A: pmat) -> pmat:
+@    return A
+    A : pmat = pmat(n, n)
+    C : pmat = pmat(n, n)
+    C = f(A) @ A
+
+### vector_expressions
+# expect: error not supported (yet): expressions on vectors (pvec)
+    v : pvec = pvec(n)
+    w : pvec = pvec(n)
+    w = v + v
+
+### plain_matrix_is_an_alias
+# expect: error would make two pmat variables share their data
+    A : pmat = pmat(n, n)
+    C : pmat = pmat(n, n)
+    C = A

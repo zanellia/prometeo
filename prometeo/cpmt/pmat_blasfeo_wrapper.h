@@ -26,6 +26,11 @@ void c_pmt_assign_and_advance_blasfeo_dmat(int m, int n, struct blasfeo_dmat **b
 // BLAS API
 void c_pmt_gemm_nn(struct pmat *A, struct pmat *B, struct pmat *C, struct pmat *D);
 void c_pmt_gemm_ab(double alpha, struct pmat *A, struct pmat *B, double beta, struct pmat *C, struct pmat *D);
+// D <= beta * C + alpha * op(A) op(B), op(X) = X (n) or X^T (t)
+void c_pmt_gemm_ab_nn(double alpha, struct pmat *A, struct pmat *B, double beta, struct pmat *C, struct pmat *D);
+void c_pmt_gemm_ab_nt(double alpha, struct pmat *A, struct pmat *B, double beta, struct pmat *C, struct pmat *D);
+void c_pmt_gemm_ab_tn(double alpha, struct pmat *A, struct pmat *B, double beta, struct pmat *C, struct pmat *D);
+void c_pmt_gemm_ab_tt(double alpha, struct pmat *A, struct pmat *B, double beta, struct pmat *C, struct pmat *D);
 struct pmat * _c_pmt_gemm_nn(struct pmat *A, struct pmat *B);
 void c_pmt_gemm_tn(struct pmat *A, struct pmat *B, struct pmat *C, struct pmat *D);
 void c_pmt_gemm_nt(struct pmat *A, struct pmat *B, struct pmat *C, struct pmat *D);
@@ -45,6 +50,8 @@ void c_pmt_gemv_n(struct pmat *A, struct pvec *b, struct pvec *c, struct pvec *d
 
 // auxiliary
 void c_pmt_pmat_fill(struct pmat *A, double fill_value);
+// A <= alpha * A
+void c_pmt_pmat_scale(double alpha, struct pmat *A);
 // element access, inlined (as blasfeo_dgein1 and blasfeo_dgeex1)
 static inline void c_pmt_pmat_set_el(struct pmat *A, int i, int j, double value) {
     if (i == j) {

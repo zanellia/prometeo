@@ -300,10 +300,10 @@ class ProgramGenerator:
 
     def operator(self, indent):
         rng = self.rng
-        op = rng.choice(['*', '+', '-'])
+        op = rng.choice(['@', '+', '-'])
         a = self.matrix()
         r, k = self.matrices[a]
-        if op == '*':
+        if op == '@':
             b = self.matrix((k, rng.choice(['n', 'm'])))
             if b is None:
                 return self.builtin(indent)
@@ -311,8 +311,8 @@ class ProgramGenerator:
         else:
             b = self.matrix((r, k))
             target_shape = (r, k)
-        # the result must be a different matrix than the operands
-        targets = [m for m, s in self.matrices.items() if s == target_shape and m not in (a, b)]
+        # the target can also be an operand (computed through a temporary)
+        targets = [m for m, s in self.matrices.items() if s == target_shape]
         if not targets:
             return self.builtin(indent)
         self.emit(indent, '{} = {} {} {}'.format(rng.choice(targets), a, op, b))
