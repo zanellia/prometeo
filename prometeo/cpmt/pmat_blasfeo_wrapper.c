@@ -74,6 +74,8 @@ void c_pmt_gemm_nn(struct pmat *A, struct pmat *B, struct pmat *C, struct pmat *
     // blasfeo_print_dmat(mA, nA, C->bmat, 0, 0);
     // blasfeo_print_dmat(mA, nA, D->bmat, 0, 0);
 
+    if (B->bmat->m != nA || C->bmat->m != mA || C->bmat->n != nB || D->bmat->m != mA || D->bmat->n != nB)
+        c_pmt_dims_error("pmt_gemm_nn");
     blasfeo_dgemm_nn(mA, nB, nA, 1.0, bA, 0, 0, bB, 0, 0, 1, bC, 0, 0, bD, 0, 0);
 }
 
@@ -100,6 +102,9 @@ struct pmat * _c_pmt_gemm_nn(struct pmat *A, struct pmat *B) {
 
 // D <= beta * C + alpha * A * B
 void c_pmt_gemm_ab(double alpha, struct pmat *A, struct pmat *B, double beta, struct pmat *C, struct pmat *D) {
+    if (B->bmat->m != A->bmat->n || C->bmat->m != A->bmat->m || C->bmat->n != B->bmat->n ||
+            D->bmat->m != A->bmat->m || D->bmat->n != B->bmat->n)
+        c_pmt_dims_error("pmt_gemm");
     blasfeo_dgemm_nn(A->bmat->m, B->bmat->n, A->bmat->n, alpha, A->bmat, 0, 0, B->bmat, 0, 0, beta, C->bmat, 0, 0, D->bmat, 0, 0);
 }
 
@@ -146,6 +151,8 @@ void c_pmt_gemm_tn(struct pmat *A, struct pmat *B, struct pmat *C, struct pmat *
     // blasfeo_print_dmat(mA, nA, C->bmat, 0, 0);
     // blasfeo_print_dmat(mA, nA, D->bmat, 0, 0);
 
+    if (B->bmat->m != mA || C->bmat->m != nA || C->bmat->n != nB || D->bmat->m != nA || D->bmat->n != nB)
+        c_pmt_dims_error("pmt_gemm_tn");
     blasfeo_dgemm_tn(nA, nB, mA, 1.0, bA, 0, 0, bB, 0, 0, 1, bC, 0, 0, bD, 0, 0);
 }
 
@@ -164,6 +171,8 @@ void c_pmt_gemm_nt(struct pmat *A, struct pmat *B, struct pmat *C, struct pmat *
     // blasfeo_print_dmat(mA, nA, C->bmat, 0, 0);
     // blasfeo_print_dmat(mA, nA, D->bmat, 0, 0);
 
+    if (B->bmat->n != nA || C->bmat->m != mA || C->bmat->n != mB || D->bmat->m != mA || D->bmat->n != mB)
+        c_pmt_dims_error("pmt_gemm_nt");
     blasfeo_dgemm_nt(mA, mB, nA, 1.0, bA, 0, 0, bB, 0, 0, 1, bC, 0, 0, bD, 0, 0);
 }
 
@@ -181,6 +190,8 @@ void c_pmt_trmm_rlnn(struct pmat *A, struct pmat *B, struct pmat *D) {
     // blasfeo_print_dmat(mA, nA, C->bmat, 0, 0);
     // blasfeo_print_dmat(mA, nA, D->bmat, 0, 0);
 
+    if (A->bmat->m != A->bmat->n || nB != A->bmat->m || D->bmat->m != mB || D->bmat->n != nB)
+        c_pmt_dims_error("pmt_trmm_rlnn");
     blasfeo_dtrmm_rlnn(mB, nB, 1.0, bA, 0, 0, bB, 0, 0, bD, 0, 0);
 }
 
@@ -197,6 +208,9 @@ void c_pmt_syrk_ln(struct pmat *A, struct pmat *B, struct pmat *C, struct pmat *
     // blasfeo_print_dmat(mA, nA, C->bmat, 0, 0);
     // blasfeo_print_dmat(mA, nA, D->bmat, 0, 0);
 
+    if (B->bmat->m != mA || B->bmat->n != nA || C->bmat->m != mA || C->bmat->n != mA ||
+            D->bmat->m != mA || D->bmat->n != mA)
+        c_pmt_dims_error("pmt_syrk_ln");
     blasfeo_dsyrk_ln(mA, nA, 1.0, A->bmat, 0, 0, B->bmat, 0, 0, 1.0, C->bmat, 0, 0, D->bmat, 0, 0);
 }
 
@@ -205,6 +219,8 @@ void c_pmt_getrf(struct pmat *A, struct pmat *fact, int *ipiv) {
     struct blasfeo_dmat *bA = A->bmat;
     struct blasfeo_dmat *bfact = fact->bmat;
 
+    if (A->bmat->n != mA || fact->bmat->m != mA || fact->bmat->n != mA)
+        c_pmt_dims_error("pmt_getrf");
     // factorization
     blasfeo_dgetrf_rp(mA, mA, bA, 0, 0, bfact, 0, 0, ipiv);
 }
@@ -447,6 +463,9 @@ void c_pmt_pmat_hcat(struct pmat *A, struct pmat *B, struct pmat *res) {
     int mB = B->bmat->m;
     int nB = B->bmat->n;
     double value;
+
+    if (mB != mA || res->bmat->m != mA || res->bmat->n != nA + nB)
+        c_pmt_dims_error("pmat_hcat");
 
     for(int i = 0; i < mA; i++)
         for(int j = 0; j < nA; j++) {

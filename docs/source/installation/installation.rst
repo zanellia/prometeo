@@ -1,20 +1,42 @@
 Installation
 ============
 
+prometeo needs Python 3.10 or later (it is tested with 3.10 to 3.14), a C
+compiler and make.
+
 PyPI installation
 *****************
 
-prometeo can be installed through PyPI with `pip install prometeo-dsl`. Notice that, since prometeo makes extensive use of `type hints <https://docs.python.org/3.6/library/typing.html>`__ to equip Python code with static typing information, the minimum Python version required is 3.6.
+Releases are published on PyPI: ``pip install prometeo-dsl``. The features
+described in this documentation may be more recent than the latest release:
+to use them, install from source.
 
-manual installation
-*******************
+Installation from source
+************************
 
-If you want to install prometeo building the sources on your local machine you can proceed as follows:
+.. code-block:: bash
 
-- Run `git submodule update --init` to clone the submodules.
-- Run `make install_shared` from `<prometeo_root>/prometeo/cpmt` to compile and install the shared library associated with the C backend. Notice that the default installation path is `<prometeo_root>/prometeo/cpmt/install`.
-- You need Python 3.6. or later.
-- Optional: to keep things clean you can setup a virtual environment with `virtualenv --python=<path_to_python3.6> <path_to_new_virtualenv>`.
-- Run `pip install -e .` from `<prometeo_root>` to install the Python package.
+    git clone https://github.com/zanellia/prometeo.git
+    cd prometeo
+    git submodule update --init                     # BLASFEO
+    make -C prometeo/cpmt install_shared            # BLASFEO and the C runtime, into prometeo/lib
+    python3 -m venv .venv && source .venv/bin/activate
+    pip install -e .
 
-Finally, you can run the examples in `<root>/examples` with `pmt <example_name>.py --cgen=<True/False>`, where the `--cgen` flag determines whether the code is executed by the Python interpreter or C code is generated compiled and run.
+Then run the examples in ``examples/`` with ``pmt <example>.py`` (in Python)
+or ``pmt <example>.py --cgen=True`` (transpiled to C, compiled and run).
+
+BLASFEO is built for ``X64_INTEL_HASWELL`` (x86-64 with AVX2) by default. For
+other CPUs, choose its target, e.g. ``make -C prometeo/cpmt install_shared
+TARGET=GENERIC`` (any CPU; the tests and CI use it) or
+``TARGET=ARMV8A_ARM_CORTEX_A57``; the targets are listed in
+``external/blasfeo/Makefile.rule``. On larger problems the target matters:
+the AVX2 kernels are several times faster than the generic ones.
+
+Tests
+*****
+
+.. code-block:: bash
+
+    pip install -e '.[test]'
+    pytest tests

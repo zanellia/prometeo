@@ -1,125 +1,145 @@
-BLAS/LAPACK API
-====================================
+Linear algebra
+==============
 
-Below a description of prometeo's BLAS/LAPACK API can be found:
+Matrix expressions
+##################
 
-LEVEL 1 BLAS 
-############
-
-LEVEL 2 BLAS 
-############
-
-* General matrix-vector multiplication (GEMV) 
-
-.. math::
-
-
-    z \leftarrow \beta \cdot y + \alpha \cdot  \text{op}(A)  x
+The recommended way to do linear algebra in prometeo is with NumPy's syntax:
 
 .. code-block:: python
 
-    pmt_gemv(A[.T], x, [y], z, [alpha=1.0], [beta=0.0])
+    P = Q + A.T @ P_next @ A - K.T @ R @ K
+    L = cholesky(R + B.T @ P @ B)
+    K = -cho_solve(L, B.T @ P @ A)
+    K[0:n, n:] = B.T                     # blocks
+    y = A @ x + B @ u                    # vectors
+    c : float = x @ Q @ x                # dot products
+    W = U * V                            # elementwise products
 
-* Solve linear system with (lower or upper) triangular matrix coefficient (TRSV) 
+Each assignment is translated into calls of the BLASFEO-based routines below,
+with temporaries allocated statically; sizes are checked at compile time when
+they are known. See :doc:`the language reference <../language/language>`
+(section *Matrix expressions*) for the operations, the rules, and how
+expressions are translated.
 
-.. math::
+Routines
+########
 
+The routines can also be called directly, e.g. to control exactly which
+operations are performed. Matrices are ``pmat``, vectors ``pvec``; outputs
+are the last arguments, written in place. Sizes are checked (an error is
+raised in Python, the C program stops with a message).
 
-    \text{op}(A)\,x = b
-
-
-.. code-block:: python
-
-    pmt_trsv(A[.T], b, [lower=True])
-
-* Matrix-vector multiplication with (lower or upper) triangular matrix coefficient (TRMV) 
-
-.. math::
-
-
-    z \leftarrow \text{op}(A)\,x
-
-
-.. code-block:: python
-
-    pmt_trmv(A[.T], x, z, [lower=True])
-
-LEVEL 3 BLAS 
-############
-
-* General matrix-matrix multiplication (GEMM) 
-
-.. math::
-
-    D \leftarrow \beta \cdot C + \alpha \cdot \text{op}(A) \, \text{op}(B)
+Copies and printing
+*******************
 
 .. code-block:: python
 
-    pmt_gemm(A[.T], B[.T], [C], D, [alpha=1.0], [beta=0.0])
+    pmat_fill(A, value)        # A[i, j] = value
+    pmat_copy(A, B)            # B = A
+    pmat_tran(A, B)            # B = A.T (B must be a different matrix)
+    pmat_hcat(A, B, C)         # C = [A, B]
+    pvec_copy(a, b)            # b = a
+    pmat_print(A)
+    pvec_print(v)
 
-* Symmetric rank :math:`k` update (SYRK) 
+BLAS
+****
+
+* General matrix-matrix multiplication (GEMM)
 
 .. math::
 
-    D \leftarrow \beta \cdot C + \alpha \cdot \text{op}(A) \,\text{op}(B)
-    
-with :math:`C` and :math:`D` lower triangular.
+    D \leftarrow \beta \cdot C + \alpha \cdot A \, B
 
 .. code-block:: python
 
-    pmt_syrk(A[.T], B[.T], [C], D, [alpha=1.0], [beta=0.0])
+    pmt_gemm(A, B, C, D, alpha=1.0, beta=0.0)
+    pmt_gemm(A, B, D)                    # D = A B (alpha and beta also accepted)
 
-* Triangular matrix-matrix multiplication (TRMM) 
-
-.. math::
-
-    D \leftarrow \alpha \cdot B\, A^{\top}
-
-with :math:`B` upper triangular or 
-
-
-.. math::
-
-    D \leftarrow \alpha \cdot A\, B
-
-with :math:`A` lower triangular. 
+and, with :math:`D \leftarrow C + \text{op}(A) \, \text{op}(B)`:
 
 .. code-block:: python
 
-    pmt_trmm(A[.T], B, D, [alpha=1.0], [beta=0.0])
+    pmt_gemm_nn(A, B, C, D)              # D = C + A B
+    pmt_gemm_nt(A, B, C, D)              # D = C + A B^T
+    pmt_gemm_tn(A, B, C, D)              # D = C + A^T B
+
+``C`` and ``D`` can be the same matrix, ``A`` and ``B`` must be different
+from ``D``.
+
+* Matrix addition
+
+.. math::
+
+    B \leftarrow B + \alpha \cdot A
+
+.. code-block:: python
+
+    pmt_gead(alpha, A, B)
+
+* Symmetric rank :math:`k` update (SYRK)
+
+.. math::
+
+    D \leftarrow C + A \, B^{\top}
+
+computing only the lower triangle of :math:`D`.
+
+.. code-block:: python
+
+    pmt_syrk_ln(A, B, C, D)
+
+* Triangular matrix-matrix multiplication (TRMM)
+
+.. math::
+
+    D \leftarrow B \, A
+
+with :math:`A` lower triangular.
+
+.. code-block:: python
+
+    pmt_trmm_rlnn(A, B, D)
 
 LAPACK
-#######
+******
 
-
-* Cholesky factorization (POTRF) 
-
-.. math::
-
-    C = D\,D^{\top}
-
-with :math:`D` lower triangular and :math:`C` symmetric and positive definite 
-
-.. code-block:: python
-
-    pmt_potrf(C, D)
-
-* LU factorization (GETRF) 
+* Cholesky factorization (POTRF)
 
 .. math::
 
-    C = L\,P\,U
+    A = L \, L^{\top}
+
+with :math:`L` lower triangular and :math:`A` symmetric positive definite.
 
 .. code-block:: python
 
-    pmt_getr(C, D)
+    pmt_potrf(A, L)
 
-* QR factorization (GEQRF) 
+* Solution of :math:`L \, L^{\top} X = B` with the Cholesky factor (POTRS)
 
 .. math::
 
-    C = Q\,R
+    B \leftarrow (L \, L^{\top})^{-1} B
 
 .. code-block:: python
 
-    pmt_geqrf(C, D)
+    pmt_potrsm(L, B)
+
+The upper triangle of ``L`` is overwritten with the transpose of the lower
+one (``cho_solve`` in matrix expressions works on a copy).
+
+* LU factorization with row pivoting (GETRF)
+
+.. math::
+
+    P \, A = L \, U
+
+.. code-block:: python
+
+    ipiv : List = plist(int, n)
+    pmt_getrf(A, LU, ipiv)
+
+``LU`` contains :math:`L` (unit lower triangular) and :math:`U`, ``ipiv``
+the row permutation.

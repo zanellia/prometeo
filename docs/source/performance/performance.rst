@@ -6,3 +6,25 @@ Since prometeo programs transpile to pure C code that calls the high performance
 
 .. image:: ../../../benchmarks/riccati_benchmark.png
     :alt: my-picture1
+
+SQP for MPC, compared with acados
+*********************************
+
+The SQP examples (``examples/sqp_mpc``: Gauss-Newton SQP, interior-point QP
+solver with Riccati recursions, CasADi derivatives) were compared with
+`acados <https://github.com/acados/acados>`__, whose solvers are hand-written C
+on top of BLASFEO, on the same optimal control problems. With the same
+BLASFEO build (AVX2), one real-time iteration of the prometeo SQP takes about
+as long as acados' (Intel i7-1370P, average over a closed loop of 30 steps):
+
+=================  ======  =======  ========
+problem            states  acados   prometeo
+=================  ======  =======  ========
+cart-pole          4       226 us   235 us
+chain of masses    21      617 us   533 us
+chain of masses    33      1247 us  1173 us
+=================  ======  =======  ========
+
+The full results and the scripts are in
+`benchmarks/sqp_mpc <https://github.com/zanellia/prometeo/tree/master/benchmarks/sqp_mpc>`__.
+

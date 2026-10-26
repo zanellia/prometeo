@@ -441,6 +441,9 @@ def pmt_trsv_lunn(A: pmat, b: pvec):
     return
 
 def pmt_getrf(A: pmat, fact: pmat, ipiv: list):
+    if A.m != A.n or fact.m != A.m or fact.n != A.n:
+        raise Exception('pmt_getrf: mismatching dimensions: ({}, {}) -> ({}, {})'.format(
+            A.m, A.n, fact.m, fact.n))
     # create permutation vector
     c_ipiv = cast(create_string_buffer(sizeof(c_int)*A.m), POINTER(c_int))
     # factorize

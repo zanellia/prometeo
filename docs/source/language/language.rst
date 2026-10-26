@@ -297,6 +297,17 @@ Functions
   ``List`` or a class name; matrices, vectors and lists are passed by
   reference. Default values, ``*args`` and ``**kwargs`` *(not supported yet)*;
   ``dims`` arguments *(not supported yet)*.
+- Matrix and vector arguments can declare their sizes, with ``dims``
+  constants or literals:
+
+  .. code-block:: python
+
+      def lqr(A: pmat[n, n], B: pmat[n, m], K: pmat[m, n]) -> None:
+          ...
+
+  The sizes are used in the function (e.g. for the temporaries of matrix
+  expressions, which need sizes known at compile time) and checked at every
+  call. Without them, the sizes of arguments are only checked at run time.
 - The return type is ``int``, ``float``, ``pmat``, ``pvec`` or ``None``; a
   function that returns a value must end with a ``return`` statement.
 - Defining two functions (or methods) with the same name and different
