@@ -271,12 +271,14 @@ def main() -> int:
     t = h * np.arange(n_mpc + 1)
     x = np.array([np.array([0.0, 0.4, 0.0, 0.0])] + log['x'])
     fig, ax = plt.subplots(3, 1, figsize=(7, 9))
-    ax[0].plot(t, x[:, 0], label='cart position')
-    ax[0].plot(t, x[:, 1], label='pole angle')
-    for k in range(0, n_mpc, 8):
-        # predicted trajectories of the angle
-        ax[0].plot(t[k] + h * np.arange(N + 1), log['prediction'][k][:, 1], ':', color='gray')
-    ax[0].plot([], [], ':', color='gray', label='predicted angle')
+    ax[0].plot(t, x[:, 0], lw=3, alpha=0.5, label='cart position')
+    ax[0].plot(t, x[:, 1], lw=3, alpha=0.5, label='pole angle')
+    for k in range(n_mpc):
+        # the predictions made at each sampling time, on top
+        for i in range(2):
+            ax[0].plot(t[k] + h * np.arange(N + 1), log['prediction'][k][:, i], color='k',
+                lw=0.5, alpha=0.4, zorder=3)
+    ax[0].plot([], [], color='k', lw=0.5, alpha=0.4, label='predictions')
     ax[0].set_xlabel('time [s]')
     ax[0].legend()
     ax[1].step(t[:-1], log['u'], where='post')
@@ -285,6 +287,8 @@ def main() -> int:
     ax[2].semilogy(log['step'], '.-')
     ax[2].set_xlabel('SQP iteration (first solve, then one per sampling time)')
     ax[2].set_ylabel('step size')
+    for a in ax:
+        a.grid(True, alpha=0.4)
     fig.tight_layout()
     fig.savefig('cartpole_workflow.png')
     print('[python] plots saved to cartpole_workflow.png')

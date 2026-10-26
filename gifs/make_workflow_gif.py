@@ -1,6 +1,7 @@
 """Make gifs/workflow.gif: examples/python_workflow run in Python (terminal
-output and the interactive figure), then transpiled to C, with the
-computation times. Everything shown comes from actual runs.
+output and the interactive figure), then transpiled to C, with the speedup.
+Everything shown comes from actual runs; the speedup compares the program
+without its Python-only checks and plots, best of several runs.
 
 usage: python gifs/make_workflow_gif.py
 
@@ -149,26 +150,17 @@ def with_figure(background, figure):
     return img
 
 
-def summary(background, t_python, t_c):
+def speedup(background, factor):
+    """The terminal with an overlay: speedup <factor>x."""
     img = background.copy()
     draw = ImageDraw.Draw(img, 'RGBA')
-    draw.rectangle((0, 0, W, H), fill=(17, 17, 27, 200))
-    box = (W // 2 - 330, H // 2 - 140, W // 2 + 330, H // 2 + 150)
-    window(draw, box, 'same program, same numbers')
-    big = ImageFont.truetype(REGULAR.path, 26) if hasattr(REGULAR, 'path') else REGULAR
-    x, y = box[0] + 40, box[1] + 60
-    rows = [('Python', '{:.2f} s'.format(t_python), COLORS['python']),
-        ('transpiled C', '{:.2f} ms'.format(t_c * 1e3), COLORS['prompt'])]
-    for label, value, color in rows:
-        draw.text((x, y), label, fill=COLORS['fg'], font=big)
-        draw.text((box[2] - 40, y), value, fill=color, font=big, anchor='ra')
-        y += 46
-    draw.text((x, y + 6), '{:.0f}x faster'.format(t_python / t_c), fill=COLORS['prometeo'], font=big)
-    note = ['Gauss-Newton SQP, closed-loop MPC with 60 steps, without',
-        'the Python-only checks and plots (best of several runs).',
-        'Both runs print the same numbers.']
-    for i, line in enumerate(note):
-        draw.text((x, y + 60 + i * LINE), line, fill=COLORS['dim'], font=REGULAR)
+    big = ImageFont.truetype(BOLD.path, 34) if hasattr(BOLD, 'path') else BOLD
+    text = 'speedup {:.0f}x'.format(factor)
+    w = draw.textlength(text, font=big)
+    x0, y0 = W - w - 110, H - 160
+    draw.rounded_rectangle((x0, y0, x0 + w + 60, y0 + 76), 14, fill=(49, 50, 68, 235),
+        outline=COLORS['prometeo'], width=2)
+    draw.text((x0 + 30, y0 + 38), text, fill=COLORS['prometeo'], font=big, anchor='lm')
     return img
 
 
@@ -234,7 +226,9 @@ def main():
         lines = lines + [line]
         add(terminal(lines), 110 if line.strip() else 30)
     durations[-1] = 1500
-    add(summary(terminal(lines), t_python, t_c), 5000)
+    # speedup of the transpiled program, without the Python-only checks and
+    # plots (best of several runs)
+    add(speedup(terminal(lines), t_python / t_c), 5000)
 
     palette = [f.convert('P', palette=Image.ADAPTIVE, colors=128) for f in frames]
     palette[0].save(OUT, save_all=True, append_images=palette[1:], duration=durations,
