@@ -245,6 +245,25 @@ compares the numbers printed by the Python and C versions; the conformance tests
 ([`tests/conformance`](https://github.com/zanellia/prometeo/blob/master/tests/conformance)); random programs and random matrix expressions, run in Python and C and
 checked against NumPy; and the SQP examples against IPOPT.
 
+### Citing
+
+If you use prometeo in your work, please cite Chapter 7, "prometeo: a domain specific language for embedded
+high-performance computing", of the following PhD thesis:
+
+A. Zanelli. *Inexact Methods for Nonlinear Model Predictive Control: Stability, Applications, and Software*.
+PhD thesis, University of Freiburg, 2021. [doi:10.6094/UNIFR/224926](https://doi.org/10.6094/UNIFR/224926)
+
+```bibtex
+@phdthesis{Zanelli2021,
+  author  = {Zanelli, Andrea},
+  title   = {Inexact Methods for Nonlinear Model Predictive Control: Stability, Applications, and Software},
+  school  = {University of Freiburg},
+  year    = {2021},
+  doi     = {10.6094/UNIFR/224926},
+  note    = {Chapter 7: prometeo: a domain specific language for embedded high-performance computing}
+}
+```
+
 ### How does it work?
 
 Although translating a program written in a language into another with
